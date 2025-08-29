@@ -1,6 +1,20 @@
 # PongPing - Update History
 
-## Version 0.7.3 (Current)
+## Version 0.7.4 (Current)
+
+### UI/UX Enhancements
+- **Added developer signature** "by Gava" in bottom-left corner
+  - Appears on all game screens (menu, settings, gameplay, pause, game over, background selection)
+  - Uses Space Mono font with semi-transparent gray styling
+  - Positioned consistently across all states for brand recognition
+
+### Build System Fixes
+- **Fixed macOS jpackage compatibility**
+  - Removed problematic version parameter for macOS DMG generation
+  - macOS now uses automatic version assignment to avoid build errors
+  - Maintained version control for Windows and Linux builds
+
+## Version 0.7.3
 
 ### GitHub Actions & CI/CD
 - **Added comprehensive GitHub Actions workflow** (`build-app.yml`)
