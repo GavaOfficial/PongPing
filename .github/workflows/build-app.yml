@@ -1,0 +1,202 @@
+name: Build PongPing App
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  APP_VERSION: "0.7.3"
+
+jobs:
+  build-jar:
+    name: Build JAR
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Compile Java Application
+      run: |
+        javac PongGame.java
+
+    - name: Create JAR
+      shell: bash
+      run: |
+        mkdir -p dist
+        if [ "$(ls -A music/ 2>/dev/null)" ]; then
+          jar cfe dist/PongGame.jar PongGame *.class font temi music icon.png lingue
+        else
+          jar cfe dist/PongGame.jar PongGame *.class font temi icon.png lingue
+        fi
+    - name: Upload JAR Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PongPing-JAR
+        path: dist/PongGame.jar
+        if-no-files-found: error
+        compression-level: 6
+        retention-days: 30
+
+  build-apps:
+    name: Build ${{ matrix.platform }} App
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            installer_ext: deb
+          - os: macos-latest
+            platform: macos
+            installer_ext: dmg
+          - os: windows-latest
+            platform: windows
+            installer_ext: exe
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Compile Java Application
+      run: |
+        javac PongGame.java
+
+    - name: Create JAR
+      shell: bash
+      run: |
+        mkdir -p dist
+        # All platforms: Include assets in JAR
+        if [ "$(ls -A music/ 2>/dev/null)" ]; then
+          jar cfe dist/PongGame.jar PongGame *.class font temi music icon.png lingue
+        else
+          jar cfe dist/PongGame.jar PongGame *.class font temi icon.png lingue
+        fi
+        echo "JAR created with assets included"
+
+    - name: Create App (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        jpackage \
+          --input dist \
+          --name "PongPing" \
+          --main-jar PongGame.jar \
+          --main-class PongGame \
+          --type dmg \
+          --dest . \
+          --app-version "${{ env.APP_VERSION }}" \
+          --description "PongPing - Enhanced Pong Game" \
+          --vendor "Gava" \
+          --icon icon.icns \
+          --license-file LICENSE
+        
+        echo "DMG created successfully by jpackage"
+        ls -la *.dmg
+        
+        # Verify Info.plist for Launchpad compatibility
+        echo "Checking Info.plist for Launchpad compatibility..."
+        if [ -f "PongPing-1.0.0.dmg" ]; then
+          hdiutil attach PongPing-1.0.0.dmg -mountpoint /tmp/PongPing_mount
+          if [ -f "/tmp/PongPing_mount/PongPing.app/Contents/Info.plist" ]; then
+            echo "Info.plist contents:"
+            plutil -p /tmp/PongPing_mount/PongPing.app/Contents/Info.plist | grep -E "(CFBundleVersion|CFBundleShortVersionString|CFBundleIdentifier)"
+          fi
+          hdiutil detach /tmp/PongPing_mount
+        fi
+
+    - name: Create App (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        # Build app content list for jpackage
+        APP_CONTENT="temi,font,lingue,icon.png"
+        
+        # Add music folder if it exists and has content
+        if [ -d "music" ] && [ "$(ls -A music/)" ]; then
+          APP_CONTENT="$APP_CONTENT,music"
+        fi
+        
+        echo "Including app content: $APP_CONTENT"
+        
+        jpackage \
+          --input dist \
+          --name "PongPing" \
+          --main-jar PongGame.jar \
+          --main-class PongGame \
+          --type deb \
+          --dest . \
+          --app-version "${{ env.APP_VERSION }}" \
+          --description "PongPing - Enhanced Pong Game" \
+          --vendor "Gava" \
+          --icon icon.png \
+          --app-content "$APP_CONTENT" \
+          --linux-shortcut \
+          --linux-menu-group "Games" \
+          --license-file LICENSE
+
+    - name: Create App (Windows)
+      if: matrix.platform == 'windows'
+      shell: powershell
+      run: |
+        # Build app content list for jpackage
+        $appContent = "temi,font,lingue,icon.png"
+        
+        # Add music folder if it exists and has content
+        if ((Test-Path "music") -and (Get-ChildItem "music" -ErrorAction SilentlyContinue)) {
+          $appContent += ",music"
+        }
+        
+        Write-Host "Including app content: $appContent"
+        
+        jpackage `
+          --input dist `
+          --name "PongPing" `
+          --main-jar PongGame.jar `
+          --main-class PongGame `
+          --type exe `
+          --dest . `
+          --app-version "${{ env.APP_VERSION }}" `
+          --description "PongPing - Enhanced Pong Game" `
+          --vendor "Gava" `
+          --icon icon.ico `
+          --app-content $appContent `
+          --win-menu `
+          --win-menu-group "Games" `
+          --win-shortcut `
+          --license-file LICENSE
+
+    - name: Find App File
+      shell: bash
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          echo "APP_FILE=$(ls *.deb)" >> $GITHUB_ENV
+        elif [ "${{ matrix.platform }}" = "macos" ]; then
+          echo "APP_FILE=$(ls *.dmg)" >> $GITHUB_ENV  
+        elif [ "${{ matrix.platform }}" = "windows" ]; then
+          echo "APP_FILE=$(ls *.exe)" >> $GITHUB_ENV
+        fi
+        echo "Found app file: ${{ env.APP_FILE }}"
+
+    - name: Upload App Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PongPing-App-${{ matrix.platform }}
+        path: ${{ env.APP_FILE }}
+        if-no-files-found: error
+        compression-level: 6
+        retention-days: 30

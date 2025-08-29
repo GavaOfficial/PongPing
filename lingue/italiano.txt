@@ -1,0 +1,386 @@
+# File di localizzazione Italiano per PongPing
+# Formato: CHIAVE=VALORE
+
+# Menu principale
+MENU_SINGLE_PLAYER=GIOCATORE SINGOLO
+MENU_TWO_PLAYERS=DUE GIOCATORI
+MENU_HISTORY=CRONOLOGIA
+MENU_SETTINGS=IMPOSTAZIONI
+MENU_EXIT=ESCI
+
+# History screen
+HISTORY_TITLE=CRONOLOGIA PARTITE
+HISTORY_INSTRUCTIONS=Usa ↑/↓ per scorrere, ESC per tornare al menu
+HISTORY_EMPTY=Nessuna partita giocata ancora
+HISTORY_DATE=Data
+HISTORY_MODE=Modalità
+HISTORY_SCORE=Punteggio
+HISTORY_WINNER=Vincitore
+HISTORY_RALLIES=Rally
+HISTORY_DURATION=Durata
+HISTORY_DIFFICULTY=Difficoltà
+HISTORY_SCROLL_UP=Scorri su
+HISTORY_SCROLL_DOWN=Scorri giù
+
+# Categorie impostazioni
+SETTINGS_DIFFICULTY=DIFFICOLTÀ
+SETTINGS_PADDLE=IMPOSTAZIONI PADDLE
+SETTINGS_CONTROLS=CONTROLLI
+SETTINGS_AUDIO=AUDIO
+SETTINGS_LANGUAGE=LINGUA
+
+# Opzioni impostazioni
+SETTING_AI_DIFFICULTY=DIFFICOLTÀ IA
+SETTING_PADDLE_SPEED=VELOCITÀ PADDLE
+SETTING_BALL_SPEED=VELOCITÀ PALLA
+SETTING_P1_UP=TASTO G1 SU
+SETTING_P1_DOWN=TASTO G1 GIÙ
+SETTING_P2_UP=TASTO G2 SU
+SETTING_P2_DOWN=TASTO G2 GIÙ
+SETTING_MUSIC_VOLUME=VOLUME MUSICA
+SETTING_EFFECTS_VOLUME=VOLUME EFFETTI
+SETTING_MUSIC_ACTIVE=MUSICA ATTIVA
+SETTING_GAME_LANGUAGE=LINGUA GIOCO
+UI_ON=ATTIVA
+UI_OFF=DISATTIVA
+
+# Opzioni velocità paddle
+PADDLE_SPEED_SLOW=LENTA
+PADDLE_SPEED_MEDIUM=MEDIA
+PADDLE_SPEED_FAST=VELOCE
+
+# Opzioni difficoltà IA
+AI_DIFFICULTY_EASY=FACILE
+AI_DIFFICULTY_NORMAL=NORMALE
+AI_DIFFICULTY_HARD=DIFFICILE
+AI_DIFFICULTY_EXPERT=ESPERTO
+AI_DIFFICULTY_IMPOSSIBLE=IMPOSSIBILE
+
+# Temi sfondo
+BACKGROUND_DEFAULT=Predefinito (Nero)
+BACKGROUND_NONE=Nessuno Sfondo
+
+# Temi paddle
+PADDLE_THEME_BLUE_DEFAULT=Predefinito (Gradiente Blu)
+PADDLE_THEME_RED_DEFAULT=Predefinito (Gradiente Rosso)
+PADDLE_THEME_DEFAULT=Predefinito (Gradiente)
+PADDLE_DEFAULT_BLUE_GRADIENT=Predefinito Blu
+
+# Gioco
+GAME_PAUSE=PAUSA
+GAME_PAUSE_RESUME=Premi SPAZIO per riprendere
+GAME_PAUSE_EXIT=Premi ESC per uscire al menu
+GAME_WINNER=VINCE
+GAME_PLAYER1=GIOCATORE 1
+GAME_PLAYER2=GIOCATORE 2
+GAME_AI=IA
+
+# Messaggi motivazionali pausa - Perdendo male
+MSG_DEVASTATION_1=Il massacro continua...
+MSG_DEVASTATION_2=Questa non e una partita, e una lezione!
+MSG_DEVASTATION_3=L'IA ti sta umiliando pubblicamente!
+MSG_DEVASTATION_4=Stai battendo record negativi!
+MSG_DEVASTATION_5=La paddle sembra decorativa a questo punto
+MSG_DEVASTATION_6=L'IA sta pensando ad altro mentre ti batte
+MSG_DEVASTATION_7=Neanche i bambini di 3 anni fanno cosi male!
+MSG_DEVASTATION_8=Stai battendo tutti i record... di sconfitta!
+
+# Messaggi motivazionali pausa - Performance terribile  
+MSG_DESTRUCTION_1=Qui ti serve un miracolo!
+MSG_DESTRUCTION_2=L'IA ti ha gia sconfitto mentalmente!
+MSG_DESTRUCTION_3=Ogni punto e una sofferenza!
+MSG_DESTRUCTION_4=La rimonta e matematicamente difficile!
+MSG_DESTRUCTION_5=Stai collezionando solo umiliazioni!
+MSG_DESTRUCTION_6=L'IA non fa neanche fatica a batterti!
+MSG_DESTRUCTION_7=Ogni tiro dell'IA e un goal!
+MSG_DESTRUCTION_8=La paddle e solo per decorazione?
+MSG_DESTRUCTION_9=L'IA non fa neanche fatica!
+MSG_DESTRUCTION_10=Prova a diminuire la difficolta...
+
+# Messaggi motivazionali pausa - Prestazione terribile
+MSG_TERRIBLE_1=Un punto di consolazione...
+MSG_TERRIBLE_2=Almeno non hai fatto zero!
+MSG_TERRIBLE_3=Quel punto te lo sei meritato?
+MSG_TERRIBLE_4=L'IA ti ha regalato quel punto?
+MSG_TERRIBLE_5=Prestazione da dimenticare!
+MSG_TERRIBLE_6=Un punto fortunoso non cambia la sostanza
+MSG_TERRIBLE_7=L'IA stava forse distratta?
+
+# Messaggi motivazionali pausa - Performance molto scarsa
+MSG_VERY_BAD_1=Solo pochi punti? Puoi fare di meglio!
+MSG_VERY_BAD_2=L'IA ti sta dominando facilmente!
+MSG_VERY_BAD_3=Devi svegliare i tuoi riflessi!
+MSG_VERY_BAD_4=La concentrazione e completamente assente!
+MSG_VERY_BAD_5=Stai reagendo troppo tardi!
+MSG_VERY_BAD_6=I tuoi riflessi sono addormentati!
+MSG_VERY_BAD_7=Concentrati di piu sulla palla!
+MSG_VERY_BAD_8=Stai perdendo ogni duello!
+MSG_VERY_BAD_9=L'IA ti anticipa sempre!
+
+# Messaggi motivazionali pausa - Indietro di tanto
+MSG_CATASTROPHIC_1=Rimonta impossibile a questo punto!
+MSG_CATASTROPHIC_2=L'IA ti ha surclassato completamente!
+MSG_CATASTROPHIC_3=Questa e una dimostrazione di superiorita!
+MSG_CATASTROPHIC_4=Sei stato travolto dalla superiorita dell'IA!
+MSG_CATASTROPHIC_5=Non c'e partita, solo dominio!
+MSG_CATASTROPHIC_6=Questo e dominio totale!
+MSG_CATASTROPHIC_7=Sei stato completamente surclassato!
+MSG_CATASTROPHIC_8=La differenza di classe e evidente!
+MSG_CATASTROPHIC_9=L'IA sta giocando in un'altra categoria!
+
+# Messaggi motivazionali pausa - Molto indietro
+MSG_WAY_BEHIND_1=Concentrati di piu!
+MSG_WAY_BEHIND_2=La situazione e critica!
+MSG_WAY_BEHIND_3=Devi trovare una soluzione velocemente!
+MSG_WAY_BEHIND_4=L'IA ti sta mettendo all'angolo!
+MSG_WAY_BEHIND_5=Reagisci prima che sia troppo tardi!
+MSG_WAY_BEHIND_6=La rimonta diventa sempre piu difficile!
+MSG_WAY_BEHIND_7=Ogni punto perso pesa di piu!
+MSG_WAY_BEHIND_8=Devi cambiare strategia!
+MSG_WAY_BEHIND_9=L'IA ti sta dominando mentalmente!
+MSG_WAY_BEHIND_10=Ritrova la concentrazione perduta!
+
+# Messaggi motivazionali pausa - Indietro
+MSG_BEHIND_1=Rimonta possibile!
+MSG_BEHIND_2=Non e ancora finita!
+MSG_BEHIND_3=Puoi recuperare!
+MSG_BEHIND_4=L'IA non e imbattibile!
+MSG_BEHIND_5=Concentrazione e determinazione!
+MSG_BEHIND_6=Un punto alla volta!
+MSG_BEHIND_7=La vittoria e ancora alla portata!
+MSG_BEHIND_8=Riduci il distacco punto dopo punto!
+MSG_BEHIND_9=L'IA non e imbattibile!
+MSG_BEHIND_10=Credi nella rimonta!
+
+# Messaggi motivazionali pausa - Dominio perfetto
+MSG_PERFECT_1=Perfetto! Sei imbattibile!
+MSG_PERFECT_2=L'IA non sa come fermarti!
+MSG_PERFECT_3=Dominio totale e assoluto!
+MSG_PERFECT_4=Prestazione da campione mondiale!
+MSG_PERFECT_5=L'IA e completamente impotente!
+MSG_PERFECT_6=Hai raggiunto la perfezione!
+MSG_PERFECT_7=Ogni tuo movimento e perfetto!
+MSG_PERFECT_8=Spettacolo puro di abilita!
+MSG_PERFECT_9=Prestazione leggendaria!
+MSG_PERFECT_10=L'IA non tocca palla!
+MSG_PERFECT_11=Maestria assoluta!
+
+# Messaggi motivazionali pausa - Dominio eccellente
+MSG_EXCELLENT_1=Eccellente! Continua cosi!
+MSG_EXCELLENT_2=L'IA e sotto il tuo controllo!
+MSG_EXCELLENT_3=Prestazione di altissimo livello!
+MSG_EXCELLENT_4=Dominio quasi perfetto!
+MSG_EXCELLENT_5=Sei in controllo totale!
+MSG_EXCELLENT_6=L'IA sta subendo la tua superiorita!
+MSG_EXCELLENT_7=Gioco spettacolare!
+MSG_EXCELLENT_8=Dimostrazione di forza!
+
+# Messaggi motivazionali pausa - Grande prestazione
+MSG_GREAT_1=Ottimo gioco! Continua cosi!
+MSG_GREAT_2=Stai dominando la partita!
+MSG_GREAT_3=L'IA e in difficolta!
+MSG_GREAT_4=Prestazione eccellente!
+MSG_GREAT_5=Mantieni il vantaggio!
+MSG_GREAT_6=Stai giocando benissimo!
+MSG_GREAT_7=L'IA non riesce a tenere il passo!
+MSG_GREAT_8=Controllo della situazione perfetto!
+MSG_GREAT_9=L'IA e sotto pressione!
+MSG_GREAT_10=Dimostrando una superiorita netta!
+
+# Messaggi motivazionali pausa - Buona prestazione
+MSG_GOOD_1=Buon vantaggio! Non mollare!
+MSG_GOOD_2=Stai andando bene!
+MSG_GOOD_3=L'IA e in affanno!
+MSG_GOOD_4=Mantieni questo ritmo!
+MSG_GOOD_5=L'IA deve inseguire!
+MSG_GOOD_6=Sei sulla strada giusta!
+MSG_GOOD_7=Vantaggio meritato!
+
+# Messaggi motivazionali pausa - Leggero vantaggio
+MSG_SLIGHT_1=Un punto di vantaggio! Mantienilo!
+MSG_SLIGHT_2=Sei in vantaggio di misura!
+MSG_SLIGHT_3=L'IA ti insegue da vicino!
+MSG_SLIGHT_4=Vantaggio minimo ma prezioso!
+MSG_SLIGHT_5=Non lasciare scappare il vantaggio!
+MSG_SLIGHT_6=Ogni punto e cruciale ora!
+MSG_SLIGHT_7=L'IA vuole il pareggio!
+MSG_SLIGHT_8=Difendi il vantaggio!
+
+# Messaggi motivazionali pausa - Pareggio
+MSG_TIE_1=Perfetta parita! Chi vincera?
+MSG_TIE_2=Equilibrio di forze!
+MSG_TIE_3=Partita apertissima!
+MSG_TIE_4=Nessuno vuole cedere!
+MSG_TIE_5=Situazione di stallo!
+MSG_TIE_6=Match point per entrambi!
+MSG_TIE_7=Chi rompe l'equilibrio?
+MSG_TIE_8=Tensione alle stelle!
+MSG_TIE_9=Duello alla pari!
+MSG_TIE_10=Equilibrio perfetto di forze!
+
+# Messaggi motivazionali pausa - Inizio partita
+MSG_EARLY_1=La partita e appena iniziata!
+MSG_EARLY_2=Primi scambi di studio!
+MSG_EARLY_3=Fase di riscaldamento!
+MSG_EARLY_4=Fase di studio reciproco!
+MSG_EARLY_5=I primi punti sono cruciali!
+MSG_EARLY_6=Che cominci lo spettacolo!
+MSG_EARLY_7=Riscaldamento terminato!
+
+# Messaggi motivazionali pausa - Fine partita serrata
+MSG_LATE_CLOSE_1=Finale thrilling!
+MSG_LATE_CLOSE_2=Chi ha i nervi piu saldi?
+MSG_LATE_CLOSE_3=Ogni punto vale oro!
+MSG_LATE_CLOSE_4=Partita che si decide ora!
+MSG_LATE_CLOSE_5=Tensione massima!
+MSG_LATE_CLOSE_6=Il momento della verita!
+MSG_LATE_CLOSE_7=Finale al cardiopalma!
+MSG_LATE_CLOSE_8=Chi vuole la vittoria di piu?
+MSG_LATE_CLOSE_9=Punto decisivo in arrivo!
+MSG_LATE_CLOSE_10=Nervi d'acciaio necessari!
+
+# Messaggi motivazionali pausa - Dominio su FACILE
+MSG_EASY_DOM_1=Troppo facile per te!
+MSG_EASY_DOM_2=Aumenta la difficolta per divertirti!
+MSG_EASY_DOM_3=Sei pronto per una sfida maggiore!
+MSG_EASY_DOM_4=Difficolta FACILE superata brillantemente!
+MSG_EASY_DOM_5=Tempo di alzare l'asticella!
+
+# Messaggi motivazionali pausa - Dominio su NORMALE
+MSG_NORMAL_DOM_1=NORMALE e troppo semplice per te!
+MSG_NORMAL_DOM_2=Livello superato!
+MSG_NORMAL_DOM_3=Hai superato il livello NORMALE!
+MSG_NORMAL_DOM_4=L'IA NORMALE e sotto il tuo livello!
+MSG_NORMAL_DOM_5=Sfida te stesso con DIFFICILE!
+MSG_NORMAL_DOM_6=Tempo di una sfida piu seria!
+
+# Messaggi motivazionali pausa - Bene su DIFFICILE
+MSG_DIFFICULT_GOOD_1=Bravo! DIFFICILE e tosta ma ce la fai!
+MSG_DIFFICULT_GOOD_2=Tieni testa all'IA avanzata!
+MSG_DIFFICULT_GOOD_3=DIFFICILE ma non per te!
+MSG_DIFFICULT_GOOD_4=Stai battendo l'IA avanzata!
+MSG_DIFFICULT_GOOD_5=Talento e allenamento pagano!
+MSG_DIFFICULT_GOOD_6=L'IA DIFFICILE ti rispetta!
+
+# Messaggi motivazionali pausa - Bene su ESPERTO
+MSG_EXPERT_GOOD_1=Incredibile! Stai battendo l'ESPERTO!
+MSG_EXPERT_GOOD_2=L'IA ESPERTO e sorpresa!
+MSG_EXPERT_GOOD_3=Prestazione da professionista!
+MSG_EXPERT_GOOD_4=L'IA ESPERTO non sa come fermarti!
+MSG_EXPERT_GOOD_5=Sei diventato un maestro!
+MSG_EXPERT_GOOD_6=Livello ESPERTO sotto controllo!
+MSG_EXPERT_GOOD_7=Prestazione leggendaria!
+
+# Messaggi motivazionali pausa - Punti contro IMPOSSIBILE
+MSG_IMPOSSIBLE_1=IMPOSSIBILE? Non per te!
+MSG_IMPOSSIBLE_2=Hai fatto l'impensabile!
+MSG_IMPOSSIBLE_3=L'IA IMPOSSIBILE e sotto pressione!
+MSG_IMPOSSIBLE_4=Miracolo sportivo in corso!
+MSG_IMPOSSIBLE_5=Stai scrivendo la storia!
+MSG_IMPOSSIBLE_6=L'IA IMPOSSIBILE e sotto shock!
+MSG_IMPOSSIBLE_7=Hai reso possibile l'impossibile!
+MSG_IMPOSSIBLE_8=Leggenda in azione!
+MSG_IMPOSSIBLE_9=L'IMPOSSIBILE incontra il suo maestro!
+
+# Messaggi motivazionali pausa - Perdere contro FACILE
+MSG_EASY_FAIL_1=Perdere contro FACILE? Davvero?
+MSG_EASY_FAIL_2=L'IA FACILE e troppo per te?
+MSG_EASY_FAIL_3=Anche FACILE e troppo per te?
+MSG_EASY_FAIL_4=Forse e meglio un tutorial?
+MSG_EASY_FAIL_5=L'IA FACILE e impietosa!
+MSG_EASY_FAIL_6=Incredibile ma vero... perdi in FACILE!
+
+# Messaggi motivazionali pausa - Citazioni ispirazionali
+MSG_INSPIRATIONAL_1=Il talento vince le partite, ma il lavoro di squadra vince i campionati!
+MSG_INSPIRATIONAL_2=Non importa quante volte cadi, importa quante volte ti rialzi!
+MSG_INSPIRATIONAL_3=Il successo e la somma di piccoli sforzi ripetuti giorno dopo giorno!
+MSG_INSPIRATIONAL_4=La differenza tra l'ordinario e lo straordinario e quel piccolo extra!
+MSG_INSPIRATIONAL_5=Champions keep playing until they get it right!
+MSG_INSPIRATIONAL_6=I campioni si allenano, i perdenti si lamentano!
+MSG_INSPIRATIONAL_7=La vittoria appartiene a chi ci crede di piu e ci crede piu a lungo!
+MSG_INSPIRATIONAL_8=Non puoi mettere un limite a niente. Piu sogni, piu lontano arriverai!
+MSG_INSPIRATIONAL_9=Il duro lavoro batte il talento quando il talento non lavora duro!
+MSG_INSPIRATIONAL_10=Se puoi sognarlo, puoi farlo!
+MSG_INSPIRATIONAL_11=L'unico modo per fare un ottimo lavoro e amare quello che fai!
+MSG_INSPIRATIONAL_12=Non aspettare l'opportunita. Creala!
+MSG_INSPIRATIONAL_13=Il fallimento e solo l'opportunita di ricominciare in modo piu intelligente!
+MSG_INSPIRATIONAL_14=La motivazione ti fa iniziare. L'abitudine ti fa continuare!
+MSG_INSPIRATIONAL_15=Ieri e storia, domani e un mistero, oggi e un dono!
+MSG_INSPIRATIONAL_16=Il successo e andare di fallimento in fallimento senza perdere l'entusiasmo!
+MSG_INSPIRATIONAL_17=Non importa quanto lentamente vai, purche non ti fermi!
+MSG_INSPIRATIONAL_18=Ogni esperto e stato una volta un principiante!
+MSG_INSPIRATIONAL_19=La strada per il successo e sempre in costruzione!
+MSG_INSPIRATIONAL_20=Non e mai troppo tardi per essere cio che avresti voluto essere!
+
+# Primo Accesso
+FIRST_ACCESS_TITLE=PONG PING
+FIRST_ACCESS_SUBTITLE=Il classico gioco rivisitato
+FIRST_ACCESS_START=Premi INVIO per iniziare
+
+# Interfaccia generale
+UI_PRESS_ENTER=Premi INVIO
+UI_PRESS_ESC=Premi ESC per tornare
+UI_ESC_BACKSPACE_HOME=Premi ESC/BACKSPACE per tornare alla home
+UI_ESC_BACKSPACE_BACK=Premi ESC/BACKSPACE per tornare indietro
+UI_ESC_BACKSPACE_EXIT=Premi ESC/BACKSPACE per uscire
+UI_YES=SI
+UI_NO=NO
+UI_ON=ATTIVO
+UI_OFF=INATTIVO
+
+# Selezione temi
+THEME_SELECTION_TITLE=SELEZIONE TEMI
+THEME_DEFAULT=Predefinito
+
+# Nomi paddle - Blu
+PADDLE_BLUE_POND_LILY=Ninfea Blu
+PADDLE_CORALS_FANS=Ventagli di Corallo
+PADDLE_DARK_CAVERN_CYAN=Caverna Ciano Scura
+PADDLE_DIAGONAL_RAIN=Pioggia Diagonale
+PADDLE_DUNE_BLUE_SHADOWS=Ombre Blu delle Dune
+PADDLE_GLOWING_CYAN_BELL=Campana Ciano Luminosa
+PADDLE_ICE_SLABS_BLUE=Lastre di Ghiaccio Blu
+PADDLE_MORPHO_WINGS_CYAN=Ali di Morpho Ciano
+PADDLE_NAVY_SEA_SAILS=Vele del Mare Blu
+PADDLE_NAVY_SKY_BRANCH=Ramo del Cielo Blu
+PADDLE_NAVY_STORM_CLOUDS=Nuvole di Tempesta Blu
+PADDLE_SKYLINE_LAYERS=Strati dell'Orizzonte
+PADDLE_STAINED_GLASS_TEAL=Vetro Colorato Turchese
+PADDLE_STYLIZED_NAVY_SEA=Mare Blu Stilizzato
+PADDLE_TEAL_INDIGO_VIOLET=Turchese Indaco Viola
+PADDLE_TREE_SILHOUETTES=Sagome di Alberi
+PADDLE_TURQUOISE_STREAM=Ruscello Turchese
+PADDLE_TURQUOISE_WATER=Acqua Turchese
+PADDLE_VERTICAL_TEAL_LIGHTS=Luci Turchesi Verticali
+PADDLE_WARM_BLUE_SKY=Cielo Blu Caldo
+PADDLE_WARM_SKY_VIOLET=Cielo Viola Caldo
+PADDLE_WAVY_TEAL_RIBBONS=Nastri Turchesi Ondulati
+PADDLE_WHITE_COBALT_BLUE=Cobalto Bianco Blu
+PADDLE_WHITE_FOAM_BAND=Banda di Schiuma Bianca
+PADDLE_WISPY_CLOUDS=Nuvole Sottili
+
+# Nomi paddle - Rosso
+PADDLE_BROKEN_STRIPES=Strisce Spezzate
+PADDLE_DARK_BOARD_BRIGHT=Tavola Scura Luminosa
+PADDLE_DEEP_SPACE_MAGENTA=Magenta dello Spazio Profondo
+PADDLE_DETAILED_SPRITE=Spiritello Dettagliato
+PADDLE_DIAGONAL_RED_LASER=Laser Rosso Diagonale
+PADDLE_GLOSSY_RED=Rosso Lucido
+PADDLE_GOOEY_JELLY=Gelatina Appiccicosa
+PADDLE_HORIZONTAL_SCAN=Scansione Orizzontale
+PADDLE_MOLTEN_LAVA=Lava Fusa
+PADDLE_STYLIZED_FLAME=Fiamma Stilizzata
+PADDLE_SWIRLING_SPARKLES=Scintille Vorticose
+PADDLE_TRANSLUCENT_RUBY=Rubino Traslucido
+PADDLE_VERTICAL_CRIMSON_BOLT=Fulmine Cremisi Verticale
+PADDLE_WARM_CORAL_SKY=Cielo Corallo Caldo
+
+# Date relative per le card della cronologia
+DATE_TODAY=Oggi
+DATE_YESTERDAY=Ieri
+
+# Istruzioni delle impostazioni
+SETTINGS_PRESS_ENTER_TEST=Premi INVIO per testare
+SETTINGS_PRESS_ARROWS_PADDLE=Premi ← → per velocità paddle
+SETTINGS_PRESS_SPACE_CHANGE=Premi spazio per cambiare
+SETTINGS_PRESS_ENTER_CONTINUE=Premi INVIO per continuare

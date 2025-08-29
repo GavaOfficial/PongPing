@@ -1,0 +1,18 @@
+# Text Color Configuration for Natura Theme
+# Format: textType=color
+# Available colors: white, black, custom
+# If custom is used, format as: textType=custom,R,G,B
+
+# Menu text colors
+menuTitle=white
+menuItems=white
+
+# Game text colors
+gameScores=white
+gameStats=white
+gameControls=white
+
+# Settings text colors
+settingsTitle=white
+settingsLabels=white
+settingsValues=white

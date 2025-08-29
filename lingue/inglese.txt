@@ -1,0 +1,272 @@
+# English localization file for PongPing
+# Format: KEY=VALUE
+
+# Main menu
+MENU_SINGLE_PLAYER=SINGLE PLAYER
+MENU_TWO_PLAYERS=TWO PLAYERS
+MENU_HISTORY=HISTORY
+MENU_SETTINGS=SETTINGS
+MENU_EXIT=EXIT
+
+# History screen
+HISTORY_TITLE=GAME HISTORY
+HISTORY_INSTRUCTIONS=Use ↑/↓ to scroll, ESC to return to menu
+HISTORY_EMPTY=No games played yet
+HISTORY_DATE=Date
+HISTORY_MODE=Mode
+HISTORY_SCORE=Score
+HISTORY_WINNER=Winner
+HISTORY_RALLIES=Rallies
+HISTORY_DURATION=Duration
+HISTORY_DIFFICULTY=Difficulty
+HISTORY_SCROLL_UP=Scroll up
+HISTORY_SCROLL_DOWN=Scroll down
+
+# Settings categories
+SETTINGS_DIFFICULTY=DIFFICULTY
+SETTINGS_PADDLE=PADDLE SETTINGS
+SETTINGS_CONTROLS=CONTROLS
+SETTINGS_AUDIO=AUDIO
+SETTINGS_LANGUAGE=LANGUAGE
+
+# Settings options
+SETTING_AI_DIFFICULTY=AI DIFFICULTY
+SETTING_PADDLE_SPEED=PADDLE SPEED
+SETTING_BALL_SPEED=BALL SPEED
+SETTING_P1_UP=P1 UP KEY
+SETTING_P1_DOWN=P1 DOWN KEY
+SETTING_P2_UP=P2 UP KEY
+SETTING_P2_DOWN=P2 DOWN KEY
+SETTING_MUSIC_VOLUME=MUSIC VOLUME
+SETTING_EFFECTS_VOLUME=EFFECTS VOLUME
+SETTING_MUSIC_ACTIVE=MUSIC ACTIVE
+SETTING_GAME_LANGUAGE=GAME LANGUAGE
+UI_ON=ON
+UI_OFF=OFF
+
+# Paddle speed options
+PADDLE_SPEED_SLOW=SLOW
+PADDLE_SPEED_MEDIUM=MEDIUM
+PADDLE_SPEED_FAST=FAST
+
+# AI difficulty options
+AI_DIFFICULTY_EASY=EASY
+AI_DIFFICULTY_NORMAL=NORMAL
+AI_DIFFICULTY_HARD=HARD
+AI_DIFFICULTY_EXPERT=EXPERT
+AI_DIFFICULTY_IMPOSSIBLE=IMPOSSIBLE
+
+# Background themes
+BACKGROUND_DEFAULT=Default (Black)
+BACKGROUND_NONE=No Background
+
+# Paddle themes
+PADDLE_THEME_BLUE_DEFAULT=Default (Blue Gradient)
+PADDLE_THEME_RED_DEFAULT=Default (Red Gradient)
+PADDLE_THEME_DEFAULT=Default (Gradient)
+PADDLE_DEFAULT_BLUE_GRADIENT=Default Blue
+
+# Game
+GAME_PAUSE=PAUSE
+GAME_PAUSE_RESUME=Press SPACE to resume
+GAME_PAUSE_EXIT=Press ESC to exit to menu
+GAME_WINNER=WINS
+GAME_PLAYER1=PLAYER 1
+GAME_PLAYER2=PLAYER 2
+GAME_AI=AI
+
+# Motivational pause messages - Complete translations
+
+# Perfect domination messages
+MSG_PERFECT_1=Perfect! You're unstoppable!
+MSG_PERFECT_2=The AI doesn't know how to stop you!
+MSG_PERFECT_3=Total and absolute domination!
+MSG_PERFECT_4=World champion performance!
+MSG_PERFECT_5=The AI is completely powerless!
+MSG_PERFECT_6=You've reached perfection!
+MSG_PERFECT_7=Every move is perfect!
+MSG_PERFECT_8=Pure display of skill!
+MSG_PERFECT_9=Legendary performance!
+MSG_PERFECT_10=The AI can't touch the ball!
+MSG_PERFECT_11=Absolute mastery!
+
+# Excellent domination messages  
+MSG_EXCELLENT_1=Excellent! Keep it up!
+MSG_EXCELLENT_2=The AI is under your control!
+MSG_EXCELLENT_3=Top level performance!
+MSG_EXCELLENT_4=Near perfect domination!
+MSG_EXCELLENT_5=You're in total control!
+MSG_EXCELLENT_6=The AI is suffering your superiority!
+MSG_EXCELLENT_7=Spectacular game!
+MSG_EXCELLENT_8=Show of strength!
+
+# Great performance messages
+MSG_GREAT_1=Great game! Keep it up!
+MSG_GREAT_2=You're dominating the match!
+MSG_GREAT_3=The AI is in trouble!
+MSG_GREAT_4=Excellent performance!
+MSG_GREAT_5=Keep the advantage!
+MSG_GREAT_6=You're playing brilliantly!
+MSG_GREAT_7=The AI can't keep up!
+MSG_GREAT_8=Perfect situation control!
+MSG_GREAT_9=The AI is under pressure!
+MSG_GREAT_10=Showing clear superiority!
+
+# Good performance messages
+MSG_GOOD_1=Good advantage! Don't give up!
+MSG_GOOD_2=You're doing well!
+MSG_GOOD_3=The AI is struggling!
+MSG_GOOD_4=Keep this pace!
+MSG_GOOD_5=The AI must chase!
+MSG_GOOD_6=You're on the right track!
+MSG_GOOD_7=Well deserved advantage!
+
+# Slight advantage messages
+MSG_SLIGHT_1=One point advantage! Keep it!
+MSG_SLIGHT_2=You're slightly ahead!
+MSG_SLIGHT_3=The AI is chasing you closely!
+MSG_SLIGHT_4=Minimal but precious advantage!
+MSG_SLIGHT_5=Don't let the advantage slip!
+MSG_SLIGHT_6=Every point is crucial now!
+MSG_SLIGHT_7=The AI wants the tie!
+MSG_SLIGHT_8=Defend the advantage!
+
+# Late game close messages
+MSG_LATE_CLOSE_1=Thrilling finale!
+MSG_LATE_CLOSE_2=Who has steadier nerves?
+MSG_LATE_CLOSE_3=Every point is worth gold!
+MSG_LATE_CLOSE_4=Match being decided now!
+MSG_LATE_CLOSE_5=Maximum tension!
+MSG_LATE_CLOSE_6=The moment of truth!
+MSG_LATE_CLOSE_7=Heart-stopping finale!
+MSG_LATE_CLOSE_8=Who wants victory more?
+MSG_LATE_CLOSE_9=Decisive point coming!
+MSG_LATE_CLOSE_10=Nerves of steel needed!
+
+# Behind messages
+MSG_BEHIND_1=Comeback possible!
+MSG_BEHIND_2=It's not over yet!
+MSG_BEHIND_3=You can recover!
+MSG_BEHIND_4=The AI is not unbeatable!
+MSG_BEHIND_5=Focus and determination!
+MSG_BEHIND_6=One point at a time!
+MSG_BEHIND_7=Victory is still within reach!
+MSG_BEHIND_8=Reduce the gap point by point!
+MSG_BEHIND_9=The AI is not invincible!
+MSG_BEHIND_10=Believe in the comeback!
+
+# Tie messages
+MSG_TIE_1=Perfect tie! Who will win?
+MSG_TIE_2=Balance of forces!
+MSG_TIE_3=Wide open match!
+MSG_TIE_4=Nobody wants to give up!
+MSG_TIE_5=Stalemate situation!
+MSG_TIE_6=Match point for both!
+MSG_TIE_7=Who breaks the balance?
+MSG_TIE_8=Sky-high tension!
+MSG_TIE_9=Equal duel!
+MSG_TIE_10=Perfect balance of forces!
+
+# Early game messages
+MSG_EARLY_1=The match has just started!
+MSG_EARLY_2=First study exchanges!
+MSG_EARLY_3=Warm-up phase!
+MSG_EARLY_4=Mutual study phase!
+MSG_EARLY_5=The first points are crucial!
+MSG_EARLY_6=Let the show begin!
+MSG_EARLY_7=Warm-up finished!
+
+# Inspirational messages
+MSG_INSPIRATIONAL_1=Talent wins games, but teamwork wins championships!
+MSG_INSPIRATIONAL_2=It doesn't matter how many times you fall, what matters is how many times you get back up!
+MSG_INSPIRATIONAL_3=Success is the sum of small efforts repeated day after day!
+MSG_INSPIRATIONAL_4=The difference between ordinary and extraordinary is that little extra!
+MSG_INSPIRATIONAL_5=Champions keep playing until they get it right!
+MSG_INSPIRATIONAL_6=Champions train, losers complain!
+MSG_INSPIRATIONAL_7=Victory belongs to those who believe in it the most and believe in it the longest!
+MSG_INSPIRATIONAL_8=You can't put a limit on anything. The more you dream, the farther you'll get!
+MSG_INSPIRATIONAL_9=Hard work beats talent when talent doesn't work hard!
+MSG_INSPIRATIONAL_10=If you can dream it, you can do it!
+MSG_INSPIRATIONAL_11=The only way to do great work is to love what you do!
+MSG_INSPIRATIONAL_12=Don't wait for opportunity. Create it!
+MSG_INSPIRATIONAL_13=Failure is only the opportunity to begin again more intelligently!
+MSG_INSPIRATIONAL_14=Motivation gets you started. Habit keeps you going!
+MSG_INSPIRATIONAL_15=Yesterday is history, tomorrow is a mystery, today is a gift!
+MSG_INSPIRATIONAL_16=Success is going from failure to failure without losing enthusiasm!
+MSG_INSPIRATIONAL_17=It doesn't matter how slowly you go, as long as you don't stop!
+MSG_INSPIRATIONAL_18=Every expert was once a beginner!
+MSG_INSPIRATIONAL_19=The road to success is always under construction!
+MSG_INSPIRATIONAL_20=It's never too late to be what you could have been!
+
+# First Access
+FIRST_ACCESS_TITLE=PONG PING
+FIRST_ACCESS_SUBTITLE=The classic game reimagined
+FIRST_ACCESS_START=Press ENTER to start
+
+# General UI
+UI_PRESS_ENTER=Press ENTER
+UI_PRESS_ESC=Press ESC to return
+UI_ESC_BACKSPACE_HOME=Press ESC/BACKSPACE to return to home
+UI_ESC_BACKSPACE_BACK=Press ESC/BACKSPACE to go back
+UI_ESC_BACKSPACE_EXIT=Press ESC/BACKSPACE to exit
+UI_YES=YES
+UI_NO=NO
+UI_ON=ON
+UI_OFF=OFF
+
+# Theme selection
+THEME_SELECTION_TITLE=THEME SELECTION
+THEME_DEFAULT=Default
+
+# Paddle names - Blue
+PADDLE_BLUE_POND_LILY=Blue Pond Lily
+PADDLE_CORALS_FANS=Coral Fans
+PADDLE_DARK_CAVERN_CYAN=Dark Cyan Cavern
+PADDLE_DIAGONAL_RAIN=Diagonal Rain
+PADDLE_DUNE_BLUE_SHADOWS=Blue Dune Shadows
+PADDLE_GLOWING_CYAN_BELL=Glowing Cyan Bell
+PADDLE_ICE_SLABS_BLUE=Blue Ice Slabs
+PADDLE_MORPHO_WINGS_CYAN=Cyan Morpho Wings
+PADDLE_NAVY_SEA_SAILS=Navy Sea Sails
+PADDLE_NAVY_SKY_BRANCH=Navy Sky Branch
+PADDLE_NAVY_STORM_CLOUDS=Navy Storm Clouds
+PADDLE_SKYLINE_LAYERS=Skyline Layers
+PADDLE_STAINED_GLASS_TEAL=Teal Stained Glass
+PADDLE_STYLIZED_NAVY_SEA=Stylized Navy Sea
+PADDLE_TEAL_INDIGO_VIOLET=Teal Indigo Violet
+PADDLE_TREE_SILHOUETTES=Tree Silhouettes
+PADDLE_TURQUOISE_STREAM=Turquoise Stream
+PADDLE_TURQUOISE_WATER=Turquoise Water
+PADDLE_VERTICAL_TEAL_LIGHTS=Vertical Teal Lights
+PADDLE_WARM_BLUE_SKY=Warm Blue Sky
+PADDLE_WARM_SKY_VIOLET=Warm Sky Violet
+PADDLE_WAVY_TEAL_RIBBONS=Wavy Teal Ribbons
+PADDLE_WHITE_COBALT_BLUE=White Cobalt Blue
+PADDLE_WHITE_FOAM_BAND=White Foam Band
+PADDLE_WISPY_CLOUDS=Wispy Clouds
+
+# Paddle names - Red
+PADDLE_BROKEN_STRIPES=Broken Stripes
+PADDLE_DARK_BOARD_BRIGHT=Dark Board Bright
+PADDLE_DEEP_SPACE_MAGENTA=Deep Space Magenta
+PADDLE_DETAILED_SPRITE=Detailed Sprite
+PADDLE_DIAGONAL_RED_LASER=Diagonal Red Laser
+PADDLE_GLOSSY_RED=Glossy Red
+PADDLE_GOOEY_JELLY=Gooey Jelly
+PADDLE_HORIZONTAL_SCAN=Horizontal Scan
+PADDLE_MOLTEN_LAVA=Molten Lava
+PADDLE_STYLIZED_FLAME=Stylized Flame
+PADDLE_SWIRLING_SPARKLES=Swirling Sparkles
+PADDLE_TRANSLUCENT_RUBY=Translucent Ruby
+PADDLE_VERTICAL_CRIMSON_BOLT=Vertical Crimson Bolt
+PADDLE_WARM_CORAL_SKY=Warm Coral Sky
+
+# Relative dates for history cards
+DATE_TODAY=Today
+DATE_YESTERDAY=Yesterday
+
+# Settings instructions
+SETTINGS_PRESS_ENTER_TEST=Press ENTER to test
+SETTINGS_PRESS_ARROWS_PADDLE=Press ← → for paddle speed
+SETTINGS_PRESS_SPACE_CHANGE=Press space to change
+SETTINGS_PRESS_ENTER_CONTINUE=Press ENTER to continue

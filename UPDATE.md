@@ -1,0 +1,144 @@
+# PongPing - Update History
+
+## Version 0.7.3 (Current)
+
+### GitHub Actions & CI/CD
+- **Added comprehensive GitHub Actions workflow** (`build-app.yml`)
+  - Automated building for Linux (DEB), macOS (DMG), and Windows (EXE)
+  - Cross-platform JAR compilation and artifact generation
+  - Multi-OS matrix build strategy with Ubuntu, macOS, and Windows runners
+  - Automatic asset inclusion (fonts, themes, music, icons, languages)
+
+### Installer Enhancements
+- **Integrated MIT License** into all installer packages
+  - Added `--license-file LICENSE` to jpackage commands
+  - License automatically displayed during installation process
+  - Applied to Windows EXE, macOS DMG, and Linux DEB installers
+
+### Build System Improvements
+- **Enhanced jpackage configuration**
+  - Customized installer metadata (version, description, vendor)
+  - Platform-specific icons (ICO for Windows, ICNS for macOS, PNG for Linux)
+  - Windows: Added Start Menu integration and desktop shortcuts
+  - Linux: Added application menu shortcuts in Games category
+  - macOS: DMG packaging with proper app bundle structure
+
+### Asset Management
+- **Intelligent asset detection**
+  - Dynamic music folder inclusion (only if contains files)
+  - Comprehensive asset bundling (fonts, themes, icons, languages)
+  - Cross-platform asset path handling
+
+### Distribution Features
+- **Multi-platform installer generation**
+  - Windows: EXE installer with Start Menu and shortcut creation
+  - macOS: DMG with drag-to-install experience
+  - Linux: DEB package for Debian/Ubuntu systems
+- **GitHub Actions artifact storage**
+  - 30-day retention for all builds
+  - Separate artifacts for JAR and platform-specific installers
+
+### Project Structure
+- **Added comprehensive documentation**
+  - Enhanced CLAUDE.md with detailed project architecture
+  - Complete build commands and development workflow
+  - Detailed game state system and component documentation
+
+## Version 0.7.2
+
+### Theme System Enhancements
+- **Background selection screen** with visual preview
+- **Custom theme loading** from `temi/` directory
+- **Image background support** (PNG/JPG) with fallback colors
+- **Theme configuration files** (.txt) for color customization
+- **Default themes**: Black, Furry, Natura with custom backgrounds
+
+### Settings System Overhaul
+- **Categorized settings menu** (Difficulty, Paddle, Controls, Audio)
+- **Dynamic navigation** between categories with arrow keys
+- **Real-time setting updates** with immediate visual feedback
+- **Key binding customization** for all game controls
+- **Audio volume controls** for music and sound effects
+
+### Visual Improvements
+- **Enhanced menu rendering** with better spacing and alignment
+- **Improved gradient effects** on paddles and UI elements
+- **Better text rendering** with shadow effects and custom fonts
+- **Responsive UI scaling** that adapts to window size changes
+
+## Version 0.7.1
+
+### Audio System Implementation
+- **Background music support** with WAV file loading
+- **Real-time sound synthesis** for game events
+- **Volume controls** in settings menu
+- **Sound effects**: Paddle hits, wall bounces, scoring
+- **Audio threading** for non-blocking sound playback
+
+### Game Physics Refinements
+- **Improved collision detection** with more accurate ball physics
+- **Enhanced ball speed progression** with configurable limits
+- **Better paddle responsiveness** with smooth movement
+- **Realistic bounce angles** based on paddle hit position
+
+### UI/UX Enhancements
+- **Smooth state transitions** between game modes
+- **Improved pause functionality** with overlay graphics
+- **Better game over screen** with statistics display
+- **Enhanced visual feedback** for user interactions
+
+## Version 0.7.0
+
+### Core Architecture Rewrite
+- **State machine implementation** with 8 distinct game states
+- **Modular rendering system** with state-specific draw methods
+- **Enhanced input handling** with context-sensitive controls
+- **Improved game loop** with consistent 60 FPS timing
+
+### AI System Development
+- **Predictive AI opponent** with configurable difficulty
+- **5-level difficulty system** (Easy to Impossible)
+- **Adaptive AI movement** with realistic reaction times
+- **Smart ball prediction** with position forecasting
+
+### Graphics System
+- **Custom font integration** (Silkscreen, Space Mono)
+- **Particle effect system** for collisions and visual flair
+- **Gradient rendering** for paddles and UI elements
+- **Screen shake effects** for impact feedback
+
+### Game Features
+- **Single-player mode** with AI opponent
+- **Two-player local multiplayer**
+- **Comprehensive settings system**
+- **Pause/resume functionality**
+- **Win condition tracking** (first to 7 points)
+
+## Version 0.6.x Series
+
+### Basic Game Implementation
+- **Classic Pong gameplay** with two paddles and ball
+- **Basic collision detection** and physics
+- **Simple scoring system**
+- **Window resizing support**
+- **Keyboard input handling**
+
+### Initial Features
+- **Basic menu system**
+- **Game state management** (Menu, Playing, Game Over)
+- **Simple graphics rendering**
+- **Fixed-speed ball movement**
+- **Basic paddle controls**
+
+## Version 0.5.x and Earlier
+
+### Foundation Development
+- **Initial Java/Swing setup**
+- **Basic game window creation**
+- **Simple object rendering**
+- **Basic input system**
+- **Core game loop implementation**
+
+---
+
+*PongPing is an enhanced classic Pong game featuring modern graphics, sound, and gameplay mechanics.*

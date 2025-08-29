@@ -1,0 +1,270 @@
+# Archivo de localización Español para PongPing
+# Formato: CLAVE=VALOR
+
+# Menú principal
+MENU_SINGLE_PLAYER=UN JUGADOR
+MENU_TWO_PLAYERS=DOS JUGADORES
+MENU_HISTORY=HISTORIAL
+MENU_SETTINGS=CONFIGURACIÓN
+MENU_EXIT=SALIR
+
+# Pantalla de historial
+HISTORY_TITLE=HISTORIAL DE PARTIDAS
+HISTORY_INSTRUCTIONS=Usa ↑/↓ para desplazarte, ESC para volver al menú
+HISTORY_EMPTY=No se han jugado partidas aún
+HISTORY_DATE=Fecha
+HISTORY_MODE=Modo
+HISTORY_SCORE=Puntuación
+HISTORY_WINNER=Ganador
+HISTORY_RALLIES=Rallies
+HISTORY_DURATION=Duración
+HISTORY_DIFFICULTY=Dificultad
+HISTORY_SCROLL_UP=Desplazar arriba
+HISTORY_SCROLL_DOWN=Desplazar abajo
+
+# Categorías de configuración
+SETTINGS_DIFFICULTY=DIFICULTAD
+SETTINGS_PADDLE=CONFIGURACIÓN PALA
+SETTINGS_CONTROLS=CONTROLES
+SETTINGS_AUDIO=AUDIO
+SETTINGS_LANGUAGE=IDIOMA
+
+# Opciones de configuración
+SETTING_AI_DIFFICULTY=DIFICULTAD IA
+SETTING_PADDLE_SPEED=VELOCIDAD PALA
+SETTING_BALL_SPEED=VELOCIDAD PELOTA
+SETTING_P1_UP=TECLA J1 ARRIBA
+SETTING_P1_DOWN=TECLA J1 ABAJO
+SETTING_P2_UP=TECLA J2 ARRIBA
+SETTING_P2_DOWN=TECLA J2 ABAJO
+SETTING_MUSIC_VOLUME=VOLUMEN MÚSICA
+SETTING_EFFECTS_VOLUME=VOLUMEN EFECTOS
+SETTING_MUSIC_ACTIVE=MÚSICA ACTIVA
+SETTING_GAME_LANGUAGE=IDIOMA DEL JUEGO
+UI_ON=ACTIVA
+UI_OFF=INACTIVA
+
+# Opciones velocidad pala
+PADDLE_SPEED_SLOW=LENTA
+PADDLE_SPEED_MEDIUM=MEDIA
+PADDLE_SPEED_FAST=RÁPIDA
+
+# Opciones dificultad IA
+AI_DIFFICULTY_EASY=FÁCIL
+AI_DIFFICULTY_NORMAL=NORMAL
+AI_DIFFICULTY_HARD=DIFÍCIL
+AI_DIFFICULTY_EXPERT=EXPERTO
+AI_DIFFICULTY_IMPOSSIBLE=IMPOSIBLE
+
+# Temas de fondo
+BACKGROUND_DEFAULT=Predeterminado (Negro)
+BACKGROUND_NONE=Sin Fondo
+
+# Temas de palas
+PADDLE_THEME_BLUE_DEFAULT=Predeterminado (Degradado Azul)
+PADDLE_THEME_RED_DEFAULT=Predeterminado (Degradado Rojo)
+PADDLE_THEME_DEFAULT=Predeterminado (Degradado)
+PADDLE_DEFAULT_BLUE_GRADIENT=Azul Predeterminado
+
+# Juego
+GAME_PAUSE=PAUSA
+GAME_PAUSE_RESUME=Presiona ESPACIO para reanudar
+GAME_PAUSE_EXIT=Presiona ESC para salir al menú
+GAME_WINNER=GANA
+GAME_PLAYER1=JUGADOR 1
+GAME_PLAYER2=JUGADOR 2
+GAME_AI=IA
+
+# Mensajes motivacionales de pausa - Dominación perfecta
+MSG_PERFECT_1=¡Perfecto! ¡Eres imparable!
+MSG_PERFECT_2=¡La IA no sabe cómo detenerte!
+MSG_PERFECT_3=¡Dominación total y absoluta!
+MSG_PERFECT_4=¡Actuación de campeón mundial!
+MSG_PERFECT_5=¡La IA está completamente indefensa!
+MSG_PERFECT_6=¡Has alcanzado la perfección!
+MSG_PERFECT_7=¡Cada movimiento es perfecto!
+MSG_PERFECT_8=¡Pura demostración de habilidad!
+MSG_PERFECT_9=¡Actuación legendaria!
+MSG_PERFECT_10=¡La IA no puede tocar la pelota!
+MSG_PERFECT_11=¡Dominio absoluto!
+
+# Mensajes de dominación excelente
+MSG_EXCELLENT_1=¡Excelente! ¡Sigue así!
+MSG_EXCELLENT_2=¡La IA está bajo tu control!
+MSG_EXCELLENT_3=¡Actuación de nivel superior!
+MSG_EXCELLENT_4=¡Dominación casi perfecta!
+MSG_EXCELLENT_5=¡Estás en control total!
+MSG_EXCELLENT_6=¡La IA sufre tu superioridad!
+MSG_EXCELLENT_7=¡Juego espectacular!
+MSG_EXCELLENT_8=¡Demostración de fuerza!
+
+# Mensajes de gran actuación
+MSG_GREAT_1=¡Gran juego! ¡Sigue así!
+MSG_GREAT_2=¡Estás dominando la partida!
+MSG_GREAT_3=¡La IA está en problemas!
+MSG_GREAT_4=¡Excelente actuación!
+MSG_GREAT_5=¡Mantén la ventaja!
+MSG_GREAT_6=¡Estás jugando brillantemente!
+MSG_GREAT_7=¡La IA no puede seguirte el ritmo!
+MSG_GREAT_8=¡Control perfecto de la situación!
+MSG_GREAT_9=¡La IA está bajo presión!
+MSG_GREAT_10=¡Mostrando clara superioridad!
+
+# Mensajes de buena actuación
+MSG_GOOD_1=¡Buena ventaja! ¡No te rindas!
+MSG_GOOD_2=¡Lo estás haciendo bien!
+MSG_GOOD_3=¡La IA está luchando!
+MSG_GOOD_4=¡Mantén este ritmo!
+MSG_GOOD_5=¡La IA debe perseguir!
+MSG_GOOD_6=¡Estás en el camino correcto!
+MSG_GOOD_7=¡Ventaja bien merecida!
+
+# Mensajes de ligera ventaja
+MSG_SLIGHT_1=¡Un punto de ventaja! ¡Manténla!
+MSG_SLIGHT_2=¡Estás ligeramente adelante!
+MSG_SLIGHT_3=¡La IA te persigue de cerca!
+MSG_SLIGHT_4=¡Ventaja mínima pero valiosa!
+MSG_SLIGHT_5=¡No dejes escapar la ventaja!
+MSG_SLIGHT_6=¡Cada punto es crucial ahora!
+MSG_SLIGHT_7=¡La IA quiere el empate!
+MSG_SLIGHT_8=¡Defiende la ventaja!
+
+# Mensajes de final cerrado
+MSG_LATE_CLOSE_1=¡Final emocionante!
+MSG_LATE_CLOSE_2=¿Quién tiene nervios más firmes?
+MSG_LATE_CLOSE_3=¡Cada punto vale oro!
+MSG_LATE_CLOSE_4=¡La partida se decide ahora!
+MSG_LATE_CLOSE_5=¡Tensión máxima!
+MSG_LATE_CLOSE_6=¡El momento de la verdad!
+MSG_LATE_CLOSE_7=¡Final que corta la respiración!
+MSG_LATE_CLOSE_8=¿Quién quiere más la victoria?
+MSG_LATE_CLOSE_9=¡Punto decisivo próximo!
+MSG_LATE_CLOSE_10=¡Se necesitan nervios de acero!
+
+# Mensajes cuando vas perdiendo
+MSG_BEHIND_1=¡La remontada es posible!
+MSG_BEHIND_2=¡Aún no ha terminado!
+MSG_BEHIND_3=¡Puedes recuperarte!
+MSG_BEHIND_4=¡La IA no es invencible!
+MSG_BEHIND_5=¡Concentración y determinación!
+MSG_BEHIND_6=¡Un punto a la vez!
+MSG_BEHIND_7=¡La victoria aún está a tu alcance!
+MSG_BEHIND_8=¡Reduce la diferencia punto a punto!
+MSG_BEHIND_9=¡La IA no es invencible!
+MSG_BEHIND_10=¡Cree en la remontada!
+
+# Mensajes de empate
+MSG_TIE_1=¡Empate perfecto! ¿Quién ganará?
+MSG_TIE_2=¡Equilibrio de fuerzas!
+MSG_TIE_3=¡Partida completamente abierta!
+MSG_TIE_4=¡Nadie quiere rendirse!
+MSG_TIE_5=¡Situación de empate!
+MSG_TIE_6=¡Punto de partido para ambos!
+MSG_TIE_7=¿Quién rompe el equilibrio?
+MSG_TIE_8=¡Tensión por las nubes!
+MSG_TIE_9=¡Duelo igualado!
+MSG_TIE_10=¡Equilibrio perfecto de fuerzas!
+
+# Mensajes de inicio de partida
+MSG_EARLY_1=¡La partida acaba de comenzar!
+MSG_EARLY_2=¡Primeros intercambios de estudio!
+MSG_EARLY_3=¡Fase de calentamiento!
+MSG_EARLY_4=¡Fase de estudio mutuo!
+MSG_EARLY_5=¡Los primeros puntos son cruciales!
+MSG_EARLY_6=¡Que comience el espectáculo!
+MSG_EARLY_7=¡Calentamiento terminado!
+
+# Mensajes inspiracionales
+MSG_INSPIRATIONAL_1=¡El talento gana partidas, pero el trabajo en equipo gana campeonatos!
+MSG_INSPIRATIONAL_2=¡No importa cuántas veces caigas, lo que importa es cuántas veces te levantes!
+MSG_INSPIRATIONAL_3=¡El éxito es la suma de pequeños esfuerzos repetidos día tras día!
+MSG_INSPIRATIONAL_4=¡La diferencia entre ordinario y extraordinario es ese pequeño extra!
+MSG_INSPIRATIONAL_5=¡Los campeones siguen jugando hasta que lo consiguen!
+MSG_INSPIRATIONAL_6=¡Los campeones entrenan, los perdedores se quejan!
+MSG_INSPIRATIONAL_7=¡La victoria pertenece a quien más cree en ella y por más tiempo!
+MSG_INSPIRATIONAL_8=¡No puedes poner límite a nada. Cuanto más sueñes, más lejos llegarás!
+MSG_INSPIRATIONAL_9=¡El trabajo duro vence al talento cuando el talento no trabaja duro!
+MSG_INSPIRATIONAL_10=¡Si puedes soñarlo, puedes hacerlo!
+MSG_INSPIRATIONAL_11=¡La única forma de hacer un gran trabajo es amar lo que haces!
+MSG_INSPIRATIONAL_12=¡No esperes la oportunidad. Créala!
+MSG_INSPIRATIONAL_13=¡El fracaso es solo la oportunidad de empezar de nuevo más inteligentemente!
+MSG_INSPIRATIONAL_14=¡La motivación te hace empezar. El hábito te hace continuar!
+MSG_INSPIRATIONAL_15=¡Ayer es historia, mañana es un misterio, hoy es un regalo!
+MSG_INSPIRATIONAL_16=¡El éxito es ir de fracaso en fracaso sin perder el entusiasmo!
+MSG_INSPIRATIONAL_17=¡No importa qué tan lento vayas, siempre que no te detengas!
+MSG_INSPIRATIONAL_18=¡Todo experto fue una vez principiante!
+MSG_INSPIRATIONAL_19=¡El camino al éxito siempre está en construcción!
+MSG_INSPIRATIONAL_20=¡Nunca es demasiado tarde para ser lo que podrías haber sido!
+
+# Primer Acceso
+FIRST_ACCESS_TITLE=PONG PING
+FIRST_ACCESS_SUBTITLE=El juego clásico reimaginado
+FIRST_ACCESS_START=Presiona ENTER para empezar
+
+# Interfaz general
+UI_PRESS_ENTER=Presiona ENTER
+UI_PRESS_ESC=Presiona ESC para volver
+UI_ESC_BACKSPACE_HOME=Presiona ESC/BACKSPACE para volver al inicio
+UI_ESC_BACKSPACE_BACK=Presiona ESC/BACKSPACE para volver
+UI_ESC_BACKSPACE_EXIT=Presiona ESC/BACKSPACE para salir
+UI_YES=SÍ
+UI_NO=NO
+UI_ON=ACTIVADO
+UI_OFF=DESACTIVADO
+
+# Selección de tema
+THEME_SELECTION_TITLE=SELECCIÓN DE TEMA
+THEME_DEFAULT=Predeterminado
+
+# Nombres de palas - Azul
+PADDLE_BLUE_POND_LILY=Nenúfar Azul del Estanque
+PADDLE_CORALS_FANS=Abanicos de Coral
+PADDLE_DARK_CAVERN_CYAN=Caverna Cian Oscura
+PADDLE_DIAGONAL_RAIN=Lluvia Diagonal
+PADDLE_DUNE_BLUE_SHADOWS=Sombras Azules de Duna
+PADDLE_GLOWING_CYAN_BELL=Campana Cian Brillante
+PADDLE_ICE_SLABS_BLUE=Losas de Hielo Azul
+PADDLE_MORPHO_WINGS_CYAN=Alas de Morpho Cian
+PADDLE_NAVY_SEA_SAILS=Velas de Mar Marino
+PADDLE_NAVY_SKY_BRANCH=Rama de Cielo Marino
+PADDLE_NAVY_STORM_CLOUDS=Nubes de Tormenta Marina
+PADDLE_SKYLINE_LAYERS=Capas del Horizonte
+PADDLE_STAINED_GLASS_TEAL=Vidriera Verde Azulada
+PADDLE_STYLIZED_NAVY_SEA=Mar Marino Estilizado
+PADDLE_TEAL_INDIGO_VIOLET=Verde Azulado Índigo Violeta
+PADDLE_TREE_SILHOUETTES=Siluetas de Árboles
+PADDLE_TURQUOISE_STREAM=Arroyo Turquesa
+PADDLE_TURQUOISE_WATER=Agua Turquesa
+PADDLE_VERTICAL_TEAL_LIGHTS=Luces Verde Azuladas Verticales
+PADDLE_WARM_BLUE_SKY=Cielo Azul Cálido
+PADDLE_WARM_SKY_VIOLET=Violeta de Cielo Cálido
+PADDLE_WAVY_TEAL_RIBBONS=Cintas Verde Azuladas Onduladas
+PADDLE_WHITE_COBALT_BLUE=Azul Cobalto Blanco
+PADDLE_WHITE_FOAM_BAND=Banda de Espuma Blanca
+PADDLE_WISPY_CLOUDS=Nubes Etéreas
+
+# Nombres de palas - Rojo
+PADDLE_BROKEN_STRIPES=Rayas Rotas
+PADDLE_DARK_BOARD_BRIGHT=Tabla Oscura Brillante
+PADDLE_DEEP_SPACE_MAGENTA=Magenta del Espacio Profundo
+PADDLE_DETAILED_SPRITE=Sprite Detallado
+PADDLE_DIAGONAL_RED_LASER=Láser Rojo Diagonal
+PADDLE_GLOSSY_RED=Rojo Brillante
+PADDLE_GOOEY_JELLY=Gelatina Pegajosa
+PADDLE_HORIZONTAL_SCAN=Exploración Horizontal
+PADDLE_MOLTEN_LAVA=Lava Fundida
+PADDLE_STYLIZED_FLAME=Llama Estilizada
+PADDLE_SWIRLING_SPARKLES=Destellos Arremolinados
+PADDLE_TRANSLUCENT_RUBY=Rubí Translúcido
+PADDLE_VERTICAL_CRIMSON_BOLT=Rayo Carmesí Vertical
+PADDLE_WARM_CORAL_SKY=Cielo Coral Cálido
+
+# Fechas relativas para las tarjetas del historial
+DATE_TODAY=Hoy
+DATE_YESTERDAY=Ayer
+
+# Instrucciones de configuración
+SETTINGS_PRESS_ENTER_TEST=Presiona ENTER para probar
+SETTINGS_PRESS_ARROWS_PADDLE=Presiona ← → para velocidad de pala
+SETTINGS_PRESS_SPACE_CHANGE=Presiona espacio para cambiar
+SETTINGS_PRESS_ENTER_CONTINUE=Presiona ENTER para continuar
