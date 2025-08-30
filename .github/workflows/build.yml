@@ -1,4 +1,4 @@
-name: Build PongPing App
+name: Build and Test
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  APP_VERSION: "0.7.4"
+  APP_VERSION: "0.7.5"
 
 jobs:
   build-jar:
@@ -38,6 +38,7 @@ jobs:
         else
           jar cfe dist/PongGame.jar PongGame *.class font temi icon.png lingue
         fi
+        
     - name: Upload JAR Artifact
       uses: actions/upload-artifact@v4
       with:

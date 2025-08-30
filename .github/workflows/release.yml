@@ -1,0 +1,314 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-jar:
+    name: Build JAR
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Compile Java Application
+      run: |
+        javac PongGame.java
+
+    - name: Create JAR
+      shell: bash
+      run: |
+        mkdir -p dist
+        if [ "$(ls -A music/ 2>/dev/null)" ]; then
+          jar cfe dist/PongGame.jar PongGame *.class font temi music icon.png lingue
+        else
+          jar cfe dist/PongGame.jar PongGame *.class font temi icon.png lingue
+        fi
+        
+    - name: Upload JAR Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PongPing-JAR
+        path: dist/PongGame.jar
+        if-no-files-found: error
+        compression-level: 6
+        retention-days: 30
+
+  build-apps:
+    name: Build ${{ matrix.platform }} App
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            installer_ext: deb
+          - os: macos-latest
+            platform: macos
+            installer_ext: dmg
+          - os: windows-latest
+            platform: windows
+            installer_ext: exe
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Compile Java Application
+      run: |
+        javac PongGame.java
+
+    - name: Create JAR
+      shell: bash
+      run: |
+        mkdir -p dist
+        # All platforms: Include assets in JAR
+        if [ "$(ls -A music/ 2>/dev/null)" ]; then
+          jar cfe dist/PongGame.jar PongGame *.class font temi music icon.png lingue
+        else
+          jar cfe dist/PongGame.jar PongGame *.class font temi icon.png lingue
+        fi
+        echo "JAR created with assets included"
+
+    - name: Create App (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        jpackage \
+          --input dist \
+          --name "PongPing" \
+          --main-jar PongGame.jar \
+          --main-class PongGame \
+          --type dmg \
+          --dest . \
+          --description "PongPing - Enhanced Pong Game" \
+          --vendor "Gava" \
+          --icon icon.icns \
+          --license-file LICENSE
+        
+        echo "DMG created successfully by jpackage"
+        ls -la *.dmg
+        
+        # Verify Info.plist for Launchpad compatibility
+        echo "Checking Info.plist for Launchpad compatibility..."
+        if [ -f "PongPing-1.0.0.dmg" ]; then
+          hdiutil attach PongPing-1.0.0.dmg -mountpoint /tmp/PongPing_mount
+          if [ -f "/tmp/PongPing_mount/PongPing.app/Contents/Info.plist" ]; then
+            echo "Info.plist contents:"
+            plutil -p /tmp/PongPing_mount/PongPing.app/Contents/Info.plist | grep -E "(CFBundleVersion|CFBundleShortVersionString|CFBundleIdentifier)"
+          fi
+          hdiutil detach /tmp/PongPing_mount
+        fi
+
+    - name: Create App (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        # Build app content list for jpackage
+        APP_CONTENT="temi,font,lingue,icon.png"
+        
+        # Add music folder if it exists and has content
+        if [ -d "music" ] && [ "$(ls -A music/)" ]; then
+          APP_CONTENT="$APP_CONTENT,music"
+        fi
+        
+        echo "Including app content: $APP_CONTENT"
+        
+        # Extract version from tag
+        VERSION="${{ github.ref_name }}"
+        VERSION_NUM=$(echo "$VERSION" | sed 's/^v//')
+        
+        jpackage \
+          --input dist \
+          --name "PongPing" \
+          --main-jar PongGame.jar \
+          --main-class PongGame \
+          --type deb \
+          --dest . \
+          --app-version "$VERSION_NUM" \
+          --description "PongPing - Enhanced Pong Game" \
+          --vendor "Gava" \
+          --icon icon.png \
+          --app-content "$APP_CONTENT" \
+          --linux-shortcut \
+          --linux-menu-group "Games" \
+          --license-file LICENSE
+
+    - name: Create App (Windows)
+      if: matrix.platform == 'windows'
+      shell: powershell
+      run: |
+        # Build app content list for jpackage
+        $appContent = "temi,font,lingue,icon.png"
+        
+        # Add music folder if it exists and has content
+        if ((Test-Path "music") -and (Get-ChildItem "music" -ErrorAction SilentlyContinue)) {
+          $appContent += ",music"
+        }
+        
+        Write-Host "Including app content: $appContent"
+        
+        # Extract version from tag
+        $version = "${{ github.ref_name }}"
+        $versionNum = $version -replace '^v', ''
+        
+        jpackage `
+          --input dist `
+          --name "PongPing" `
+          --main-jar PongGame.jar `
+          --main-class PongGame `
+          --type exe `
+          --dest . `
+          --app-version $versionNum `
+          --description "PongPing - Enhanced Pong Game" `
+          --vendor "Gava" `
+          --icon icon.ico `
+          --app-content $appContent `
+          --win-menu `
+          --win-menu-group "Games" `
+          --win-shortcut `
+          --license-file LICENSE
+
+    - name: Find App File
+      shell: bash
+      run: |
+        if [ "${{ matrix.platform }}" = "linux" ]; then
+          echo "APP_FILE=$(ls *.deb)" >> $GITHUB_ENV
+        elif [ "${{ matrix.platform }}" = "macos" ]; then
+          echo "APP_FILE=$(ls *.dmg)" >> $GITHUB_ENV  
+        elif [ "${{ matrix.platform }}" = "windows" ]; then
+          echo "APP_FILE=$(ls *.exe)" >> $GITHUB_ENV
+        fi
+        echo "Found app file: ${{ env.APP_FILE }}"
+
+    - name: Upload App Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PongPing-App-${{ matrix.platform }}
+        path: ${{ env.APP_FILE }}
+        if-no-files-found: error
+        compression-level: 6
+        retention-days: 30
+
+  create-release:
+    name: Create Public Release
+    runs-on: ubuntu-latest
+    needs: [build-jar, build-apps]
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Display Downloaded Artifacts
+      run: |
+        echo "Downloaded artifacts:"
+        find artifacts -type f -name "*" | head -20
+        ls -la artifacts/
+    
+    - name: Extract Latest Update from UPDATE.md
+      id: extract_update
+      run: |
+        # Extract the version number from tag (remove 'v' prefix if present)
+        VERSION="${{ github.ref_name }}"
+        VERSION_NUM=$(echo "$VERSION" | sed 's/^v//')
+        
+        echo "Extracting changelog for version $VERSION_NUM"
+        
+        # Extract the latest version section from UPDATE.md
+        awk -v version="$VERSION_NUM" '
+        BEGIN { in_section=0; found=0 }
+        /^## Version/ {
+          if (found && in_section) exit
+          if ($0 ~ ("Version " version)) { in_section=1; found=1; next }
+          else { in_section=0 }
+        }
+        in_section && /^### / { print $0 }
+        in_section && /^- / { print $0 }
+        in_section && /^  - / { print $0 }
+        ' UPDATE.md > latest_changelog.md
+        
+        # If changelog is empty, provide fallback
+        if [ ! -s latest_changelog.md ]; then
+          echo "### Release Notes" > latest_changelog.md
+          echo "- Enhanced Pong game with modern features" >> latest_changelog.md
+          echo "- Cross-platform compatibility" >> latest_changelog.md
+          echo "- Improved performance and stability" >> latest_changelog.md
+        fi
+        
+        echo "Generated changelog:"
+        cat latest_changelog.md
+        
+        # Save changelog content to GitHub output
+        {
+          echo 'CHANGELOG<<EOF'
+          cat latest_changelog.md
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+    
+    - name: Create Public Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          artifacts/PongPing-JAR/*.jar
+          artifacts/PongPing-App-linux/*.deb
+          artifacts/PongPing-App-macos/*.dmg
+          artifacts/PongPing-App-windows/*.exe
+        name: "PongPing ${{ github.ref_name }}"
+        body: |
+          # 🎮 PongPing ${{ github.ref_name }}
+          
+          Enhanced Pong game with modern graphics, AI, and cross-platform support.
+          
+          ## 📥 Downloads
+          
+          Choose the installer for your operating system:
+          
+          | Platform | File | Description |
+          |----------|------|-------------|
+          | 🪟 **Windows** | `.exe` | Complete installer with Start Menu integration |
+          | 🍎 **macOS** | `.dmg` | Drag-to-Applications bundle |
+          | 🐧 **Linux** | `.deb` | Debian/Ubuntu package |
+          | ☕ **Any Platform** | `.jar` | Cross-platform (requires Java 21+) |
+          
+          ## 🆕 What's New in ${{ github.ref_name }}
+          
+          ${{ steps.extract_update.outputs.CHANGELOG }}
+          
+          ## 🚀 Quick Start
+          
+          1. Download the installer for your platform above
+          2. Run the installer 
+          3. Launch PongPing and enjoy!
+          
+          For complete changelog, see [UPDATE.md](https://github.com/${{ github.repository }}/blob/main/UPDATE.md).
+          
+          ---
+          
+          **🎯 No Java installation required for native installers!**  
+          *Made with ❤️ by Gava*
+        draft: false
+        prerelease: false
+        make_latest: true
+        generate_release_notes: false

@@ -1,6 +1,13 @@
 # PongPing - Update History
 
-## Version 0.7.4 (Current)
+## Version 0.7.5 (Current)
+
+### Build System Enhancements
+- **Split GitHub Actions into separate workflows** (build.yml & release.yml)
+- **Enhanced JDK setup and build process optimization**
+- **Improved changelog extraction for releases**
+
+## Version 0.7.4
 
 ### UI/UX Enhancements
 - **Added developer signature** "by Gava" in bottom-left corner
