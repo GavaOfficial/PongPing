@@ -25,16 +25,24 @@ jobs:
 
     - name: Compile Java Application
       run: |
-        javac PongGame.java
+        javac -cp src src/Main.java src/context/*.java src/game/*.java src/settings/*.java
 
     - name: Create JAR
       shell: bash
       run: |
         mkdir -p dist
+        # Copy compiled classes to dist preserving package structure
+        mkdir -p dist/context dist/game dist/settings
+        cp src/*.class dist/ 2>/dev/null || true
+        cp src/context/*.class dist/context/ 2>/dev/null || true
+        cp src/game/*.class dist/game/ 2>/dev/null || true
+        cp src/settings/*.class dist/settings/ 2>/dev/null || true
+        
+        # JAR singolo: sempre con tutte le risorse incluse
         if [ "$(ls -A music/ 2>/dev/null)" ]; then
-          jar cfe dist/PongGame.jar PongGame *.class font temi music icon.png lingue
+          jar cfe dist/PongGame.jar Main -C dist . font temi music icon.png lingue
         else
-          jar cfe dist/PongGame.jar PongGame *.class font temi icon.png lingue
+          jar cfe dist/PongGame.jar Main -C dist . font temi icon.png lingue
         fi
         
     - name: Upload JAR Artifact
@@ -75,17 +83,30 @@ jobs:
 
     - name: Compile Java Application
       run: |
-        javac PongGame.java
+        javac -cp src src/Main.java src/context/*.java src/game/*.java src/settings/*.java
 
     - name: Create JAR
       shell: bash
       run: |
         mkdir -p dist
-        # All platforms: Include assets in JAR
-        if [ "$(ls -A music/ 2>/dev/null)" ]; then
-          jar cfe dist/PongGame.jar PongGame *.class font temi music icon.png lingue
+        # Copy compiled classes to dist preserving package structure
+        mkdir -p dist/context dist/game dist/settings
+        cp src/*.class dist/ 2>/dev/null || true
+        cp src/context/*.class dist/context/ 2>/dev/null || true
+        cp src/game/*.class dist/game/ 2>/dev/null || true
+        cp src/settings/*.class dist/settings/ 2>/dev/null || true
+        
+        # Platform-specific JAR creation
+        if [ "${{ matrix.platform }}" = "macos" ]; then
+          # macOS: Include all resources in JAR
+          if [ "$(ls -A music/ 2>/dev/null)" ]; then
+            jar cfe dist/PongGame.jar Main -C dist . font temi music icon.png lingue
+          else
+            jar cfe dist/PongGame.jar Main -C dist . font temi icon.png lingue
+          fi
         else
-          jar cfe dist/PongGame.jar PongGame *.class font temi icon.png lingue
+          # Windows/Linux: Only classes in JAR, resources via app-content
+          jar cfe dist/PongGame.jar Main -C dist .
         fi
         echo "JAR created with assets included"
 
@@ -96,7 +117,7 @@ jobs:
           --input dist \
           --name "PongPing" \
           --main-jar PongGame.jar \
-          --main-class PongGame \
+          --main-class Main \
           --type dmg \
           --dest . \
           --description "PongPing - Enhanced Pong Game" \
@@ -139,7 +160,7 @@ jobs:
           --input dist \
           --name "PongPing" \
           --main-jar PongGame.jar \
-          --main-class PongGame \
+          --main-class Main \
           --type deb \
           --dest . \
           --app-version "$VERSION_NUM" \
@@ -173,7 +194,7 @@ jobs:
           --input dist `
           --name "PongPing" `
           --main-jar PongGame.jar `
-          --main-class PongGame `
+          --main-class Main `
           --type exe `
           --dest . `
           --app-version $versionNum `
@@ -267,6 +288,21 @@ jobs:
           echo 'EOF'
         } >> $GITHUB_OUTPUT
     
+    - name: Get Contributors
+      id: get_contributors
+      run: |
+        # Get contributors using GitHub API
+        contributors=$(curl -s "https://api.github.com/repos/${{ github.repository }}/contributors" | \
+        jq -r '.[] | "- [@" + .login + "](" + .html_url + ") (" + (.contributions | tostring) + " contributions)"' | \
+        head -10)
+        
+        # Save contributors to GitHub output
+        {
+          echo 'CONTRIBUTORS<<EOF'
+          echo "$contributors"
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
     - name: Create Public Release
       uses: softprops/action-gh-release@v2
       with:
@@ -303,6 +339,12 @@ jobs:
           3. Launch PongPing and enjoy!
           
           For complete changelog, see [UPDATE.md](https://github.com/${{ github.repository }}/blob/main/UPDATE.md).
+          
+          ## 👥 Contributors
+          
+          Thank you to all the contributors who helped make this release possible:
+          
+          ${{ steps.get_contributors.outputs.CONTRIBUTORS }}
           
           ---
           
