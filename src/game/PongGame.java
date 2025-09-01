@@ -1,6 +1,10 @@
+package game;
+
+import context.AnimationContext;
+import context.ContextLoader;
+
 import javax.swing.*;
 import javax.sound.sampled.*;
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.AlphaComposite;
 import java.awt.event.ActionEvent;
@@ -17,7 +21,6 @@ import java.awt.geom.Point2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -28,37 +31,39 @@ import java.util.HashMap;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
+import settings.GeneralSettings;
+import settings.HistorySettings;
+import settings.LanguageSettings;
+import settings.MusicSettings;
+
+import static context.ContextLoader.getResourcePath;
+import static context.DimensionalContext.*;
+import static context.GameContext.*;
+import static context.SettingsContext.*;
+import static context.FontContext.*;
+import static context.LanguageContext.*;
+import static context.AnimationContext.*;
+import static context.HistoryContext.*;
+import static context.RankContext.*;
+import static context.AIContext.*;
+
 
 public class PongGame extends JPanel implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
-    
+
     // Game loop constants
     private static final int LOGIC_FPS = 60;
     private static final long LOGIC_TIME_STEP = 1000000000L / LOGIC_FPS; // nanoseconds
     protected volatile boolean gameRunning = false;
     private Thread gameLoopThread;
-    // Base dimensions (reference for scaling)
-    private static final int BASE_WIDTH = 800;
-    private static final int BASE_HEIGHT = 600;
-    private static final int MIN_WIDTH = 600;
-    private static final int MIN_HEIGHT = 450;
-    
-    // Current dimensions (updated on resize)
-    protected int BOARD_WIDTH = BASE_WIDTH;
-    protected int BOARD_HEIGHT = BASE_HEIGHT;
-    protected int PADDLE_WIDTH = 20;
-    protected int PADDLE_HEIGHT = 80;
-    protected int BALL_SIZE = 20;
-    private int MENU_PADDLE_WIDTH = 40;
-    
+
+
     // Scale factors
     protected double scaleX = 1.0;
     protected double scaleY = 1.0;
     
     protected static final int WINNING_SCORE = 10;
     
-    // Game states
-    protected enum GameState { SETTINGS, MENU, PLAYING, PAUSED, GAME_OVER, SINGLE_PLAYER, TRANSITIONING, BACKGROUND_SELECTION, PADDLE_SELECTION, RIGHT_PADDLE_SELECTION, FIRST_ACCESS, DEBUG, GAME_MODE_SELECTION, RANK, HISTORY }
-    protected GameState currentState; // Will be set based on first run check
+
     
     // Helper method to change state with debug logging
     protected void setState(GameState newState) {
@@ -126,29 +131,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private int debugCombos = 0;
     private int debugSelection = 0; // 0=score1, 1=score2, 2=combos
     private String[] debugLabels = {"Player 1 Score", "Player 2 Score", "Combos"};
-    private String currentRank = "NOVICE";
-    private Color rankColor = Color.WHITE;
+
     
-    // Ranking system for single player
-    protected String finalRank = "";
-    protected boolean showRankScreen = false;
-    protected int rankAnimationFrame = 0;
-    
-    // Rank screen animation phases
-    private boolean rankPaddleTransitionComplete = false;
-    private boolean rankTextTransitionStarted = false;
-    private double rankPaddleProgress = 0.0; // 0.0 = posizione gioco, 1.0 = posizione rank
-    private double rankTextProgress = 0.0; // 0.0 = fuori schermo destra, 1.0 = posizione finale
-    
-    // Scrolling text animation phases
-    private boolean scrollingTextStarted = false;
-    private boolean scrollingTextEntryComplete = false;
-    private boolean showingDifficultyPhase = true;
-    private boolean gameInfoTransitionStarted = false;
-    private boolean difficultyHasBeenCovered = false; // Track if difficulty has been covered by scrolling text
-    private double scrollingTextDropProgress = 0.0; // 0.0 = fuori schermo alto, 1.0 = posizione finale
-    private double gameInfoSlideProgress = 0.0; // 0.0 = fuori schermo sinistra, 1.0 = completamente passato
-    private int difficultyDisplayFrames = 0;
+
     
     // Fire ball system
     private int consecutivePaddleBounces = 0; // Count consecutive paddle bounces without wall hits
@@ -184,41 +169,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private int consecutiveMissedShots = 0;   // Track player consistency
     private double averageRallyLength = 0.0;  // Moving average of rally performance // Best combo achieved this session
     
-    // Right paddle combo system (player 2 - multiplayer only)
-    private int rightComboCount = 0;
-    private int rightMaxCombo = 0;
-    
-    // Advanced combo visual effects (left paddle)
-    private float comboScale = 1.0f;
-    private float comboPulse = 0.0f;
-    private float comboGlow = 0.0f;
-    private Color comboColor = Color.YELLOW;
-    private boolean comboMilestoneHit = false;
-    private int comboMilestoneTimer = 0;
-    private long lastComboTime = 0;
-    
-    // Combo visibility control (left paddle)
-    private boolean showCombo = false;
-    private int comboShowTimer = 0;
-    private static final int COMBO_SHOW_DURATION = 90; // 1.5 seconds at 60 FPS
-    
-    // Right paddle combo visual effects
-    private float rightComboScale = 1.0f;
-    private float rightComboPulse = 0.0f;
-    private float rightComboGlow = 0.0f;
-    private Color rightComboColor = Color.YELLOW;
-    private boolean rightComboMilestoneHit = false;
-    private int rightComboMilestoneTimer = 0;
-    private long lastRightComboTime = 0;
-    
-    // Right combo visibility control
-    private boolean showRightCombo = false;
-    private int rightComboShowTimer = 0;
-    
-    // Cached glow colors to avoid concurrent access issues
-    protected Color cachedLeftGlowColor = new Color(100, 150, 255, 100);
-    protected Color cachedRightGlowColor = new Color(255, 100, 100, 100);
-    
     // Object Pool for Particles (performance optimization)
     private java.util.Queue<Particle> particlePool = new java.util.ArrayDeque<>();
     private static final int MAX_POOL_SIZE = 100; // Maximum particles to keep in pool (reduced from 200)
@@ -231,23 +181,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private boolean upPressed = false;
     private boolean downPressed = false;
     
-    // Menu selection
-    private int selectedMenuItem = 0;
-    private String[] menuItems;
-    private boolean leftPaddleSelected = false; // Track if left paddle is selected in menu
-    private boolean rightPaddleSelected = false; // Track if right paddle is selected in menu
-    
-    // Game mode selection
-    private int selectedGameMode = 0;
-    private String[] gameModes = {"NORMALE"};
-    private String[] gameModeDescriptions = {
-        "Modalità normale: gioco classico standard"
-    };
-    
-    // Current game mode
-    private int currentGameMode = 0; // 0=Normal
-    private boolean isUsingKeyboardNavigation = false; // Track if user is navigating with keyboard
-    private int hoveredMenuItem = -1; // Track which menu item is currently hovered (-1 = none)
+
     
     // Pause system - simple approach
     private boolean isPaused = false;
@@ -289,105 +223,46 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private static final double MESSAGE_SHOW_DELAY = 1; // Show immediately
     private static final double MESSAGE_SCROLL_SPEED = 2.0; // Positive speed
     
-    // History system variables
-    private java.util.List<GameHistoryEntry> gameHistory = new java.util.ArrayList<>();
-    private int selectedHistoryMode = 0; // 0 = Single Player, 1 = Two Players
-    private int selectedHistoryCard = 0; // Indice della card selezionata nella cronologia
-    private int historyScrollOffset = 0; // Offset per scroll automatico delle card
-    private static final String HISTORY_FILE = getHistoryFilePath();
     
-    
-    // Settings screen variables
-    private int selectedSetting = 0; // Current setting being modified
-    protected int paddleSpeedSetting = 1; // 0 = Lenta, 1 = Media, 2 = Veloce
-    protected int aiDifficultySetting = 2; // 0-4 (0 = Facile, 4 = Impossibile)
-    protected int ballSpeedSetting = 25; // Velocità massima numerica (range 5-100)
-    protected int player1UpKey = KeyEvent.VK_W; // Tasto su per player 1
-    protected int player1DownKey = KeyEvent.VK_S; // Tasto giù per player 1
-    protected int player2UpKey = KeyEvent.VK_UP; // Tasto su per player 2
-    protected int player2DownKey = KeyEvent.VK_DOWN; // Tasto giù per player 2
-    
-    // Audio settings
-    private int musicVolume = 50; // Volume musica (0-100)
-    private int effectsVolume = 75; // Volume effetti (0-100)
-    private boolean musicEnabled = true; // Musica attiva
-    
-    // Category system for settings
-    private String[] categoryNames = {"DIFFICOLTA", "IMPOSTAZIONI PADDLE", "COMANDI", "AUDIO", "LINGUA"};
-    private int selectedCategory = 0; // Currently selected category
-    private int selectedCategorySetting = 0; // Selected setting within category
-    private boolean inCategoryColumn = true; // true = left column (categories), false = right column (settings)
-    private double[] categoryAnimationProgress = {1.0, 0.0, 0.0, 0.0, 0.0}; // Animation progress for each category (1.0 = fully visible)
+
     
     // Paddle width animation variables for settings
     private double leftPaddleWidthProgress = 1.0; // 1.0 = expanded, 0.0 = normal
     private double rightPaddleWidthProgress = 0.0; // 1.0 = expanded, 0.0 = normal
-    
-    // Settings organized by category (use stable identifiers)
-    private final String[][] categorySettings = {
-        {"SETTING_AI_DIFFICULTY"},
-        {"SETTING_PADDLE_SPEED", "SETTING_BALL_SPEED"},
-        {"SETTING_P1_UP", "SETTING_P1_DOWN", "SETTING_P2_UP", "SETTING_P2_DOWN"},
-        {"SETTING_MUSIC_VOLUME", "SETTING_EFFECTS_VOLUME", "SETTING_MUSIC_ACTIVE"},
-        {"SETTING_GAME_LANGUAGE"}
-    };
-    
-    // Stable identifiers list for mapping logic
-    private final String[] settingNames = {"SETTING_PADDLE_SPEED", "SETTING_AI_DIFFICULTY", "SETTING_BALL_SPEED", "SETTING_P1_UP", "SETTING_P1_DOWN", "SETTING_P2_UP", "SETTING_P2_DOWN"};
-    private String[] paddleSpeedOptions = {"LENTA", "MEDIA", "VELOCE"};
-    private String[] aiDifficultyOptions = {"FACILE", "NORMALE", "DIFFICILE", "ESPERTO", "IMPOSSIBILE"};
-    // Ball speed is now numeric, no longer uses options array
+
     
     // Demo mode variables
-    private boolean isDemoMode = false;
-    private double demoPaddleY = 300.0; // Keep double for precise positioning
-    private double demoRedPaddleY = 300.0; // Red paddle position
-    private double demoTransitionProgress = 0.0;
-    
-    // Settings background animation
-    private double checkerboardOffset = 0.0;
-    private double glowIntensity = 0.6; // Fixed intensity for stable lighting
-    // Clean mouse hover system - based on Java Swing best practices
-    private boolean mouseOnBackground = false;
-    private HoverState currentHoverState = HoverState.NONE;
-    private int hoveredCategory = -1;
-    private int hoveredSetting = -1;
-    private boolean isUsingKeyboardNavigationSettings = false; // Track keyboard navigation in settings
-    
-    // Hover state enum for clean state management
-    private enum HoverState {
-        NONE,           // No hover
-        BACKGROUND,     // Hovering over background (clickable for themes)
-        CATEGORY,       // Hovering over a category
-        SETTING         // Hovering over a setting
-    }
-    
-    private boolean isTransitioningToDemo = false;
-    private boolean isTransitioningFromDemo = false;
-    private boolean isTransitioningDemoToMenu = false;
-    private double demoToMenuProgress = 0.0;
-    
-    // Field selection state
-    private boolean isExitingDemo = false;
-    private double demoExitProgress = 0.0;
-    private boolean isFieldSelection = false;
-    private boolean playerOnRight = false; // true if player chooses right field
-    private boolean demoPaddleUpPressed = false;
-    private boolean demoPaddleDownPressed = false;
-    private boolean demoRedPaddleUpPressed = false;
-    private boolean demoRedPaddleDownPressed = false;
-    
+    protected boolean isDemoMode = false;
+
+    protected boolean isTransitioningToDemo = false;
+    protected boolean isTransitioningFromDemo = false;
+    protected boolean isTransitioningDemoToMenu = false;
+    protected double demoToMenuProgress = 0.0;
+    protected double demoTransitionProgress = 0.0;
+
     // Demo ball variables (same as game ball)
-    private double demoBallX = 400.0;
-    private double demoBallY = 300.0;
-    private double demoBallVX = 4.0;
-    private double demoBallVY = 2.0;
+    protected double demoBallX = 400.0;
+    protected double demoBallY = 300.0;
+    protected double demoBallVX = 4.0;
+    protected double demoBallVY = 2.0;
     // Demo ball size is now always BALL_SIZE (scaled)
-    private double demoBallSpeed = 4.0;
+    protected double demoBallSpeed = 4.0;
+
+    protected double demoPaddleY = 300.0; // Keep double for precise positioning
+    protected double demoRedPaddleY = 300.0; // Red paddle position
+
+    // Field selection state
+    protected boolean isExitingDemo = false;
+    protected double demoExitProgress = 0.0;
+    protected boolean isFieldSelection = false;
+    protected boolean playerOnRight = false; // true if player chooses right field
+    protected boolean demoPaddleUpPressed = false;
+    protected boolean demoPaddleDownPressed = false;
+    protected boolean demoRedPaddleUpPressed = false;
+    protected boolean demoRedPaddleDownPressed = false;
+
     
-    // Settings file management
-    private static final String SETTINGS_FILE = getSettingsFilePath();
-    private boolean isFirstRun = true;
+
     
     // FirstAccess theme carousel variables
     private double carouselOffset = 0.0;
@@ -397,74 +272,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private double chessAnimationTime = 0.0;
     private long lastChessUpdate = 0;
     
-    // Localization system
-    private Map<String, String> currentLanguage = new HashMap<>();
-    private String currentLanguageCode = "italiano"; // Default language
     
-    
-    // AI variables
-    private double aiTargetY = 250;
-    private double aiCurrentVelocity = 0.0;
-    protected double aiPaddleY = 250.0; // Smooth AI paddle position
-    private int aiDifficulty = 3; // 1-5, higher = harder
-    private double aiMaxSpeed = 4.0;
-    private double aiAcceleration = 0.4;
-    private double aiDeceleration = 0.85;
-    private long lastAIUpdate = 0;
-    private long lastBallDirectionChange = 0;
-    private double aiReactionDelay = 0.2; // seconds
+
     private Random random = new Random();
     
-    // Visual effects
-    private ArrayList<Particle> particles = new ArrayList<>();
-    private Color ballTrail = new Color(255, 255, 255, 100);
-    
-    // Menu animation variables
-    private double menuPaddle1Y = 0;
-    private double menuPaddle2Y = 0;
-    private int menuPaddleHeight = BOARD_HEIGHT;
-    private double transitionProgress = 0.0;
-    private boolean isTransitioning = false;
-    private GameState transitionTarget = GameState.PLAYING;
-    
-    // Home to themes transition variables
-    private boolean isHomeToThemesTransition = false;
-    private double homeToThemesProgress = 0.0;
-    private double textFadeProgress = 1.0;
-    private double paddleExitProgress = 0.0;
-    private double themesPanelProgress = 0.0;
-    
-    // Home to paddle selection transition variables
-    private boolean isHomeToPaddleTransition = false;
-    private double homeToPaddleProgress = 0.0;
-    private double paddleTextFadeProgress = 1.0;
-    private double paddlePanelProgress = 0.0;
-    private boolean isLeftPaddleTransition = true; // true for left paddle, false for right paddle
-    
-    // Home to settings transition variables
-    private boolean isHomeToSettingsTransition = false;
-    private double homeToSettingsProgress = 0.0;
-    private double paddleTranslationProgress = 0.0; // Progress of paddles moving to settings position
-    private double columnsTranslationProgress = 0.0; // Progress of settings columns sliding in
-    private double checkerboardAppearProgress = 0.0; // Progress of checkerboard appearing from bottom to top
-    private double checkerboardAnimationProgress = 0.0; // Progress of checkerboard animation after it's fully appeared
-    
-    // Settings to home transition variables (inverse of home to settings)
-    private boolean isSettingsToHomeTransition = false;
-    private double settingsToHomeProgress = 0.0;
-    private double settingsPaddleTranslationProgress = 0.0; // Progress of paddles moving back to home position
-    private double settingsColumnsTranslationProgress = 0.0; // Progress of settings columns sliding out
-    private double settingsCheckerboardDisappearProgress = 0.0; // Progress of checkerboard disappearing from top to bottom
-    private double settingsCheckerboardAnimationProgress = 0.0; // Progress of checkerboard animation while disappearing
-    
-    
-    // Themes to home transition variables (inverse)
-    private boolean isThemesToHomeTransition = false;
-    private double themesToHomeProgress = 0.0;
-    private double titleExitProgress = 0.0;
-    private double panelExitProgress = 0.0;
-    private double textAppearProgress = 0.0;
-    private double paddleReturnProgress = 0.0; // Progress of paddles returning to menu position (used by themes transition)
+
     
     // Method to check if any transition is active
     private boolean isAnyTransitionActive() {
@@ -480,48 +292,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                isRankToHomeTransition ||
                isPaddleToHomeTransition;
     }
+
     
-    
-    // Background selection variables
-    protected int selectedBackground = 0; // Default background
-    private ArrayList<String> backgroundNames = new ArrayList<>(); // Dynamic background names
-    protected ArrayList<Image> backgroundImages = new ArrayList<>(); // Loaded background images
-    private int selectedBackgroundOption = 0; // Currently selected in background menu
-    
-    // Paddle selection variables
-    // Separate paddle themes for blue (left) and red (right) paddles
-    private ArrayList<String> bluePaddleThemeNames = new ArrayList<>(); // Blue paddle themes
-    protected ArrayList<BufferedImage> bluePaddleThemeImages = new ArrayList<>(); // Blue paddle images
-    private ArrayList<String> redPaddleThemeNames = new ArrayList<>(); // Red paddle themes  
-    protected ArrayList<BufferedImage> redPaddleThemeImages = new ArrayList<>(); // Red paddle images
-    
-    // Legacy arrays for compatibility (will use blue themes for now)
-    private ArrayList<String> paddleThemeNames = new ArrayList<>(); // Available paddle themes
-    private ArrayList<BufferedImage> paddleThemeImages = new ArrayList<>(); // Loaded paddle images
-    protected int selectedPaddleTheme = 0; // Currently selected left paddle theme
-    protected int selectedRightPaddleTheme = 0; // Currently selected right paddle theme
-    private int previewPaddleY = 300; // Y position of preview paddle in selection screen
-    
-    // Sistema selezione paddle con smooth scrolling avanzato
-    private double paddleGridScrollY = 0.0; // Scroll verticale per paddle sinistro (double per precisione)
-    private double rightPaddleGridScrollY = 0.0; // Scroll verticale per paddle destro (double per precisione)
-    private static final int PADDLE_COLS = 4; // 4 colonne fisse
-    
-    // Advanced smooth scrolling system - basato su best practices web e game development
-    private static final double SCROLL_SENSITIVITY = 2.0; // Sensibilità scroll (pixel per wheel tick)
-    private static final double SCROLL_SMOOTHING = 0.88; // Fattore di smoothing/friction (0.85-0.95 ottimale)
-    private static final int SCROLL_ANIMATION_FPS = 60; // FPS per animazione scroll
-    private static final long SCROLL_ANIMATION_INTERVAL = 1000 / SCROLL_ANIMATION_FPS; // millisecondi
-    private static final double MIN_SCROLL_VELOCITY = 0.1; // Velocità minima prima di fermarsi
-    
-    // Smooth scrolling state variables
-    private double targetScrollY = 0.0; // Target scroll per paddle sinistro
-    private double targetRightScrollY = 0.0; // Target scroll per paddle destro  
-    private double scrollVelocityY = 0.0; // Velocità scroll paddle sinistro
-    private double rightScrollVelocityY = 0.0; // Velocità scroll paddle destro
-    private javax.swing.Timer scrollAnimationTimer; // Timer per animazione smooth
-    private boolean isScrollingLeft = false; // Flag scroll paddle sinistro
-    private boolean isScrollingRight = false; // Flag scroll paddle destro
+
     
     // Dynamic grid size calculation
     private int calculateGridCols() {
@@ -601,99 +374,16 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     // Component listener for resize events
     private boolean needsResize = false;
-    
-    // Fonts
-    protected Font primaryFont;
-    private Font secondaryFont;
-    private Font rankFont; // Font for rank display
-    
-    // Audio
-    private Clip backgroundMusic;
+
+
+    private MusicSettings musicSettings = new MusicSettings();
+    private LanguageSettings languageSettings = new LanguageSettings();
+    private HistorySettings historySettings = new HistorySettings();
+    protected GeneralSettings generalSettings = new GeneralSettings();
     
     private Timer gameTimer;
     
-    // Particle class for visual effects
-    private class Particle {
-        double x, y, vx, vy;
-        int life, maxLife;
-        Color color;
-        boolean infinite;
-        
-        Particle(double x, double y, double vx, double vy, int life, Color color) {
-            this(x, y, vx, vy, life, color, false);
-        }
-        
-        Particle(double x, double y, double vx, double vy, int life, Color color, boolean infinite) {
-            this.x = x;
-            this.y = y;
-            this.vx = vx;
-            this.vy = vy;
-            this.life = this.maxLife = life;
-            this.color = color;
-            this.infinite = infinite;
-        }
-        
-        // Reset method for object pooling
-        void reset(double x, double y, double vx, double vy, int life, Color color) {
-            this.x = x;
-            this.y = y;
-            this.vx = vx;
-            this.vy = vy;
-            this.life = this.maxLife = life;
-            this.color = color;
-            this.infinite = false; // Fire particles are not infinite
-        }
-        
-        void update() {
-            x += vx;
-            y += vy;
-            
-            if (infinite) {
-                // Rimbalza sui bordi per particelle infinite
-                if (x <= 0 || x >= BOARD_WIDTH) {
-                    vx = -vx;
-                    x = Math.max(0, Math.min(BOARD_WIDTH, x));
-                }
-                if (y <= 0 || y >= BOARD_HEIGHT) {
-                    vy = -vy;
-                    y = Math.max(0, Math.min(BOARD_HEIGHT, y));
-                }
-                // Mantieni velocità costante per particelle infinite
-                double speed = Math.sqrt(vx * vx + vy * vy);
-                if (speed > 0) {
-                    double targetSpeed = 1.5;
-                    vx = (vx / speed) * targetSpeed;
-                    vy = (vy / speed) * targetSpeed;
-                }
-            } else {
-                // Comportamento normale per particelle temporanee
-                vx *= 0.98;
-                vy *= 0.98;
-                life--;
-            }
-        }
-        
-        void draw(Graphics2D g) {
-            if (infinite) {
-                // Particelle infinite sempre visibili
-                g.setColor(color);
-                g.fillOval((int)x - 2, (int)y - 2, 4, 4);
-                // Aggiunge effetto glow
-                g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 50));
-                g.fillOval((int)x - 4, (int)y - 4, 8, 8);
-            } else {
-                // Particelle temporanee con fade
-                float alpha = (float) life / maxLife;
-                g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 
-                    (int)(alpha * color.getAlpha())));
-                g.fillOval((int)x - 2, (int)y - 2, 4, 4);
-            }
-        }
-        
-        boolean isDead() {
-            return !infinite && life <= 0;
-        }
-    }
+
     
     public PongGame() {
         this.setPreferredSize(new Dimension(BOARD_WIDTH, BOARD_HEIGHT));
@@ -714,17 +404,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 updateDimensions();
             }
         });
-        
-        loadFonts();
-        loadBackgrounds(); // Load background images from temi/GameBack
-        loadPaddleThemes(); // Load paddle themes from temi/Padle
-        loadLanguage("italiano"); // Load default language (Italian)
+
+        ContextLoader.load(musicSettings, languageSettings, historySettings);
         updateLocalizedArrays(); // Initialize localized strings
-        loadSettingsFromFile(); // Load settings before music to apply volume
+        generalSettings.loadSettingsFromFile(languageSettings); // Load settings before music to apply volume
         loadTextColorsForTheme(); // Load text colors for current theme
-        loadGameHistory(); // Load game history
         initializeMouseCursors(); // Initialize cursor visibility system
-        loadMusic();
         updateDimensions();
         
         // Determine if this is first run (no settings file exists)
@@ -755,17 +440,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         startGameLoop();
     }
     
-    // Animation variables for smooth resizing
-    private Timer resizeTimer;
-    private double targetScaleX, targetScaleY;
-    private double currentAnimatedScaleX, currentAnimatedScaleY;
-    private int targetWidth, targetHeight;
-    private int currentAnimatedWidth, currentAnimatedHeight;
-    private static final int RESIZE_ANIMATION_DURATION = 200; // milliseconds
-    private static final double RESIZE_SMOOTHING_FACTOR = 0.15;
-    
-    // Animation variables for difficulty effects
-    private double difficultyAnimationTime = 0.0;
+
     
     private void updateDimensions() {
         Dimension size = getSize();
@@ -821,44 +496,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         resizeTimer.start();
     }
     
-    /**
-     * Get the correct resource path based on the runtime environment
-     * - For jpackage apps (all platforms): Use app/ directory structure
-     * - For JAR/development: Use relative paths
-     */
-    private String getResourcePath(String relativePath) {
-        try {
-            // Get the path to the executable JAR
-            String jarPath = PongGame.class.getProtectionDomain()
-                .getCodeSource().getLocation().toURI().getPath();
-            
-            // Check if we're inside a jpackage app bundle (all platforms)
-            // jpackage puts resources in app/ directory next to the JAR
-            if (jarPath.contains("/app/") || jarPath.contains("\\app\\")) {
-                // Extract the app directory path
-                String appDirPath;
-                if (jarPath.contains("/app/")) {
-                    appDirPath = jarPath.substring(0, jarPath.indexOf("/app/") + 5);
-                } else {
-                    appDirPath = jarPath.substring(0, jarPath.indexOf("\\app\\") + 5);
-                }
-                
-                String resourcePath = appDirPath + relativePath;
-                File resourceFile = new File(resourcePath);
-                
-                if (resourceFile.exists()) {
-                    System.out.println("Using jpackage app bundle resources: " + resourcePath);
-                    return resourcePath;
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("Could not detect app bundle, using default path: " + e.getMessage());
-        }
-        
-        // Fallback to JAR resources or relative path
-        System.out.println("Using default resource path: " + relativePath);
-        return relativePath;
-    }
+
     
     private void updateDimensionsImmediate() {
         BOARD_WIDTH = (int) currentAnimatedWidth;
@@ -1002,166 +640,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 System.out.println("RESIZE DEBUG Right: maxScroll=" + maxScroll + 
                                  ", newScrollY=" + rightPaddleGridScrollY + ", targetY=" + targetRightScrollY);
             }
-        }
-    }
-    
-    private void loadFonts() {
-        try {
-            // Try to load fonts as resources from JAR
-            InputStream primaryStream = getClass().getClassLoader().getResourceAsStream("font/Silkscreen/Silkscreen-Regular.ttf");
-            if (primaryStream != null) {
-                primaryFont = Font.createFont(Font.TRUETYPE_FONT, primaryStream).deriveFont(32f);
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(primaryFont);
-                primaryStream.close();
-            } else {
-                // Fallback to file system (development mode)
-                primaryFont = Font.createFont(Font.TRUETYPE_FONT, 
-                    new File(getResourcePath("font/Silkscreen/Silkscreen-Regular.ttf"))).deriveFont(32f);
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(primaryFont);
-            }
-            
-            InputStream secondaryStream = getClass().getClassLoader().getResourceAsStream("font/Space_Mono/SpaceMono-Regular.ttf");
-            if (secondaryStream != null) {
-                secondaryFont = Font.createFont(Font.TRUETYPE_FONT, secondaryStream).deriveFont(16f);
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(secondaryFont);
-                secondaryStream.close();
-            } else {
-                // Fallback to file system (development mode)
-                secondaryFont = Font.createFont(Font.TRUETYPE_FONT, 
-                    new File(getResourcePath("font/Space_Mono/SpaceMono-Regular.ttf"))).deriveFont(16f);
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(secondaryFont);
-            }
-            
-            // Load rank font (Bitcount Prop Double Bold)
-            InputStream rankStream = getClass().getClassLoader().getResourceAsStream("font/Bitcount_Prop_Double/static/BitcountPropDouble-Bold.ttf");
-            if (rankStream != null) {
-                rankFont = Font.createFont(Font.TRUETYPE_FONT, rankStream).deriveFont(48f);
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(rankFont);
-                rankStream.close();
-            } else {
-                // Fallback to file system (development mode)
-                rankFont = Font.createFont(Font.TRUETYPE_FONT, 
-                    new File(getResourcePath("font/Bitcount_Prop_Double/static/BitcountPropDouble-Bold.ttf"))).deriveFont(48f);
-                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(rankFont);
-            }
-            
-            System.out.println("Custom fonts loaded successfully from JAR resources");
-            
-        } catch (FontFormatException | IOException e) {
-            System.out.println("Could not load custom fonts, using default fonts: " + e.getMessage());
-            primaryFont = new Font("Arial", Font.BOLD, 32);
-            secondaryFont = new Font("Arial", Font.PLAIN, 16);
-            rankFont = new Font("Arial", Font.BOLD, 48); // Fallback for rank font
-        }
-    }
-    
-    private void loadBackgrounds() {
-        try {
-            // Add default black theme first
-            backgroundImages.add(null); // null represents black background
-            backgroundNames.add("Default (Black)");
-            
-            // Try to load from app context first (for jpackage apps with --app-content)
-            String backgroundDirPath = getResourcePath("temi/GameBack");
-            File backgroundDir = new File(backgroundDirPath);
-            if (backgroundDir.exists() && backgroundDir.isDirectory()) {
-                File[] files = backgroundDir.listFiles((dir, name) -> {
-                    String lowerName = name.toLowerCase();
-                    return lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || 
-                           lowerName.endsWith(".jpeg") || lowerName.endsWith(".gif") || 
-                           lowerName.endsWith(".bmp");
-                });
-                
-                if (files != null && files.length > 0) {
-                    // Sort files alphabetically
-                    java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
-                    
-                    for (File file : files) {
-                        try {
-                            BufferedImage img = ImageIO.read(file);
-                            if (img != null) {
-                                backgroundImages.add(img);
-                                // Remove file extension for display name
-                                String name = file.getName();
-                                int lastDot = name.lastIndexOf('.');
-                                if (lastDot > 0) {
-                                    name = name.substring(0, lastDot);
-                                }
-                                backgroundNames.add(name);
-                                System.out.println("✓ Background loaded from app context: " + file.getName());
-                            }
-                        } catch (Exception e) {
-                            System.out.println("Could not load background from app context: " + file.getName() + " - " + e.getMessage());
-                        }
-                    }
-                }
-            } else {
-                // Fallback: try loading from JAR resources
-                System.out.println("App context not found, trying JAR resources for backgrounds");
-                String[] backgroundFiles = {
-                    "Furry.jpg", "Natura.png", "Notte.png"
-                };
-                
-                for (String filename : backgroundFiles) {
-                    try {
-                        InputStream imageStream = getClass().getClassLoader().getResourceAsStream("temi/GameBack/" + filename);
-                        if (imageStream != null) {
-                            BufferedImage img = ImageIO.read(imageStream);
-                            imageStream.close();
-                            
-                            if (img != null) {
-                                backgroundImages.add(img);
-                                // Remove file extension for display name
-                                String name = filename;
-                                int lastDot = name.lastIndexOf('.');
-                                if (lastDot > 0) {
-                                    name = name.substring(0, lastDot);
-                                }
-                                backgroundNames.add(name);
-                                System.out.println("✓ Background loaded from JAR: " + filename);
-                            }
-                        } else {
-                            System.out.println("⚠️  Background file not found in app context or JAR: " + filename);
-                        }
-                    } catch (Exception e) {
-                        System.out.println("Could not load background from JAR: " + filename + " - " + e.getMessage());
-                    }
-                }
-            }
-            
-            // Add default background if no images found
-            if (backgroundNames.size() <= 1) { // Only default was added
-                System.out.println("⚠️  No background images found");
-            }
-            
-        } catch (Exception e) {
-            System.out.println("Error loading backgrounds: " + e.getMessage());
-        }
-    }
-    
-    private void loadPaddleThemes() {
-        try {
-            // Load blue paddle themes (left paddle)
-            loadPaddleThemesFromDirectory(getResourcePath("temi/Padle/Blu"), bluePaddleThemeNames, bluePaddleThemeImages, "Blue");
-            
-            // Load red paddle themes (right paddle)  
-            loadPaddleThemesFromDirectory(getResourcePath("temi/Padle/Rosso"), redPaddleThemeNames, redPaddleThemeImages, "Red");
-            
-            // Don't shuffle paddle themes to maintain consistent indices like backgrounds
-            // shufflePaddleThemes();
-            
-            // Set up legacy arrays for compatibility (use blue themes as default)
-            paddleThemeNames.clear();
-            paddleThemeImages.clear();
-            paddleThemeNames.addAll(bluePaddleThemeNames);
-            paddleThemeImages.addAll(bluePaddleThemeImages);
-            
-        } catch (Exception e) {
-            System.out.println("Error loading paddle themes: " + e.getMessage());
-            // Fallback to default
-            addDefaultPaddleTheme(bluePaddleThemeNames, bluePaddleThemeImages);
-            addDefaultPaddleTheme(redPaddleThemeNames, redPaddleThemeImages);
-            addDefaultPaddleTheme(paddleThemeNames, paddleThemeImages);
         }
     }
     
@@ -1335,192 +813,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         return score;
     }
+
     
-    private void loadPaddleThemesFromDirectory(String dirPath, ArrayList<String> themeNames, 
-                                             ArrayList<BufferedImage> themeImages, String colorName) {
-        // Add default gradient theme first
-        themeNames.add("Default (" + colorName + " Gradient)");
-        themeImages.add(null); // null represents default gradient
-        
-        try {
-            // Try to load from app context first (for jpackage apps with --app-content)
-            File paddleDir = new File(dirPath);
-            if (paddleDir.exists() && paddleDir.isDirectory()) {
-                File[] files = paddleDir.listFiles((dir, name) -> {
-                    String lowerName = name.toLowerCase();
-                    return lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || 
-                           lowerName.endsWith(".jpeg") || lowerName.endsWith(".gif") || 
-                           lowerName.endsWith(".bmp");
-                });
-                
-                if (files != null && files.length > 0) {
-                    // Sort files alphabetically
-                    java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
-                    
-                    for (File file : files) {
-                        try {
-                            BufferedImage img = ImageIO.read(file);
-                            if (img != null) {
-                                themeImages.add(img);
-                                // Clean up the display name
-                                String name = file.getName();
-                                int lastDot = name.lastIndexOf('.');
-                                if (lastDot > 0) {
-                                    name = name.substring(0, lastDot);
-                                }
-                                
-                                // Remove "pixellab-" prefix if present
-                                if (name.startsWith("pixellab-")) {
-                                    name = name.substring("pixellab-".length());
-                                }
-                                
-                                // Remove everything after "--" (including color codes)
-                                int doubleHyphenIndex = name.indexOf("--");
-                                if (doubleHyphenIndex > 0) {
-                                    name = name.substring(0, doubleHyphenIndex);
-                                }
-                                
-                                // Remove numeric suffixes (timestamps)
-                                name = name.replaceAll("-\\d+$", "");
-                                
-                                // Clean up remaining hyphens and make it more readable
-                                name = name.replaceAll("-+", " ").trim();
-                                
-                                // Capitalize first letter of each word
-                                String[] words = name.split("\\s+");
-                                StringBuilder cleanName = new StringBuilder();
-                                for (String word : words) {
-                                    if (word.length() > 0) {
-                                        if (cleanName.length() > 0) cleanName.append(" ");
-                                        cleanName.append(word.substring(0, 1).toUpperCase())
-                                                .append(word.substring(1).toLowerCase());
-                                    }
-                                }
-                                
-                                themeNames.add(cleanName.toString());
-                                System.out.println("✓ " + colorName + " paddle theme loaded from app context: " + file.getName() + " -> " + cleanName.toString());
-                            }
-                        } catch (Exception e) {
-                            System.out.println("Could not load " + colorName.toLowerCase() + " paddle theme from app context: " + file.getName() + " - " + e.getMessage());
-                        }
-                    }
-                }
-            } else {
-                // Fallback: try loading from JAR resources
-                System.out.println("App context not found, trying JAR resources for " + colorName.toLowerCase() + " paddle themes");
-                
-                // Create relative path for JAR resources
-                String jarResourcePath = dirPath.replace("\\", "/");
-                if (jarResourcePath.startsWith("temi/")) {
-                    jarResourcePath = jarResourcePath.substring(5); // Remove "temi/" prefix if present
-                }
-                
-                // List of known paddle files for this color (fallback list)
-                String[] paddleFiles = {}; // Empty - will be populated based on actual JAR contents
-                
-                // Try to enumerate JAR contents
-                try {
-                    String fullJarPath = "temi/Padle/" + (colorName.equals("Blue") ? "Blu" : "Rosso");
-                    URL resourceUrl = getClass().getResource("/" + fullJarPath);
-                    if (resourceUrl != null && resourceUrl.getProtocol().equals("jar")) {
-                        String jarPath = resourceUrl.getPath().substring(5, resourceUrl.getPath().indexOf("!"));
-                        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarPath)) {
-                            java.util.Enumeration<java.util.jar.JarEntry> entries = jar.entries();
-                            java.util.List<String> foundFiles = new java.util.ArrayList<>();
-                            
-                            while (entries.hasMoreElements()) {
-                                java.util.jar.JarEntry entry = entries.nextElement();
-                                String entryName = entry.getName();
-                                if (entryName.startsWith(fullJarPath + "/") && !entry.isDirectory()) {
-                                    String fileName = entryName.substring(entryName.lastIndexOf("/") + 1);
-                                    String lowerName = fileName.toLowerCase();
-                                    if (lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || 
-                                        lowerName.endsWith(".jpeg") || lowerName.endsWith(".gif") || 
-                                        lowerName.endsWith(".bmp")) {
-                                        foundFiles.add(fileName);
-                                    }
-                                }
-                            }
-                            paddleFiles = foundFiles.toArray(new String[0]);
-                        }
-                    }
-                } catch (Exception e) {
-                    System.out.println("Could not enumerate JAR contents for " + colorName.toLowerCase() + " paddles: " + e.getMessage());
-                }
-                
-                // Load each found file from JAR
-                for (String filename : paddleFiles) {
-                    try {
-                        String resourcePath = "temi/Padle/" + (colorName.equals("Blue") ? "Blu" : "Rosso") + "/" + filename;
-                        InputStream imageStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
-                        if (imageStream != null) {
-                            BufferedImage img = ImageIO.read(imageStream);
-                            imageStream.close();
-                            
-                            if (img != null) {
-                                themeImages.add(img);
-                                // Clean up the display name (same logic as above)
-                                String name = filename;
-                                int lastDot = name.lastIndexOf('.');
-                                if (lastDot > 0) {
-                                    name = name.substring(0, lastDot);
-                                }
-                                
-                                // Remove "pixellab-" prefix if present
-                                if (name.startsWith("pixellab-")) {
-                                    name = name.substring("pixellab-".length());
-                                }
-                                
-                                // Remove everything after "--" (including color codes)
-                                int doubleHyphenIndex = name.indexOf("--");
-                                if (doubleHyphenIndex > 0) {
-                                    name = name.substring(0, doubleHyphenIndex);
-                                }
-                                
-                                // Remove numeric suffixes (timestamps)
-                                name = name.replaceAll("-\\d+$", "");
-                                
-                                // Clean up remaining hyphens and make it more readable
-                                name = name.replaceAll("-+", " ").trim();
-                                
-                                // Capitalize first letter of each word
-                                String[] words = name.split("\\s+");
-                                StringBuilder cleanName = new StringBuilder();
-                                for (String word : words) {
-                                    if (word.length() > 0) {
-                                        if (cleanName.length() > 0) cleanName.append(" ");
-                                        cleanName.append(word.substring(0, 1).toUpperCase())
-                                                .append(word.substring(1).toLowerCase());
-                                    }
-                                }
-                                
-                                themeNames.add(cleanName.toString());
-                                System.out.println("✓ " + colorName + " paddle theme loaded from JAR: " + filename + " -> " + cleanName.toString());
-                            }
-                        } else {
-                            System.out.println("⚠️  " + colorName + " paddle theme file not found in app context or JAR: " + filename);
-                        }
-                    } catch (Exception e) {
-                        System.out.println("Could not load " + colorName.toLowerCase() + " paddle theme from JAR: " + filename + " - " + e.getMessage());
-                    }
-                }
-            }
-            
-            // Add default theme if no images found
-            if (themeNames.size() <= 1) { // Only default was added
-                System.out.println("⚠️  No " + colorName.toLowerCase() + " paddle theme images found");
-            }
-            
-        } catch (Exception e) {
-            System.out.println("Error loading " + colorName.toLowerCase() + " paddle themes from " + dirPath + ": " + e.getMessage());
-        }
-    }
-    
-    private void addDefaultPaddleTheme(ArrayList<String> themeNames, ArrayList<BufferedImage> themeImages) {
-        themeNames.add("Default (Gradient)");
-        themeImages.add(null);
-    }
-    
+
+
+
     private void loadTextColorsForTheme() {
         // Set default colors
         currentTextColors.put("menuTitle", Color.WHITE);
@@ -1630,125 +927,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             invisibleCursor = new Cursor(Cursor.DEFAULT_CURSOR);
             defaultCursor = new Cursor(Cursor.DEFAULT_CURSOR);
         }
-    }
-    
-    private void loadMusic() {
-        try {
-            AudioInputStream audioInputStream = null;
-            
-            // Try to load from JAR resources first
-            InputStream musicStream = getClass().getClassLoader().getResourceAsStream("music/Gava-OfficialSoundtrack.wav");
-            if (musicStream != null) {
-                audioInputStream = AudioSystem.getAudioInputStream(musicStream);
-                System.out.println("✓ Music loaded from JAR: Gava-OfficialSoundtrack.wav");
-            } else {
-                // Fallback: try loading from file system (development mode)
-                File musicFile = new File("music/Gava-OfficialSoundtrack.wav");
-                if (musicFile.exists()) {
-                    audioInputStream = AudioSystem.getAudioInputStream(musicFile);
-                    System.out.println("✓ Music loaded from file: Gava-OfficialSoundtrack.wav");
-                }
-            }
-            
-            if (audioInputStream != null) {
-                backgroundMusic = AudioSystem.getClip();
-                backgroundMusic.open(audioInputStream);
-                updateMusicVolume(); // Set initial volume
-                if (musicEnabled) {
-                    backgroundMusic.loop(Clip.LOOP_CONTINUOUSLY);
-                }
-            } else {
-                System.out.println("⚠️  Background music file not found");
-            }
-        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
-            System.out.println("Could not load background music: " + e.getMessage());
-        }
-    }
-    
-    private void updateMusicVolume() {
-        if (backgroundMusic != null && backgroundMusic.isOpen()) {
-            try {
-                FloatControl volumeControl = (FloatControl) backgroundMusic.getControl(FloatControl.Type.MASTER_GAIN);
-                // Convert 0-100 range to decibel range
-                float volume = musicVolume / 100.0f;
-                float dB = (float) (Math.log(volume == 0 ? 0.0001 : volume) / Math.log(10.0) * 20.0);
-                volumeControl.setValue(Math.max(volumeControl.getMinimum(), Math.min(dB, volumeControl.getMaximum())));
-            } catch (Exception e) {
-                System.out.println("Could not set volume: " + e.getMessage());
-            }
-        }
-    }
-    
-    // Sound effect methods
-    private void playPaddleHitSound() {
-        if (effectsVolume == 0) return; // Skip if effects muted
-        new Thread(() -> {
-            try {
-                AudioFormat af = new AudioFormat(44100, 8, 1, true, false);
-                SourceDataLine sdl = AudioSystem.getSourceDataLine(af);
-                sdl.open(af);
-                sdl.start();
-                
-                byte[] buf = new byte[1000];
-                double volumeMultiplier = effectsVolume / 100.0;
-                for (int i = 0; i < buf.length; i++) {
-                    double angle = i / (44100.0 / 800) * 2.0 * Math.PI;
-                    buf[i] = (byte) (Math.sin(angle) * 80 * volumeMultiplier);
-                }
-                
-                sdl.write(buf, 0, buf.length);
-                sdl.drain();
-                sdl.close();
-            } catch (Exception e) { /* Silent fail */ }
-        }).start();
-    }
-    
-    private void playScoreSound() {
-        if (effectsVolume == 0) return; // Skip if effects muted
-        new Thread(() -> {
-            try {
-                AudioFormat af = new AudioFormat(44100, 8, 1, true, false);
-                SourceDataLine sdl = AudioSystem.getSourceDataLine(af);
-                sdl.open(af);
-                sdl.start();
-                
-                double volumeMultiplier = effectsVolume / 100.0;
-                for (int freq : new int[]{523, 659, 784}) {
-                    byte[] buf = new byte[2000];
-                    for (int i = 0; i < buf.length; i++) {
-                        double angle = i / (44100.0 / freq) * 2.0 * Math.PI;
-                        buf[i] = (byte) (Math.sin(angle) * 60 * volumeMultiplier);
-                    }
-                    sdl.write(buf, 0, buf.length);
-                }
-                
-                sdl.drain();
-                sdl.close();
-            } catch (Exception e) { /* Silent fail */ }
-        }).start();
-    }
-    
-    private void playWallHitSound() {
-        if (effectsVolume == 0) return; // Skip if effects muted
-        new Thread(() -> {
-            try {
-                AudioFormat af = new AudioFormat(44100, 8, 1, true, false);
-                SourceDataLine sdl = AudioSystem.getSourceDataLine(af);
-                sdl.open(af);
-                sdl.start();
-                
-                byte[] buf = new byte[800];
-                double volumeMultiplier = effectsVolume / 100.0;
-                for (int i = 0; i < buf.length; i++) {
-                    double angle = i / (44100.0 / 300) * 2.0 * Math.PI;
-                    buf[i] = (byte) (Math.sin(angle) * 40 * volumeMultiplier);
-                }
-                
-                sdl.write(buf, 0, buf.length);
-                sdl.drain();
-                sdl.close();
-            } catch (Exception e) { /* Silent fail */ }
-        }).start();
     }
     
     public void paintComponent(Graphics g) {
@@ -2019,7 +1197,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             drawDemoToMenuTransition(g);
         } else if (isTransitioningToDemo || isTransitioningFromDemo) {
             // Draw transition animation (works for both directions)
-            drawTransitioningElements(g, demoTransitionProgress);
+            ((DemoGame) this).drawTransitioningElements(g, demoTransitionProgress);
         } else {
             // Always show normal settings (no more integrated demo)
             drawNormalSettings(g);
@@ -2164,13 +1342,13 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             // First half: original blue colors
             leftColor1 = new Color(100, 150, 255);
             leftColor2 = new Color(150, 200, 255);
-            leftGlowColor = getPaddleGlowColor(true); // Theme-based glow
+            leftGlowColor = generalSettings.getPaddleGlowColor(true); // Theme-based glow
         } else {
             // Second half: transition to black
             double blackProgress = (paddleTranslationProgress - 0.5) * 2.0;
             leftColor1 = interpolateToBlack(new Color(100, 150, 255), blackProgress);
             leftColor2 = interpolateToBlack(new Color(150, 200, 255), blackProgress);
-            leftGlowColor = interpolateToBlack(getPaddleGlowColor(true), blackProgress);
+            leftGlowColor = interpolateToBlack(generalSettings.getPaddleGlowColor(true), blackProgress);
         }
         
         // Draw left paddle glow (right side)
@@ -2194,13 +1372,13 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             // First half: original red colors
             rightColor1 = new Color(255, 100, 100);
             rightColor2 = new Color(255, 150, 150);
-            rightGlowColor = getPaddleGlowColor(false); // Theme-based glow
+            rightGlowColor = generalSettings.getPaddleGlowColor(false); // Theme-based glow
         } else {
             // Second half: transition to black
             double blackProgress = (paddleTranslationProgress - 0.5) * 2.0;
             rightColor1 = interpolateToBlack(new Color(255, 100, 100), blackProgress);
             rightColor2 = interpolateToBlack(new Color(255, 150, 150), blackProgress);
-            rightGlowColor = interpolateToBlack(getPaddleGlowColor(false), blackProgress);
+            rightGlowColor = interpolateToBlack(generalSettings.getPaddleGlowColor(false), blackProgress);
         }
         
         // Draw right paddle glow
@@ -2690,22 +1868,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
     }
     
-    private void drawDemoMode(Graphics2D g) {
-        double easeProgress = easeInOutQuad(demoTransitionProgress);
-        
-        // Draw elements transitioning from normal settings
-        drawTransitioningElements(g, easeProgress);
-        
-        // Draw demo paddle on the left (blue paddle transitioning)
-        drawDemoPaddle(g, easeProgress);
-        
-        
-        // Draw demo ball
-        drawDemoBall(g);
-        
-        // Demo instructions
-        drawDemoInstructions(g);
-    }
+
     
     private void drawSettingCard(Graphics2D g, int cardType) {
         String[] options = cardType == 0 ? paddleSpeedOptions : aiDifficultyOptions;
@@ -2836,7 +1999,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Get menu paddle positions (target positions)
         int menuWidePaddleWidth = (int)(250 * Math.min(scaleX, scaleY));
-        int menuPaddleHeight = (int)(this.menuPaddleHeight * 1.8);
+        int menuPaddleHeight = (int)(AnimationContext.menuPaddleHeight * 1.8);
         int menuPaddleYOffset = (int)(-menuPaddleHeight * 0.2);
         int menuLeftCenterX = 0;
         int menuRightCenterX = BOARD_WIDTH;
@@ -2939,317 +2102,13 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         g.setTransform(originalTransform);
     }
+
     
+
     
-    private void drawTransitioningElements(Graphics2D g, double progress) {
-        // Title transitions from center "IMPOSTAZIONI" to right "TEST VELOCITÀ"
-        drawTransitioningTitle(g, progress);
-        
-        // Setting cards move from center to right panel
-        drawTransitioningSettingCards(g, progress);
-        
-        // Red paddle (right paddle) stays in place and remains visible
-        drawTransitioningRedPaddle(g, progress);
-        
-        // Blue paddle transitions with rotation (shown during both directions)
-        drawDemoPaddle(g, progress);
-    }
+
     
-    private void drawTransitioningTitle(Graphics2D g, double progress) {
-        g.setColor(Color.WHITE);
-        
-        // Title size transitions from larger to smaller
-        float startSize = (float)(36 * Math.min(scaleX, scaleY));
-        float endSize = (float)(28 * Math.min(scaleX, scaleY));
-        float currentSize = startSize + (endSize - startSize) * (float)progress;
-        g.setFont(primaryFont.deriveFont(currentSize));
-        FontMetrics fm = g.getFontMetrics();
-        
-        // Title text changes gradually
-        String startTitle = "IMPOSTAZIONI";
-        String endTitle = "VELOCITÀ PADDLE";
-        String currentTitle = progress < 0.5 ? startTitle : endTitle;
-        
-        // Calculate right panel position to align horizontally with selectors
-        int panelWidth = (int)(BOARD_WIDTH * 0.4);
-        int panelStartX = BOARD_WIDTH - panelWidth;
-        int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-        
-        // Position transitions from center to aligned with right panel
-        int startX = (BOARD_WIDTH - fm.stringWidth(currentTitle)) / 2;
-        int endX = currentPanelX + (panelWidth - fm.stringWidth(currentTitle)) / 2; // Centered in right panel
-        int currentX = (int)(startX + (endX - startX) * progress);
-        
-        // Y position remains at original height
-        int currentY = (int)(80 * scaleY); // Keep original IMPOSTAZIONI height
-        
-        g.drawString(currentTitle, currentX, currentY);
-    }
-    
-    private void drawTransitioningSettingCards(Graphics2D g, double progress) {
-        // Setting cards move from center to right panel
-        int panelWidth = (int)(BOARD_WIDTH * 0.4);
-        int panelStartX = BOARD_WIDTH - panelWidth;
-        int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-        
-        // Draw both cards in their transitioning positions
-        drawTransitioningCard(g, 0, progress, currentPanelX, panelWidth); // Paddle speed
-        drawTransitioningCard(g, 1, progress, currentPanelX, panelWidth); // AI difficulty
-    }
-    
-    private void drawTransitioningCard(Graphics2D g, int cardType, double progress, int panelX, int panelWidth) {
-        String[] options = cardType == 0 ? paddleSpeedOptions : aiDifficultyOptions;
-        int currentValue = cardType == 0 ? paddleSpeedSetting : aiDifficultySetting;
-        String title = cardType == 0 ? "Velocità Paddle" : "Difficoltà IA";
-        
-        // Calculate card positions - transitioning from normal settings position to demo position
-        int cardWidth = (int)(300 * Math.min(scaleX, scaleY)); // Keep original size
-        int cardHeight = (int)(120 * Math.min(scaleX, scaleY)); // Keep original size
-        int normalCardX = (BOARD_WIDTH - cardWidth) / 2;
-        int cardY = (int)(150 * scaleY) + cardType * (int)(150 * scaleY); // Original Y positions from drawSettingCard
-        
-        // Demo position (same size, in right panel, keeping original Y positions)
-        int demoCardX = panelX + (panelWidth - cardWidth) / 2;
-        
-        // Only X position changes, size and Y remain constant
-        int currentX = (int)(normalCardX + (demoCardX - normalCardX) * progress);
-        int currentY = cardY; // Y position remains constant
-        int currentWidth = cardWidth; // Size remains constant
-        int currentHeight = cardHeight; // Size remains constant
-        
-        // Card background (same style as original settings) - always selected in demo mode
-        boolean isSelected = isDemoMode ? true : (cardType == 0 && selectedSetting == 0) || (cardType == 1 && selectedSetting == 1);
-        Color cardBg = isSelected ? new Color(40, 40, 50) : new Color(25, 25, 30);
-        g.setColor(cardBg);
-        g.fillRoundRect(currentX, currentY, currentWidth, currentHeight, 12, 12); // Same border radius as original
-        
-        // Card border (same style as original settings)
-        if (isSelected) {
-            g.setColor(new Color(100, 150, 255));
-            g.drawRoundRect(currentX, currentY, currentWidth, currentHeight, 12, 12);
-        }
-        
-        // Title (exactly same style as original settings)
-        g.setColor(isSelected ? new Color(150, 200, 255) : new Color(180, 180, 180));
-        float titleSize = (float)(18 * Math.min(scaleX, scaleY)); // Exact original size
-        g.setFont(secondaryFont.deriveFont(titleSize));
-        FontMetrics titleFm = g.getFontMetrics();
-        int titleX = currentX + (currentWidth - titleFm.stringWidth(title)) / 2;
-        int titleY = currentY + (int)(30 * scaleY); // Same as original
-        g.drawString(title, titleX, titleY);
-        
-        // Current value (exactly same style as original settings)
-        String valueText = options[currentValue];
-        float valueSize = (float)(28 * Math.min(scaleX, scaleY)); // Exact original size
-        FontMetrics valueFm = g.getFontMetrics(primaryFont.deriveFont(valueSize));
-        int valueX = currentX + (currentWidth - valueFm.stringWidth(valueText)) / 2;
-        int valueY = currentY + (int)(75 * scaleY); // Same as original
-        
-        // Use special drawing for AI difficulty
-        if (cardType == 1) {
-            drawDifficultyText(g, valueText, valueX, valueY, valueSize, currentValue);
-        } else {
-            g.setColor(Color.WHITE); // Exact original color
-            g.setFont(primaryFont.deriveFont(valueSize));
-            g.drawString(valueText, valueX, valueY);
-        }
-        
-        // Navigation arrows (only for paddle speed card)
-        if (isSelected && cardType == 0) {
-            g.setColor(new Color(100, 150, 255)); // No fade, same as original
-            float arrowSize = (float)(24 * Math.min(scaleX, scaleY)); // Keep original size
-            g.setFont(primaryFont.deriveFont(arrowSize));
-            
-            if (currentValue > 0) {
-                g.drawString("<", currentX + (int)(20 * scaleX), valueY); // Same position as original
-            }
-            if (currentValue < options.length - 1) {
-                g.drawString(">", currentX + currentWidth - (int)(30 * scaleX), valueY); // Same position as original
-            }
-        }
-        
-        // Add instruction text for both cards
-        if (isSelected) {
-            g.setColor(new Color(120, 160, 220));
-            float instructSize = (float)(12 * Math.min(scaleX, scaleY));
-            g.setFont(secondaryFont.deriveFont(instructSize));
-            FontMetrics instructFm = g.getFontMetrics();
-            
-            String instruction = cardType == 0 ? getText("SETTINGS_PRESS_ARROWS_PADDLE") : getText("SETTINGS_PRESS_SPACE_CHANGE");
-            int instructX = currentX + (currentWidth - instructFm.stringWidth(instruction)) / 2;
-            int instructY = valueY + (int)(25 * scaleY); // Below the arrows/value
-            
-            g.drawString(instruction, instructX, instructY);
-        }
-    }
-    
-    private void drawTransitioningRedPaddle(Graphics2D g, double progress) {
-        // Red paddle transitions from horizontal position to demo position (like blue paddle)
-        
-        // Start position: red horizontal paddle position (from right side of horizontal paddles)
-        int startX = BOARD_WIDTH / 2 + (int)(15 * scaleX);
-        int startY = BOARD_HEIGHT - (int)(60 * scaleY) - (int)(40 * scaleY);
-        int startWidth = BOARD_WIDTH / 2 - (int)(30 * scaleX);
-        int startHeight = (int)(60 * scaleY);
-        
-        // Calculate end position: before the AI difficulty card in right panel
-        int panelWidth = (int)(BOARD_WIDTH * 0.4);
-        int panelStartX = BOARD_WIDTH - panelWidth;
-        int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-        
-        // End position: before the AI difficulty card
-        int endX = currentPanelX - PADDLE_WIDTH - (int)(10 * scaleX);
-        int endY = (int)demoRedPaddleY;
-        
-        // Target dimensions: exact same as game paddle
-        int targetWidth = PADDLE_WIDTH;
-        int targetHeight = PADDLE_HEIGHT;
-        
-        // Interpolate position
-        int currentX = (int)(startX + (endX - startX) * progress);
-        int currentY = (int)(startY + (endY - startY) * progress);
-        
-        // Interpolate dimensions to reach exact game paddle size
-        int currentWidth = (int)(startWidth + (targetWidth - startWidth) * progress);
-        int currentHeight = (int)(startHeight + (targetHeight - startHeight) * progress);
-        
-        // Red paddle color (based on selection state)
-        boolean rightSelected = selectedSetting == 1;
-        Color baseColor = rightSelected ? new Color(255, 100, 100) : new Color(150, 60, 60);
-        Color gradientColor = rightSelected ? new Color(255, 150, 150) : new Color(200, 100, 100);
-        
-        GradientPaint paddleGradient = new GradientPaint(
-            currentX, currentY, baseColor,
-            currentX + currentWidth, currentY + currentHeight, gradientColor);
-        g.setPaint(paddleGradient);
-        
-        int cornerRadius = Math.max(4, currentWidth / 4);
-        g.fillRoundRect(currentX, currentY, currentWidth, currentHeight, cornerRadius, cornerRadius);
-        
-        // Paddle glow
-        g.setColor(new Color(baseColor.getRed(), baseColor.getGreen(), baseColor.getBlue(), 100));
-        g.drawRoundRect(currentX - 2, currentY - 2, currentWidth + 4, currentHeight + 4, cornerRadius + 2, cornerRadius + 2);
-    }
-    
-    
-    
-    private void drawDemoElements(Graphics2D g, double progress) {
-        // Calculate right panel position
-        int panelWidth = (int)(BOARD_WIDTH * 0.4); // 40% of screen width
-        int panelStartX = BOARD_WIDTH - panelWidth;
-        int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-        
-        // Draw both setting cards in right panel
-        drawDemoCard(g, 0, currentPanelX, panelWidth, progress); // Paddle speed
-        drawDemoCard(g, 1, currentPanelX, panelWidth, progress); // AI difficulty
-        
-        // Draw horizontal paddles that move to right panel
-        drawDemoHorizontalPaddles(g, currentPanelX, panelWidth, progress);
-    }
-    
-    private void drawDemoCard(Graphics2D g, int cardType, int panelX, int panelWidth, double progress) {
-        String[] options = cardType == 0 ? paddleSpeedOptions : aiDifficultyOptions;
-        int currentValue = cardType == 0 ? paddleSpeedSetting : aiDifficultySetting;
-        String title = cardType == 0 ? "Velocità Paddle" : "Difficoltà IA";
-        
-        // Card position in right panel
-        int cardWidth = (int)(250 * Math.min(scaleX, scaleY));
-        // Make AI difficulty card taller to accommodate extra text
-        int cardHeight = cardType == 1 ? (int)(110 * Math.min(scaleX, scaleY)) : (int)(80 * Math.min(scaleX, scaleY));
-        int cardX = panelX + (panelWidth - cardWidth) / 2;
-        int cardY = (int)(120 * scaleY) + cardType * (int)(100 * scaleY);
-        
-        // Only draw if visible
-        if (cardX < BOARD_WIDTH) {
-            // Card background - always selected in demo mode
-            boolean isSelected = true; // Both cards always appear selected in demo
-            Color cardBg = new Color(40, 40, 50);
-            g.setColor(cardBg);
-            g.fillRoundRect(cardX, cardY, cardWidth, cardHeight, 12, 12);
-            
-            // Card border - always show border in demo
-            g.setColor(new Color(100, 150, 255));
-            g.drawRoundRect(cardX, cardY, cardWidth, cardHeight, 12, 12);
-            
-            // Title
-            g.setColor(isSelected ? new Color(150, 200, 255) : new Color(180, 180, 180));
-            float titleSize = (float)(14 * Math.min(scaleX, scaleY));
-            g.setFont(secondaryFont.deriveFont(titleSize));
-            FontMetrics titleFm = g.getFontMetrics();
-            int titleX = cardX + (cardWidth - titleFm.stringWidth(title)) / 2;
-            int titleY = cardY + (int)(20 * scaleY);
-            g.drawString(title, titleX, titleY);
-            
-            // Current value
-            String valueText = options[currentValue];
-            float valueSize = (float)(20 * Math.min(scaleX, scaleY));
-            FontMetrics valueFm = g.getFontMetrics(primaryFont.deriveFont(valueSize));
-            int valueX = cardX + (cardWidth - valueFm.stringWidth(valueText)) / 2;
-            int valueY = cardY + (int)(50 * scaleY);
-            
-            // Use special drawing for AI difficulty
-            if (cardType == 1) {
-                drawDifficultyText(g, valueText, valueX, valueY, valueSize, currentValue);
-            } else {
-                g.setColor(Color.WHITE);
-                g.setFont(primaryFont.deriveFont(valueSize));
-                g.drawString(valueText, valueX, valueY);
-            }
-            
-            // Navigation arrows (only for selected and only for paddle speed card)
-            if (isSelected && cardType == 0) {
-                g.setColor(new Color(100, 150, 255));
-                float arrowSize = (float)(16 * Math.min(scaleX, scaleY));
-                g.setFont(primaryFont.deriveFont(arrowSize));
-                
-                if (currentValue > 0) {
-                    g.drawString("<", cardX + (int)(10 * scaleX), valueY);
-                }
-                if (currentValue < options.length - 1) {
-                    g.drawString(">", cardX + cardWidth - (int)(20 * scaleX), valueY);
-                }
-            }
-            
-            // Add instruction text for both cards
-            g.setColor(new Color(150, 180, 255));
-            float instructSize = (float)(12 * Math.min(scaleX, scaleY));
-            g.setFont(secondaryFont.deriveFont(instructSize));
-            FontMetrics instructFm = g.getFontMetrics();
-            
-            String instruction = cardType == 0 ? getText("SETTINGS_PRESS_ARROWS_PADDLE") : getText("SETTINGS_PRESS_SPACE_CHANGE");
-            int instructX = cardX + (cardWidth - instructFm.stringWidth(instruction)) / 2;
-            int instructY = cardY + cardHeight - (int)(15 * scaleY); // Position near bottom of card
-            
-            g.drawString(instruction, instructX, instructY);
-        }
-    }
-    
-    private void drawDemoHorizontalPaddles(Graphics2D g, int panelX, int panelWidth, double progress) {
-        // Paddle dimensions
-        int paddleWidth = panelWidth / 2 - (int)(15 * scaleX);
-        int paddleHeight = (int)(40 * scaleY);
-        int paddleY = BOARD_HEIGHT - paddleHeight - (int)(40 * scaleY);
-        
-        int leftPaddleX = panelX + (int)(10 * scaleX);
-        int rightPaddleX = panelX + panelWidth / 2 + (int)(5 * scaleX);
-        
-        // Only draw if visible
-        if (leftPaddleX < BOARD_WIDTH) {
-            // Left paddle (blue)
-            boolean leftSelected = selectedSetting == 0;
-            Color leftColor = leftSelected ? new Color(100, 150, 255) : new Color(60, 90, 150);
-            g.setColor(leftColor);
-            g.fillRoundRect(leftPaddleX, paddleY, paddleWidth, paddleHeight, 8, 8);
-            
-            // Right paddle (red) - only if there's space
-            if (rightPaddleX + paddleWidth <= BOARD_WIDTH) {
-                boolean rightSelected = selectedSetting == 1;
-                Color rightColor = rightSelected ? new Color(255, 100, 100) : new Color(150, 60, 60);
-                g.setColor(rightColor);
-                g.fillRoundRect(rightPaddleX, paddleY, paddleWidth, paddleHeight, 8, 8);
-            }
-        }
-    }
+
     
     private void drawSettingCardOffset(Graphics2D g, int cardType, int xOffset) {
         String[] options = cardType == 0 ? paddleSpeedOptions : aiDifficultyOptions;
@@ -3326,97 +2185,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         g.drawString(instruction, instructX, instructY);
     }
     
-    private void drawDemoPaddle(Graphics2D g, double progress) {
-        // Blue paddle animates between horizontal position and demo position with rotation
-        // For reverse transition, we only show the paddle during the transition
-        
-        if (isTransitioningFromDemo && progress <= 0.0) {
-            return; // Don't show paddle when back to normal settings
-        }
-        
-        // Start position: blue horizontal paddle position (from left side of horizontal paddles)
-        int startX = (int)(15 * scaleX);
-        int startY = BOARD_HEIGHT - (int)(60 * scaleY) - (int)(40 * scaleY);
-        int startWidth = BOARD_WIDTH / 2 - (int)(30 * scaleX);
-        int startHeight = (int)(60 * scaleY);
-        
-        // End position: exact same as game paddle blue (left paddle)
-        int endX = (int)(20 * scaleX); // Same X position as game left paddle
-        int endY = (int)demoPaddleY;
-        
-        // Interpolate position
-        int currentX = (int)(startX + (endX - startX) * progress);
-        int currentY = (int)(startY + (endY - startY) * progress);
-        
-        // Target dimensions: exact same as game paddle (no rotation in dimensions)
-        int targetWidth = PADDLE_WIDTH;   // Same width as game paddle
-        int targetHeight = PADDLE_HEIGHT; // Same height as game paddle
-        
-        // Interpolate dimensions to reach exact game paddle size
-        int currentWidth = (int)(startWidth + (targetWidth - startWidth) * progress);
-        int currentHeight = (int)(startHeight + (targetHeight - startHeight) * progress);
-        
-        // Draw paddle without rotation (simple transition with position and size changes only)
-        Color paddleColor = new Color(100, 150, 255);
-        Color gradientColor = new Color(150, 200, 255);
-        
-        GradientPaint paddleGradient = new GradientPaint(
-            currentX, currentY, paddleColor,
-            currentX + currentWidth, currentY + currentHeight, gradientColor);
-        g.setPaint(paddleGradient);
-        
-        int cornerRadius = Math.max(4, currentWidth / 4);
-        g.fillRoundRect(currentX, currentY, currentWidth, currentHeight, cornerRadius, cornerRadius);
-        
-        // Paddle glow
-        g.setColor(getPaddleGlowColor(true));
-        g.drawRoundRect(currentX - 2, currentY - 2, currentWidth + 4, currentHeight + 4, cornerRadius + 2, cornerRadius + 2);
-    }
+
     
-    
-    private void drawDemoBall(Graphics2D g) {
-        // Draw ball with same style as game ball
-        int ballX = (int)demoBallX;
-        int ballY = (int)demoBallY;
-        
-        // Use scaled ball size like in the game
-        int scaledBallSize = BALL_SIZE; // Same scaling as game ball
-        
-        // Ball glow
-        g.setColor(new Color(255, 255, 255, 30));
-        g.fillOval(ballX - 3, ballY - 3, scaledBallSize + 6, scaledBallSize + 6);
-        
-        // Ball gradient  
-        Color ballCenter = new Color(255, 255, 255);
-        Color ballEdge = new Color(200, 200, 255);
-        
-        GradientPaint ballGradient = new GradientPaint(
-            ballX, ballY, ballCenter,
-            ballX + scaledBallSize, ballY + scaledBallSize, ballEdge);
-        g.setPaint(ballGradient);
-        
-        g.fillOval(ballX, ballY, scaledBallSize, scaledBallSize);
-        
-        // Ball highlight
-        g.setColor(new Color(255, 255, 255, 200));
-        int highlightSize = scaledBallSize / 3;
-        g.fillOval(ballX + highlightSize/2, ballY + highlightSize/2, 
-                   highlightSize, highlightSize);
-    }
-    
-    private void drawDemoInstructions(Graphics2D g) {
-        g.setColor(Color.WHITE);
-        float instructSize = (float)(24 * Math.min(scaleX, scaleY)); // Large white text
-        g.setFont(primaryFont.deriveFont(instructSize));
-        FontMetrics instructFm = g.getFontMetrics();
-        
-        String instruct = getText("SETTINGS_PRESS_ENTER_CONTINUE");
-        int instructX = (BOARD_WIDTH - instructFm.stringWidth(instruct)) / 2;
-        int instructY = (int)(BOARD_HEIGHT - 40 * scaleY);
-        g.drawString(instruct, instructX, instructY);
-    }
-    
-    private void drawDifficultyText(Graphics2D g, String text, int x, int y, float fontSize, int difficulty) {
+    protected void drawDifficultyText(Graphics2D g, String text, int x, int y, float fontSize, int difficulty) {
         switch (difficulty) {
             case 0: // FACILE - Verde
                 g.setColor(new Color(0, 200, 0));
@@ -3708,7 +2479,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
         
         // Left paddle normal side glow (no special selection glow above)
-        g.setColor(getPaddleGlowColor(true));
+        g.setColor(generalSettings.getPaddleGlowColor(true));
         g.fillRect(widePaddleWidth/2, -paddleHeight/2, glowWidth, paddleHeight);
         
         // Reset transform
@@ -3750,7 +2521,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         
         // Right paddle border glow
-        g.setColor(getPaddleGlowColor(false));
+        g.setColor(generalSettings.getPaddleGlowColor(false));
         g.fillRect(-widePaddleWidth/2 - glowWidth, -paddleHeight/2, glowWidth, paddleHeight);
         
         // Reset transform
@@ -3841,10 +2612,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
                 Color glowColor;
                 if (paddleTranslationProgress < 0.5) {
-                    glowColor = getPaddleGlowColor(true); // Theme-based glow
+                    glowColor = generalSettings.getPaddleGlowColor(true); // Theme-based glow
                 } else {
                     double blackProgress = (paddleTranslationProgress - 0.5) * 2.0;
-                    glowColor = interpolateToBlack(getPaddleGlowColor(true), blackProgress);
+                    glowColor = interpolateToBlack(generalSettings.getPaddleGlowColor(true), blackProgress);
                 }
                 g.setColor(glowColor);
                 g.fillRect(leftPaddleWidth/2, -paddleHeight/2, glowWidth, paddleHeight);
@@ -3900,10 +2671,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
                 Color rightGlowColor;
                 if (paddleTranslationProgress < 0.5) {
-                    rightGlowColor = getPaddleGlowColor(false); // Theme-based glow
+                    rightGlowColor = generalSettings.getPaddleGlowColor(false); // Theme-based glow
                 } else {
                     double blackProgress = (paddleTranslationProgress - 0.5) * 2.0;
-                    rightGlowColor = interpolateToBlack(getPaddleGlowColor(false), blackProgress);
+                    rightGlowColor = interpolateToBlack(generalSettings.getPaddleGlowColor(false), blackProgress);
                 }
                 
                 if (paddleTranslationProgress < 0.8) { // Only show glow during transition
@@ -4599,7 +3370,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
     }
     
-    private double easeInOutQuad(double t) {
+    protected double easeInOutQuad(double t) {
         return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     }
     
@@ -5066,7 +3837,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Left paddle glow
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
-        g.setColor(getPaddleGlowColor(true)); // Use theme-based glow
+        g.setColor(generalSettings.getPaddleGlowColor(true)); // Use theme-based glow
         g.fillRect(widePaddleWidth/2, -paddleHeight/2, glowWidth, paddleHeight);
         
         // Reset transform for right paddle
@@ -5107,7 +3878,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         
         // Right paddle glow
-        g.setColor(getPaddleGlowColor(false)); // Use theme-based glow
+        g.setColor(generalSettings.getPaddleGlowColor(false)); // Use theme-based glow
         g.fillRect(-widePaddleWidth/2 - glowWidth, -paddleHeight/2, glowWidth, paddleHeight);
         
         // Reset transform
@@ -5949,10 +4720,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             demoPaddleY = Math.max(0, Math.min(demoPaddleY, BOARD_HEIGHT - PADDLE_HEIGHT));
             
             // Update demo ball (same physics as game)
-            updateDemoBall();
+            ((DemoGame) this).updateDemoBall();
             
             // Update red paddle AI with selected difficulty
-            updateDemoAI();
+            ((DemoGame) this).updateDemoAI();
         }
         
         // Handle paddle movement in paddle selection screen - EXACT same as game
@@ -6025,7 +4796,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             if (ballY <= 0) ballY = 0;
             if (ballY >= BOARD_HEIGHT - BALL_SIZE) ballY = BOARD_HEIGHT - BALL_SIZE;
             lastBallDirectionChange = System.currentTimeMillis(); // Track direction change for AI
-            playWallHitSound();
+            musicSettings.playWallHitSound();
             createParticles((int)ballX + BALL_SIZE/2, (int)ballY + BALL_SIZE/2, Color.WHITE, 8);
             
             // Reset fire ball system on wall hit
@@ -6055,7 +4826,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 triggerComboIncrement(); // Trigger visual effects
             }
             
-            playPaddleHitSound();
+            musicSettings.playPaddleHitSound();
             
             // Fire ball system - increment consecutive paddle bounces
             incrementFireBallSystem();
@@ -6080,7 +4851,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             }
             // In single player mode, no combo for AI paddle
             
-            playPaddleHitSound();
+            musicSettings.playPaddleHitSound();
             
             // Fire ball system - increment consecutive paddle bounces
             incrementFireBallSystem();
@@ -6109,7 +4880,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             }
             lastPointWinner = 2;
             
-            playScoreSound();
+            musicSettings.playScoreSound();
             createParticles(BOARD_WIDTH / 2, BOARD_HEIGHT / 2, Color.YELLOW, 20);
             addScreenShake(8);
             // Reset combo only when ball goes out on player side (left)
@@ -6145,7 +4916,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             }
             lastPointWinner = 1;
             
-            playScoreSound();
+            musicSettings.playScoreSound();
             createParticles(BOARD_WIDTH / 2, BOARD_HEIGHT / 2, Color.YELLOW, 20);
             addScreenShake(8);
             // Don't reset left combo when player scores (ball exits right side)
@@ -6716,7 +5487,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Left paddle border glow (same as in drawMenuPaddles)
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
-        g.setColor(getPaddleGlowColor(true));
+        g.setColor(generalSettings.getPaddleGlowColor(true));
         g.fillRect(widePaddleWidth/2, -paddleHeight/2, glowWidth, paddleHeight);
         
         g.setTransform(originalTransform);
@@ -6767,7 +5538,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Right paddle border glow (same as in drawMenuPaddles)
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
-        g.setColor(getPaddleGlowColor(false));
+        g.setColor(generalSettings.getPaddleGlowColor(false));
         g.fillRect(-widePaddleWidth/2 - glowWidth, -paddleHeight/2, glowWidth, paddleHeight);
         
         g.setTransform(originalTransform);
@@ -7357,7 +6128,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         g.fillRect(0, panelY, getWidth(), panelHeight);
         
         // Panel border
-        g.setColor(getPaddleGlowColor(true));
+        g.setColor(generalSettings.getPaddleGlowColor(true));
         g.setStroke(new BasicStroke(2));
         g.drawLine(0, panelY, getWidth(), panelY);
         
@@ -7600,7 +6371,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Use smooth dissolution throughout entire transition (matching left paddle)
         Color red1 = new Color(255, 100, 100);
         Color red2 = new Color(255, 150, 150);
-        Color redGlow = getPaddleGlowColor(false);
+        Color redGlow = generalSettings.getPaddleGlowColor(false);
         
         // Reuse the eased progress from left paddle calculation
         Color rightColor1 = blendColors(black, red1, easedProgress);
@@ -7665,88 +6436,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         return new Color(Math.max(0, Math.min(255, r)), Math.max(0, Math.min(255, green)), Math.max(0, Math.min(255, b)), Math.max(0, Math.min(255, alpha)));
     }
     
-    private Color extractDominantColor(BufferedImage image) {
-        if (image == null) return null;
-        
-        // Sample pixels from the image to find dominant color
-        Map<Integer, Integer> colorCount = new HashMap<>();
-        int sampleStep = Math.max(1, Math.max(image.getWidth(), image.getHeight()) / 20); // Sample every few pixels
-        
-        for (int y = 0; y < image.getHeight(); y += sampleStep) {
-            for (int x = 0; x < image.getWidth(); x += sampleStep) {
-                int rgb = image.getRGB(x, y);
-                Color color = new Color(rgb, true);
-                
-                // Skip transparent or very dark pixels
-                if (color.getAlpha() < 100 || (color.getRed() + color.getGreen() + color.getBlue()) < 100) {
-                    continue;
-                }
-                
-                // Group similar colors together (reduce precision to avoid too many variations)
-                int groupedRgb = ((color.getRed() / 32) * 32) << 16 | 
-                                ((color.getGreen() / 32) * 32) << 8 | 
-                                (color.getBlue() / 32) * 32;
-                
-                colorCount.put(groupedRgb, colorCount.getOrDefault(groupedRgb, 0) + 1);
-            }
-        }
-        
-        if (colorCount.isEmpty()) return null;
-        
-        // Find the most common color
-        int dominantRgb = colorCount.entrySet().stream()
-            .max(Map.Entry.comparingByValue())
-            .map(Map.Entry::getKey)
-            .orElse(0);
-        
-        return new Color(dominantRgb);
-    }
-    
-    private Color getPaddleGlowColor(boolean isLeftPaddle) {
-        if (isLeftPaddle) {
-            // Left paddle glow color based on selected theme
-            if (selectedPaddleTheme >= 0 && selectedPaddleTheme < bluePaddleThemeImages.size()) {
-                BufferedImage paddleImg = bluePaddleThemeImages.get(selectedPaddleTheme);
-                Color dominantColor = extractDominantColor(paddleImg);
-                if (dominantColor != null) {
-                    // Make the glow color slightly more vibrant and with some transparency
-                    int r = Math.min(255, (int)(dominantColor.getRed() * 1.2));
-                    int g = Math.min(255, (int)(dominantColor.getGreen() * 1.2));
-                    int b = Math.min(255, (int)(dominantColor.getBlue() * 1.2));
-                    return new Color(r, g, b, 100);
-                }
-            }
-            // Fallback to default blue glow
-            return new Color(100, 150, 255, 100);
-        } else {
-            // Right paddle glow color based on selected theme
-            if (selectedRightPaddleTheme >= 0 && selectedRightPaddleTheme < redPaddleThemeImages.size()) {
-                BufferedImage paddleImg = redPaddleThemeImages.get(selectedRightPaddleTheme);
-                Color dominantColor = extractDominantColor(paddleImg);
-                if (dominantColor != null) {
-                    // Make the glow color slightly more vibrant and with some transparency
-                    int r = Math.min(255, (int)(dominantColor.getRed() * 1.2));
-                    int g = Math.min(255, (int)(dominantColor.getGreen() * 1.2));
-                    int b = Math.min(255, (int)(dominantColor.getBlue() * 1.2));
-                    return new Color(r, g, b, 100);
-                }
-            }
-            // Fallback to default red glow
-            return new Color(255, 100, 100, 100);
-        }
-    }
-    
-    private void updateCachedGlowColors() {
-        // Update cached glow colors safely to avoid concurrent access during rendering
-        try {
-            cachedLeftGlowColor = getPaddleGlowColor(true);
-            cachedRightGlowColor = getPaddleGlowColor(false);
-        } catch (Exception e) {
-            // Fallback to default colors if there's any issue
-            cachedLeftGlowColor = new Color(100, 150, 255, 100);
-            cachedRightGlowColor = new Color(255, 100, 100, 100);
-        }
-    }
+
+
     
     private void drawThemesToHomeTransition(Graphics2D g) {
         // Draw the background that was selected (already visible)
@@ -7822,7 +6513,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         
         // Left paddle border glow
-        g.setColor(getPaddleGlowColor(true));
+        g.setColor(generalSettings.getPaddleGlowColor(true));
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
         g.fillRect(widePaddleWidth/2, -paddleHeight/2, glowWidth, paddleHeight);
         
@@ -7862,7 +6553,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         
         // Right paddle border glow
-        g.setColor(getPaddleGlowColor(false));
+        g.setColor(generalSettings.getPaddleGlowColor(false));
         g.fillRect(-widePaddleWidth/2 - glowWidth, -paddleHeight/2, glowWidth, paddleHeight);
         
         g.setTransform(originalTransform);
@@ -9701,427 +8392,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             currentMotivationalMessage = getRandomMessage("MSG_INSPIRATIONAL", 20);
         }
     }
-    
-    private void updateDemoBall() {
-        // Move ball
-        demoBallX += demoBallVX;
-        demoBallY += demoBallVY;
-        
-        // Bounce off top and bottom walls
-        if (demoBallY <= 0) {
-            demoBallY = 0;
-            demoBallVY = -demoBallVY;
-        }
-        if (demoBallY >= BOARD_HEIGHT - BALL_SIZE) {
-            demoBallY = BOARD_HEIGHT - BALL_SIZE;
-            demoBallVY = -demoBallVY;
-        }
-        
-        // Calculate paddle positions
-        double progress = demoTransitionProgress;
-        int startX = (int)(15 * scaleX);
-        int endX = (int)(20 * scaleX);
-        int bluePaddleX = (int)(startX + (endX - startX) * progress);
-        
-        int panelWidth = (int)(BOARD_WIDTH * 0.4);
-        int panelStartX = BOARD_WIDTH - panelWidth;
-        int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-        int redPaddleX = currentPanelX - PADDLE_WIDTH - (int)(10 * scaleX);
-        
-        // Check if ball passes through paddles (reset ball)
-        boolean ballPassedBlue = (demoBallX < bluePaddleX - BALL_SIZE && demoBallVX < 0);
-        boolean ballPassedRed = (demoBallX > redPaddleX + PADDLE_WIDTH && demoBallVX > 0);
-        
-        if (ballPassedBlue || ballPassedRed) {
-            // Reset ball to center between paddles
-            initializeDemoBall();
-        }
-        
-        // Paddle collisions
-        if (demoBallX <= bluePaddleX + PADDLE_WIDTH && 
-            demoBallX + BALL_SIZE >= bluePaddleX &&
-            demoBallY + BALL_SIZE >= demoPaddleY && 
-            demoBallY <= demoPaddleY + PADDLE_HEIGHT &&
-            demoBallVX < 0) {
-            
-            demoBallVX = -demoBallVX;
-            demoBallX = bluePaddleX + PADDLE_WIDTH + 1;
-            
-            int paddleCenter = (int)demoPaddleY + PADDLE_HEIGHT / 2;
-            int ballCenter = (int)demoBallY + BALL_SIZE / 2;
-            int diff = ballCenter - paddleCenter;
-            demoBallVY += diff / 15.0;
-        }
-        
-        if (demoBallX + BALL_SIZE >= redPaddleX && 
-            demoBallX <= redPaddleX + PADDLE_WIDTH &&
-            demoBallY + BALL_SIZE >= demoRedPaddleY && 
-            demoBallY <= demoRedPaddleY + PADDLE_HEIGHT &&
-            demoBallVX > 0) {
-            
-            demoBallVX = -demoBallVX;
-            demoBallX = redPaddleX - BALL_SIZE - 1;
-            
-            int paddleCenter = (int)demoRedPaddleY + PADDLE_HEIGHT / 2;
-            int ballCenter = (int)demoBallY + BALL_SIZE / 2;
-            int diff = ballCenter - paddleCenter;
-            demoBallVY += diff / 15.0;
-        }
-    }
-    
-    private void initializeDemoBall() {
-        // Calculate paddle positions
-        double progress = demoTransitionProgress;
-        int startX = (int)(15 * scaleX);
-        int endX = (int)(20 * scaleX);
-        int bluePaddleX = (int)(startX + (endX - startX) * progress);
-        
-        int panelWidth = (int)(BOARD_WIDTH * 0.4);
-        int panelStartX = BOARD_WIDTH - panelWidth;
-        int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-        int redPaddleX = currentPanelX - PADDLE_WIDTH - (int)(10 * scaleX);
-        
-        // Position ball at center between paddles
-        int centerX = (bluePaddleX + PADDLE_WIDTH + redPaddleX) / 2;
-        demoBallX = centerX - BALL_SIZE / 2;
-        demoBallY = BOARD_HEIGHT / 2 - BALL_SIZE / 2;
-        
-        // Apply ball speed setting to demo ball too (scaled down for demo)
-        double baseSpeed = (ballSpeedSetting / 20.0) * 4.0; // Scale numeric value
-        
-        demoBallVX = (Math.random() > 0.5) ? baseSpeed : -baseSpeed;
-        demoBallVY = (Math.random() - 0.5) * baseSpeed;
-    }
-    
-    private void updateDemoAI() {
-        // Use selected AI difficulty setting for demo
-        switch (aiDifficultySetting) {
-            case 0: // FACILE - Simple following with mistakes
-                updateDemoAI_Easy();
-                break;
-            case 1: // NORMALE - Predictive with reaction delay  
-                updateDemoAI_Normal();
-                break;
-            case 2: // DIFFICILE - Advanced prediction with minimal errors
-                updateDemoAI_Hard();
-                break;
-            case 3: // ESPERTO - Very strong AI
-                updateDemoAI_Expert();
-                break;
-            case 4: // IMPOSSIBILE - Nearly perfect AI
-                updateDemoAI_Impossible();
-                break;
-            default:
-                updateDemoAI_Normal();
-        }
-        
-        // Keep AI paddle within bounds
-        demoRedPaddleY = Math.max(0, Math.min(demoRedPaddleY, BOARD_HEIGHT - PADDLE_HEIGHT));
-    }
-    
-    private void updateDemoAI_Easy() {
-        // Easy: Simple ball following with mistakes
-        double ballCenterY = demoBallY + BALL_SIZE / 2;
-        double paddleCenterY = demoRedPaddleY + PADDLE_HEIGHT / 2;
-        
-        // Get player paddle speed setting
-        double baseSpeed = 4.0; // Lenta
-        if (paddleSpeedSetting == 1) baseSpeed = 6.0; // Media  
-        else if (paddleSpeedSetting == 2) baseSpeed = 8.0; // Veloce
-        double playerSpeed = Math.max(3, (int)(baseSpeed * scaleY)); // Same as player paddle
-        
-        if (demoBallVX > 0 && demoBallX > BOARD_WIDTH * 0.5) {
-            // 25% chance to make a mistake
-            if (Math.random() < 0.25) return;
-            
-            // Simple following with error
-            double error = (Math.random() - 0.5) * 50;
-            double targetY = ballCenterY + error - PADDLE_HEIGHT / 2;
-            
-            // Much slower than player (20% of player speed)
-            double diff = targetY - demoRedPaddleY;
-            double maxSpeed = playerSpeed * 0.2;
-            double moveAmount = Math.signum(diff) * Math.min(maxSpeed, Math.abs(diff) * 0.4);
-            
-            demoRedPaddleY += moveAmount;
-        } else {
-            // Return to center slowly
-            double centerY = BOARD_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-            double diff = centerY - demoRedPaddleY;
-            demoRedPaddleY += Math.signum(diff) * Math.min(playerSpeed * 0.1, Math.abs(diff) * 0.1);
-        }
-    }
-    
-    private void updateDemoAI_Normal() {
-        // Medium: Predictive movement with some errors
-        double ballCenterY = demoBallY + BALL_SIZE / 2;
-        
-        if (demoBallVX > 0 && demoBallX > BOARD_WIDTH * 0.3) {
-            // Calculate demo paddle positions
-            double progress = demoTransitionProgress;
-            int panelWidth = (int)(BOARD_WIDTH * 0.4);
-            int panelStartX = BOARD_WIDTH - panelWidth;
-            int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-            int redPaddleX = currentPanelX - PADDLE_WIDTH - (int)(10 * scaleX);
-            
-            // Simple prediction
-            double timeToReach = (redPaddleX - demoBallX) / demoBallVX;
-            double predictedY = demoBallY + demoBallVY * timeToReach;
-            
-            // Add some error
-            double error = (Math.random() - 0.5) * 40;
-            double targetY = predictedY + error + BALL_SIZE / 2 - PADDLE_HEIGHT / 2;
-            
-            // 12% chance of bigger mistake
-            if (Math.random() < 0.12) {
-                targetY += (Math.random() - 0.5) * 80;
-            }
-            
-            // Get player paddle speed setting
-            double baseSpeed = 4.0; // Lenta
-            if (paddleSpeedSetting == 1) baseSpeed = 6.0; // Media  
-            else if (paddleSpeedSetting == 2) baseSpeed = 8.0; // Veloce
-            double playerSpeed = baseSpeed * scaleY;
-            
-            // Same speed as player (60% of player speed for balance)
-            double diff = targetY - demoRedPaddleY;
-            double maxSpeed = playerSpeed * 0.6;
-            double moveAmount = Math.signum(diff) * Math.min(maxSpeed, Math.abs(diff) * 0.6);
-            
-            demoRedPaddleY += moveAmount;
-        } else {
-            // Return to center
-            double centerY = BOARD_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-            double diff = centerY - demoRedPaddleY;
-            // Get player paddle speed setting
-            double baseSpeed = 4.0; // Lenta
-            if (paddleSpeedSetting == 1) baseSpeed = 6.0; // Media  
-            else if (paddleSpeedSetting == 2) baseSpeed = 8.0; // Veloce
-            double playerSpeed = baseSpeed * scaleY;
-            demoRedPaddleY += Math.signum(diff) * Math.min(playerSpeed * 0.25, Math.abs(diff) * 0.2);
-        }
-    }
-    
-    private void updateDemoAI_Hard() {
-        // Hard: Advanced prediction with minimal errors
-        // Get player paddle speed setting
-        double baseSpeed = 4.0; // Lenta
-        if (paddleSpeedSetting == 1) baseSpeed = 6.0; // Media  
-        else if (paddleSpeedSetting == 2) baseSpeed = 8.0; // Veloce
-        double playerSpeed = Math.max(3, (int)(baseSpeed * scaleY)); // Same as player paddle
-        
-        if (demoBallVX > 0) {
-            // Advanced trajectory calculation for demo
-            double predictionY = calculateDemoBallTrajectory();
-            
-            // Very small error - only 3% chance
-            if (Math.random() < 0.03) {
-                predictionY += (Math.random() - 0.5) * 30;
-            }
-            
-            double targetY = predictionY - PADDLE_HEIGHT / 2;
-            
-            // Slightly faster than player (80% of player speed)
-            double diff = targetY - demoRedPaddleY;
-            double maxSpeed = playerSpeed * 0.8;
-            double moveAmount = Math.signum(diff) * Math.min(maxSpeed, Math.abs(diff) * 0.8);
-            
-            demoRedPaddleY += moveAmount;
-        } else {
-            // Strategic positioning
-            double strategicY = BOARD_HEIGHT * 0.5 - PADDLE_HEIGHT / 2;
-            double diff = strategicY - demoRedPaddleY;
-            demoRedPaddleY += Math.signum(diff) * Math.min(playerSpeed * 0.3, Math.abs(diff) * 0.3);
-        }
-    }
-    
-    private double calculateDemoBallTrajectory() {
-        // Simulate ball trajectory for demo
-        double simBallX = demoBallX;
-        double simBallY = demoBallY;
-        double simBallVX = demoBallVX;
-        double simBallVY = demoBallVY;
-        
-        // Calculate demo paddle positions
-        double progress = demoTransitionProgress;
-        int panelWidth = (int)(BOARD_WIDTH * 0.4);
-        int panelStartX = BOARD_WIDTH - panelWidth;
-        int currentPanelX = (int)(BOARD_WIDTH + (panelStartX - BOARD_WIDTH) * progress);
-        int redPaddleX = currentPanelX - PADDLE_WIDTH - (int)(10 * scaleX);
-        
-        // Simulate until ball reaches paddle
-        while (simBallX < redPaddleX && simBallVX > 0) {
-            simBallX += simBallVX;
-            simBallY += simBallVY;
-            
-            // Wall bounces
-            if (simBallY <= 0 || simBallY >= BOARD_HEIGHT - BALL_SIZE) {
-                simBallVY = -simBallVY;
-                simBallY = Math.max(0, Math.min(BOARD_HEIGHT - BALL_SIZE, simBallY));
-            }
-            
-            // Safety check
-            if (simBallX > BOARD_WIDTH * 2) break;
-        }
-        
-        return simBallY + BALL_SIZE / 2;
-    }
-    
-    private void updateDemoAI_Expert() {
-        // Expert: Very strong AI for demo
-        // Get player paddle speed setting
-        double baseSpeed = 4.0; // Lenta
-        if (paddleSpeedSetting == 1) baseSpeed = 6.0; // Media  
-        else if (paddleSpeedSetting == 2) baseSpeed = 8.0; // Veloce
-        double playerSpeed = Math.max(3, (int)(baseSpeed * scaleY)); // Same as player paddle
-        
-        if (demoBallVX > 0) {
-            double predictionY = calculateDemoBallTrajectory();
-            
-            // Very small error - only 2% chance
-            if (Math.random() < 0.02) {
-                predictionY += (Math.random() - 0.5) * 25;
-            }
-            
-            double targetY = predictionY - PADDLE_HEIGHT / 2;
-            
-            // Same speed as player
-            double diff = targetY - demoRedPaddleY;
-            double maxSpeed = playerSpeed;
-            double moveAmount = Math.signum(diff) * Math.min(maxSpeed, Math.abs(diff) * 1.2);
-            
-            demoRedPaddleY += moveAmount;
-        } else {
-            // Strategic positioning
-            double strategicY = BOARD_HEIGHT * 0.5 - PADDLE_HEIGHT / 2;
-            double diff = strategicY - demoRedPaddleY;
-            demoRedPaddleY += Math.signum(diff) * Math.min(playerSpeed * 0.4, Math.abs(diff) * 0.4);
-        }
-    }
-    
-    private void updateDemoAI_Impossible() {
-        // Impossible: Nearly perfect AI for demo
-        // Get player paddle speed setting
-        double baseSpeed = 4.0; // Lenta
-        if (paddleSpeedSetting == 1) baseSpeed = 6.0; // Media  
-        else if (paddleSpeedSetting == 2) baseSpeed = 8.0; // Veloce
-        double playerSpeed = Math.max(3, (int)(baseSpeed * scaleY)); // Same as player paddle
-        
-        if (demoBallVX > 0) {
-            double predictionY = calculateDemoBallTrajectory();
-            
-            // Almost no error - 0.2% chance
-            if (Math.random() < 0.002) {
-                predictionY += (Math.random() - 0.5) * 10;
-            }
-            
-            double targetY = predictionY - PADDLE_HEIGHT / 2;
-            
-            // Same speed as player (100% of player speed)
-            double diff = targetY - demoRedPaddleY;
-            double maxSpeed = playerSpeed;
-            double moveAmount = Math.signum(diff) * Math.min(maxSpeed, Math.abs(diff) * 2.0);
-            
-            demoRedPaddleY += moveAmount;
-        } else {
-            // Perfect strategic positioning
-            double strategicY = BOARD_HEIGHT * 0.5 - PADDLE_HEIGHT / 2;
-            double diff = strategicY - demoRedPaddleY;
-            demoRedPaddleY += Math.signum(diff) * Math.min(playerSpeed * 0.5, Math.abs(diff) * 0.6);
-        }
-    }
-    
-    private static String getSettingsFilePath() {
-        String os = System.getProperty("os.name").toLowerCase();
-        String userHome = System.getProperty("user.home");
-        String appDataPath;
-        
-        if (os.contains("win")) {
-            // Windows: %APPDATA%\GavaTech\Pong-Ping\
-            appDataPath = System.getenv("APPDATA");
-            if (appDataPath == null) {
-                appDataPath = userHome + File.separator + "AppData" + File.separator + "Roaming";
-            }
-        } else if (os.contains("mac")) {
-            // macOS: ~/Library/Application Support/GavaTech/Pong-Ping/
-            appDataPath = userHome + File.separator + "Library" + File.separator + "Application Support";
-        } else {
-            // Linux/Unix: ~/.config/GavaTech/Pong-Ping/
-            appDataPath = userHome + File.separator + ".config";
-        }
-        
-        // Create directory structure: GavaTech/Pong-Ping
-        File directory = new File(appDataPath + File.separator + "GavaTech" + File.separator + "Pong-Ping");
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
-        
-        return directory.getAbsolutePath() + File.separator + "settings.properties";
-    }
-    
-    private static String getHistoryFilePath() {
-        String os = System.getProperty("os.name").toLowerCase();
-        String userHome = System.getProperty("user.home");
-        String appDataPath;
-        
-        if (os.contains("win")) {
-            // Windows: %APPDATA%\GavaTech\Pong-Ping\
-            appDataPath = System.getenv("APPDATA");
-            if (appDataPath == null) {
-                appDataPath = userHome + File.separator + "AppData" + File.separator + "Roaming";
-            }
-        } else if (os.contains("mac")) {
-            // macOS: ~/Library/Application Support/GavaTech/Pong-Ping/
-            appDataPath = userHome + File.separator + "Library" + File.separator + "Application Support";
-        } else {
-            // Linux/Unix: ~/.config/GavaTech/Pong-Ping/
-            appDataPath = userHome + File.separator + ".config";
-        }
-        
-        // Create directory structure: GavaTech/Pong-Ping
-        File directory = new File(appDataPath + File.separator + "GavaTech" + File.separator + "Pong-Ping");
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
-        
-        return directory.getAbsolutePath() + File.separator + "game_history.txt";
-    }
-    
-    private void loadSettings() {
-        try {
-            File file = new File(SETTINGS_FILE);
-            if (file.exists()) {
-                Properties props = new Properties();
-                props.load(new FileInputStream(file));
-                
-                paddleSpeedSetting = Integer.parseInt(props.getProperty("paddleSpeed", "1"));
-                aiDifficultySetting = Integer.parseInt(props.getProperty("aiDifficulty", "2"));
-                ballSpeedSetting = Integer.parseInt(props.getProperty("ballSpeed", "25"));
-                player1UpKey = Integer.parseInt(props.getProperty("player1UpKey", String.valueOf(KeyEvent.VK_W)));
-                player1DownKey = Integer.parseInt(props.getProperty("player1DownKey", String.valueOf(KeyEvent.VK_S)));
-                player2UpKey = Integer.parseInt(props.getProperty("player2UpKey", String.valueOf(KeyEvent.VK_UP)));
-                player2DownKey = Integer.parseInt(props.getProperty("player2DownKey", String.valueOf(KeyEvent.VK_DOWN)));
-                isFirstRun = false;
-            } else {
-                isFirstRun = true;
-            }
-        } catch (Exception e) {
-            // If loading fails, use defaults and treat as first run
-            resetToDefaults();
-            isFirstRun = true;
-        }
-    }
-    
-    private void resetToDefaults() {
-        paddleSpeedSetting = 1;
-        aiDifficultySetting = 2;
-        ballSpeedSetting = 25; // Default numeric speed
-        player1UpKey = KeyEvent.VK_W;
-        player1DownKey = KeyEvent.VK_S;
-        player2UpKey = KeyEvent.VK_UP;
-        player2DownKey = KeyEvent.VK_DOWN;
-    }
-    
+
     private void saveSettings() {
         try {
             Properties props = new Properties();
@@ -10358,7 +8629,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         gameLoopThread.start();
     }
     
-    private void stopGameLoop() {
+    public void stopGameLoop() {
         gameRunning = false;
         if (gameLoopThread != null) {
             try {
@@ -10670,8 +8941,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 case 0: // VOLUME MUSICA
                     musicVolume = Math.max(0, Math.min(100, musicVolume + direction * 5));
                     // Apply volume change to music
-                    if (backgroundMusic != null && backgroundMusic.isOpen()) {
-                        updateMusicVolume();
+                    if (musicSettings.backgroundMusic != null && musicSettings.backgroundMusic.isOpen()) {
+                        musicSettings.updateMusicVolume();
                     }
                     // Save immediately
                     saveSettingsToFile();
@@ -10684,11 +8955,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 case 2: // MUSICA ATTIVA
                     if (direction != 0) {
                         musicEnabled = !musicEnabled;
-                        if (musicEnabled && backgroundMusic != null) {
-                            backgroundMusic.start();
-                            backgroundMusic.loop(Clip.LOOP_CONTINUOUSLY);
-                        } else if (backgroundMusic != null) {
-                            backgroundMusic.stop();
+                        if (musicEnabled && musicSettings.backgroundMusic != null) {
+                            musicSettings.backgroundMusic.start();
+                            musicSettings.backgroundMusic.loop(Clip.LOOP_CONTINUOUSLY);
+                        } else if (musicSettings.backgroundMusic != null) {
+                            musicSettings.backgroundMusic.stop();
                         }
                         // Save immediately
                         saveSettingsToFile();
@@ -12431,7 +10702,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Left paddle border glow (same as in drawMenuPaddles)
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
-        g.setColor(getPaddleGlowColor(true));
+        g.setColor(generalSettings.getPaddleGlowColor(true));
         g.fillRect(widePaddleWidth/2, -paddleHeight/2, glowWidth, paddleHeight);
         
         g.setTransform(originalTransform);
@@ -12520,7 +10791,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Right paddle border glow (same as in drawMenuPaddles)
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
-        g.setColor(getPaddleGlowColor(false));
+        g.setColor(generalSettings.getPaddleGlowColor(false));
         g.fillRect(-widePaddleWidth/2 - glowWidth, -paddleHeight/2, glowWidth, paddleHeight);
         
         g.setTransform(originalTransform);
@@ -14028,7 +12299,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 if (mouseX >= cardX && mouseX <= cardX + cardWidth &&
                     mouseY >= cardY && mouseY <= cardY + cardHeight) {
                     selectedRightPaddleTheme = i;
-                    updateCachedGlowColors(); // Update cached colors when theme changes
+                    generalSettings.updateCachedGlowColors(); // Update cached colors when theme changes
                     saveSettingsToFile(); // Save immediately when theme is selected
                     repaint();
                     return;
@@ -14374,117 +12645,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
     }
     
-    private void loadSettingsFromFile() {
-        System.out.println("DEBUG (Caricamento): Inizio caricamento impostazioni...");
-        try {
-            // Get user's app data directory
-            String userHome = System.getProperty("user.home");
-            String appDataPath;
-            
-            // Determine app data path based on OS
-            String os = System.getProperty("os.name").toLowerCase();
-            if (os.contains("win")) {
-                appDataPath = System.getenv("APPDATA");
-                if (appDataPath == null) {
-                    appDataPath = userHome + "\\AppData\\Roaming";
-                }
-            } else if (os.contains("mac")) {
-                appDataPath = userHome + "/Library/Application Support";
-            } else {
-                appDataPath = userHome + "/.local/share";
-            }
-            
-            // Find settings.properties file
-            java.io.File gavaTechDir = new java.io.File(appDataPath, "GavaTech");
-            java.io.File pongPingDir = new java.io.File(gavaTechDir, "Pong-Ping");
-            java.io.File settingsFile = new java.io.File(pongPingDir, "settings.properties");
-            
-            System.out.println("DEBUG (Caricamento): Percorsi di ricerca:");
-            System.out.println("  appDataPath: " + appDataPath);
-            System.out.println("  gavaTechDir: " + gavaTechDir.getAbsolutePath() + " (exists: " + gavaTechDir.exists() + ")");
-            System.out.println("  pongPingDir: " + pongPingDir.getAbsolutePath() + " (exists: " + pongPingDir.exists() + ")");
-            System.out.println("  settingsFile: " + settingsFile.getAbsolutePath() + " (exists: " + settingsFile.exists() + ")");
-            
-            if (settingsFile.exists()) {
-                System.out.println("DEBUG (Caricamento): File trovato, caricamento in corso...");
-                java.util.Properties properties = new java.util.Properties();
-                java.io.FileInputStream fis = new java.io.FileInputStream(settingsFile);
-                properties.load(fis);
-                fis.close();
-                
-                System.out.println("DEBUG (Caricamento): Properties caricate dal file:");
-                for (String key : properties.stringPropertyNames()) {
-                    System.out.println("  " + key + "=" + properties.getProperty(key));
-                }
-                
-                // Load all settings
-                paddleSpeedSetting = Integer.parseInt(properties.getProperty("paddle.speed", "1"));
-                aiDifficultySetting = Integer.parseInt(properties.getProperty("ai.difficulty", "2"));
-                ballSpeedSetting = Integer.parseInt(properties.getProperty("ball.speed", "25"));
-                selectedPaddleTheme = Integer.parseInt(properties.getProperty("paddle.theme", "0"));
-                selectedRightPaddleTheme = Integer.parseInt(properties.getProperty("right.paddle.theme", "0"));
-                player1UpKey = Integer.parseInt(properties.getProperty("player1.up.key", String.valueOf(java.awt.event.KeyEvent.VK_W)));
-                player1DownKey = Integer.parseInt(properties.getProperty("player1.down.key", String.valueOf(java.awt.event.KeyEvent.VK_S)));
-                player2UpKey = Integer.parseInt(properties.getProperty("player2.up.key", String.valueOf(java.awt.event.KeyEvent.VK_UP)));
-                player2DownKey = Integer.parseInt(properties.getProperty("player2.down.key", String.valueOf(java.awt.event.KeyEvent.VK_DOWN)));
-                musicVolume = Integer.parseInt(properties.getProperty("music.volume", "50"));
-                effectsVolume = Integer.parseInt(properties.getProperty("effects.volume", "75"));
-                musicEnabled = Boolean.parseBoolean(properties.getProperty("music.enabled", "true"));
-                selectedBackground = Integer.parseInt(properties.getProperty("selected.background", "0"));
-                
-                // Load language setting with validation
-                String savedLanguage = properties.getProperty("language.code", "italiano");
-                // Validate that the saved language is supported
-                if (savedLanguage.equals("italiano") || savedLanguage.equals("inglese") || savedLanguage.equals("spagnolo")) {
-                    currentLanguageCode = savedLanguage;
-                } else {
-                    System.out.println("⚠️  Invalid language code found: " + savedLanguage + ". Resetting to italiano.");
-                    currentLanguageCode = "italiano";
-                }
-                // Actually load the language content and update localized arrays
-                loadLanguage(currentLanguageCode);
-                updateLocalizedArrays();
-                
-                // Validate selectedBackground index
-                if (selectedBackground < 0 || selectedBackground >= backgroundImages.size()) {
-                    selectedBackground = 0; // Reset to default if invalid
-                }
-                
-                // Validate paddle theme indices
-                if (selectedPaddleTheme < 0 || selectedPaddleTheme >= bluePaddleThemeImages.size()) {
-                    selectedPaddleTheme = 0; // Reset to default if invalid
-                }
-                if (selectedRightPaddleTheme < 0 || selectedRightPaddleTheme >= redPaddleThemeImages.size()) {
-                    selectedRightPaddleTheme = 0; // Reset to default if invalid
-                }
-                
-                // Update cached glow colors after loading themes
-                updateCachedGlowColors();
-                
-                System.out.println("DEBUG (Caricamento): Temi paddle caricati:");
-                System.out.println("  selectedPaddleTheme=" + selectedPaddleTheme);
-                System.out.println("  selectedRightPaddleTheme=" + selectedRightPaddleTheme);
-                
-                // Apply AI difficulty immediately after loading
-                aiDifficulty = aiDifficultySetting + 1; // Convert to 1-5 range
-                System.out.println("DEBUG (Caricamento): Valori caricati:");
-                System.out.println("  paddleSpeedSetting=" + paddleSpeedSetting);
-                System.out.println("  aiDifficultySetting=" + aiDifficultySetting + " (aiDifficulty=" + aiDifficulty + ")");
-                System.out.println("  ballSpeedSetting=" + ballSpeedSetting);
-                System.out.println("  language.code=" + currentLanguageCode);
-                System.out.println("  musicVolume=" + musicVolume + ", effectsVolume=" + effectsVolume);
-                
-            } else {
-                System.out.println("DEBUG (Caricamento): File settings.properties NON TROVATO. Usando valori di default.");
-            }
-        } catch (Exception e) {
-            System.out.println("ERRORE nel caricare le impostazioni: " + e.getMessage());
-            e.printStackTrace();
-            // Set default AI difficulty if loading fails
-            aiDifficulty = aiDifficultySetting + 1; // Convert to 1-5 range
-            System.out.println("DEBUG (Errore): Difficoltà IA impostata a default: aiDifficultySetting=" + aiDifficultySetting + " (aiDifficulty=" + aiDifficulty + ")");
-        }
-    }
+
     
     private void saveBackgroundTheme() {
         try {
@@ -14549,144 +12710,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
     }
     
-    /**
-     * Sets the application icon in a cross-platform compatible way
-     * Supports Windows, Mac, and Linux systems
-     */
-    private static void setApplicationIcon(JFrame frame) {
-        List<Image> iconImages = new ArrayList<>();
-        
-        // Try to load icon from different sources and sizes
-        String[] iconPaths = {
-            "icon.png",        // Current directory
-            "/icon.png",       // From JAR root
-            "icons/icon.png",  // Icons subdirectory
-            "/icons/icon.png"  // Icons subdirectory in JAR
-        };
-        
-        // Common icon sizes for different platforms
-        int[] iconSizes = {16, 20, 24, 32, 40, 48, 64, 128, 256};
-        
-        boolean iconLoaded = false;
-        
-        // Try to load the main icon
-        for (String iconPath : iconPaths) {
-            try {
-                Image image = loadImageFromPath(iconPath);
-                if (image != null) {
-                    iconImages.add(image);
-                    
-                    // Create scaled versions for different sizes
-                    for (int size : iconSizes) {
-                        Image scaledImage = image.getScaledInstance(size, size, Image.SCALE_SMOOTH);
-                        iconImages.add(scaledImage);
-                    }
-                    
-                    iconLoaded = true;
-                    System.out.println("Icona caricata con successo da: " + iconPath);
-                    break;
-                }
-            } catch (Exception e) {
-                // Continue trying other paths
-            }
-        }
-        
-        if (!iconLoaded) {
-            System.out.println("Impossibile caricare l'icona da tutti i percorsi tentati.");
-            System.out.println("Percorsi tentati: " + String.join(", ", iconPaths));
-            return;
-        }
-        
-        // Set icon for the JFrame (works on Windows and Linux)
-        if (!iconImages.isEmpty()) {
-            frame.setIconImages(iconImages);
-        }
-        
-        // Set icon for Mac dock (JDK 9+)
-        try {
-            // Use reflection to avoid compilation errors on older JDK versions
-            Class<?> taskbarClass = Class.forName("java.awt.Taskbar");
-            Object taskbar = taskbarClass.getMethod("getTaskbar").invoke(null);
-            taskbarClass.getMethod("setIconImage", Image.class).invoke(taskbar, iconImages.get(0));
-            System.out.println("Icona impostata per Mac dock");
-        } catch (Exception e) {
-            // Taskbar API not available or not supported on this platform
-            System.out.println("Taskbar API non disponibile su questa piattaforma");
-        }
-    }
-    
-    /**
-     * Loads an image from various sources (file system or JAR resources)
-     */
-    private static Image loadImageFromPath(String path) {
-        try {
-            // First try as a resource (from JAR) using ClassLoader
-            InputStream resourceStream = PongGame.class.getClassLoader().getResourceAsStream(path.startsWith("/") ? path.substring(1) : path);
-            if (resourceStream != null) {
-                BufferedImage img = ImageIO.read(resourceStream);
-                resourceStream.close();
-                return img;
-            }
-            
-            // Try with getResource as backup
-            URL resourceUrl = PongGame.class.getResource(path);
-            if (resourceUrl != null) {
-                return ImageIO.read(resourceUrl);
-            }
-            
-            // Then try as a file
-            File iconFile = new File(path);
-            if (iconFile.exists()) {
-                return ImageIO.read(iconFile);
-            }
-            
-            // Try using Toolkit as fallback
-            return Toolkit.getDefaultToolkit().getImage(path);
-            
-        } catch (Exception e) {
-            return null;
-        }
-    }
-    
 
-    public static void main(String[] args) {
-        // Set application name for dock and taskbar
-        System.setProperty("apple.awt.application.name", "Pong Ping");
-        System.setProperty("com.apple.mrj.application.apple.menu.about.name", "Pong Ping");
-        
-        // Set system look and feel to match OS theme
-        try {
-            // Enable system theme (including dark mode on macOS)
-            System.setProperty("apple.awt.application.appearance", "system");
-            System.setProperty("apple.laf.useScreenMenuBar", "true");
-            javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception e) {
-            System.out.println("Could not set system look and feel: " + e.getMessage());
-        }
-        
-        JFrame frame = new JFrame("Pong Ping by Gava");
-        PongGame game = new PongGame();
-        
-        // Set application icon (cross-platform compatible)
-        setApplicationIcon(frame);
-        
-        frame.add(game);
-        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override
-            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                game.stopGameLoop();
-                System.exit(0);
-            }
-        });
-        frame.setResizable(true); // Allow resizing
-        frame.setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT)); // Set minimum size
-        frame.pack();
-        frame.setVisible(true);
-        frame.setLocationRelativeTo(null);
-        
-        game.requestFocus();
-    }
+
     
     // Fire ball system methods
     private void incrementFireBallSystem() {
@@ -16040,111 +14065,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         return fontSize;
     }
     
-    // Localization methods
-    private void loadLanguage(String languageCode) {
-        currentLanguage.clear();
-        BufferedReader reader = null;
-        
-        try {
-            // Try to load from app context first (for jpackage apps with --app-content)
-            String filename = getResourcePath("lingue/" + languageCode + ".txt");
-            File languageFile = new File(filename);
-            if (languageFile.exists()) {
-                reader = new BufferedReader(new FileReader(languageFile));
-                System.out.println("✓ Language loaded from app context: " + languageCode + ".txt");
-            } else {
-                // Fallback: try loading from JAR resources
-                InputStream languageStream = getClass().getClassLoader().getResourceAsStream("lingue/" + languageCode + ".txt");
-                if (languageStream != null) {
-                    reader = new BufferedReader(new InputStreamReader(languageStream));
-                    System.out.println("✓ Language loaded from JAR: " + languageCode + ".txt");
-                } else {
-                    System.out.println("⚠️  Language file not found in app context or JAR: " + languageCode + ".txt");
-                }
-            }
-            
-            if (reader != null) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    line = line.trim();
-                    if (!line.isEmpty() && !line.startsWith("#")) {
-                        String[] parts = line.split("=", 2);
-                        if (parts.length == 2) {
-                            currentLanguage.put(parts[0].trim(), parts[1].trim());
-                        }
-                    }
-                }
-                currentLanguageCode = languageCode;
-                System.out.println("Language successfully loaded: " + languageCode);
-            } else {
-                System.out.println("⚠️  Language file not found: " + languageCode + ".txt");
-                loadDefaultLanguage();
-            }
-        } catch (IOException e) {
-            System.out.println("Could not load language file: " + languageCode + ".txt - " + e.getMessage());
-            loadDefaultLanguage();
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    // Ignore close errors
-                }
-            }
-        }
-    }
+
     
-    private void loadItalianLanguage() {
-        currentLanguage.put("MENU_SINGLE_PLAYER", "SINGLE PLAYER");
-        currentLanguage.put("MENU_TWO_PLAYERS", "TWO PLAYERS");
-        currentLanguage.put("MENU_SETTINGS", "IMPOSTAZIONI");
-        currentLanguage.put("MENU_EXIT", "EXIT");
-        currentLanguage.put("FIRST_ACCESS_TITLE", "PONG PING");
-        currentLanguage.put("FIRST_ACCESS_SUBTITLE", "Il classico gioco rivisto");
-        currentLanguage.put("SETTINGS_DIFFICULTY", "DIFFICOLTA");
-        currentLanguage.put("SETTINGS_PADDLE", "IMPOSTAZIONI PADDLE");
-        currentLanguage.put("SETTINGS_CONTROLS", "COMANDI");
-        currentLanguage.put("SETTINGS_AUDIO", "AUDIO");
-        currentLanguage.put("SETTINGS_LANGUAGE", "LINGUA");
-        currentLanguage.put("PADDLE_SPEED_SLOW", "LENTA");
-        currentLanguage.put("PADDLE_SPEED_MEDIUM", "MEDIA");
-        currentLanguage.put("PADDLE_SPEED_FAST", "VELOCE");
-        currentLanguage.put("AI_DIFFICULTY_EASY", "FACILE");
-        currentLanguage.put("AI_DIFFICULTY_NORMAL", "NORMALE");
-        currentLanguage.put("AI_DIFFICULTY_HARD", "DIFFICILE");
-        currentLanguage.put("AI_DIFFICULTY_EXPERT", "ESPERTO");
-        currentLanguage.put("AI_DIFFICULTY_IMPOSSIBLE", "IMPOSSIBILE");
-    }
+
+
     
-    private void loadEnglishLanguage() {
-        currentLanguage.put("MENU_SINGLE_PLAYER", "SINGLE PLAYER");
-        currentLanguage.put("MENU_TWO_PLAYERS", "TWO PLAYERS");
-        currentLanguage.put("MENU_SETTINGS", "SETTINGS");
-        currentLanguage.put("MENU_EXIT", "EXIT");
-        currentLanguage.put("FIRST_ACCESS_TITLE", "PONG PING");
-        currentLanguage.put("FIRST_ACCESS_SUBTITLE", "The classic game revisited");
-        currentLanguage.put("SETTINGS_DIFFICULTY", "DIFFICULTY");
-        currentLanguage.put("SETTINGS_PADDLE", "PADDLE SETTINGS");
-        currentLanguage.put("SETTINGS_CONTROLS", "CONTROLS");
-        currentLanguage.put("SETTINGS_AUDIO", "AUDIO");
-        currentLanguage.put("SETTINGS_LANGUAGE", "LANGUAGE");
-        currentLanguage.put("PADDLE_SPEED_SLOW", "SLOW");
-        currentLanguage.put("PADDLE_SPEED_MEDIUM", "MEDIUM");
-        currentLanguage.put("PADDLE_SPEED_FAST", "FAST");
-        currentLanguage.put("AI_DIFFICULTY_EASY", "EASY");
-        currentLanguage.put("AI_DIFFICULTY_NORMAL", "NORMAL");
-        currentLanguage.put("AI_DIFFICULTY_HARD", "HARD");
-        currentLanguage.put("AI_DIFFICULTY_EXPERT", "EXPERT");
-        currentLanguage.put("AI_DIFFICULTY_IMPOSSIBLE", "IMPOSSIBLE");
-    }
-    
-    private void loadDefaultLanguage() {
-        // Fallback to Italian if language loading fails
-        loadItalianLanguage();
-        currentLanguageCode = "italiano"; // Reset to default language code
-    }
-    
-    private String getText(String key) {
+    public static String getText(String key) {
         return currentLanguage.getOrDefault(key, key);
     }
     
@@ -16182,49 +14108,20 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     private void switchLanguage() {
         if (currentLanguageCode.equals("italiano")) {
-            loadLanguage("inglese");
+            languageSettings.loadLanguage("inglese");
             currentLanguageCode = "inglese"; // Update the language code
         } else if (currentLanguageCode.equals("inglese")) {
-            loadLanguage("spagnolo");
+            languageSettings.loadLanguage("spagnolo");
             currentLanguageCode = "spagnolo"; // Update the language code
         } else {
-            loadLanguage("italiano");
+            languageSettings.loadLanguage("italiano");
             currentLanguageCode = "italiano"; // Update the language code  
         }
         // Update menu items and settings arrays
         updateLocalizedArrays();
     }
     
-    private void updateLocalizedArrays() {
-        // Initialize and update menu items
-        if (menuItems == null) {
-            menuItems = new String[5];
-        }
-        menuItems[0] = getText("MENU_SINGLE_PLAYER");
-        menuItems[1] = getText("MENU_TWO_PLAYERS");
-        menuItems[2] = getText("MENU_HISTORY");
-        menuItems[3] = getText("MENU_SETTINGS");
-        menuItems[4] = getText("MENU_EXIT");
-        
-        // Update category names
-        categoryNames[0] = getText("SETTINGS_DIFFICULTY");
-        categoryNames[1] = getText("SETTINGS_PADDLE");
-        categoryNames[2] = getText("SETTINGS_CONTROLS");
-        categoryNames[3] = getText("SETTINGS_AUDIO");
-        categoryNames[4] = getText("SETTINGS_LANGUAGE");
-        
-        // Update paddle speed options
-        paddleSpeedOptions[0] = getText("PADDLE_SPEED_SLOW");
-        paddleSpeedOptions[1] = getText("PADDLE_SPEED_MEDIUM");
-        paddleSpeedOptions[2] = getText("PADDLE_SPEED_FAST");
-        
-        // Update AI difficulty options
-        aiDifficultyOptions[0] = getText("AI_DIFFICULTY_EASY");
-        aiDifficultyOptions[1] = getText("AI_DIFFICULTY_NORMAL");
-        aiDifficultyOptions[2] = getText("AI_DIFFICULTY_HARD");
-        aiDifficultyOptions[3] = getText("AI_DIFFICULTY_EXPERT");
-        aiDifficultyOptions[4] = getText("AI_DIFFICULTY_IMPOSSIBLE");
-    }
+
     
     private void drawQuickSetup(Graphics2D g, int centerX, int startY) {
         float settingSize = (float)(20 * Math.min(scaleX, scaleY));
@@ -16412,73 +14309,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
     }
     
-    // Game History Entry class
-    private static class GameHistoryEntry {
-        public String date;
-        public String time;
-        public String gameMode;
-        public int player1Score;
-        public int player2Score;
-        public String winner;
-        public int rallies;
-        public String duration;
-        public String difficulty;
-        public int maxCombo; // For single player mode compatibility
-        public int player1MaxCombo; // For two players mode
-        public int player2MaxCombo; // For two players mode
-        public String rank;
-        
-        // Constructor for single player mode (backward compatibility)
-        public GameHistoryEntry(String date, String time, String gameMode, int p1Score, int p2Score, 
-                              String winner, int rallies, String duration, String difficulty, int maxCombo, String rank) {
-            this.date = date;
-            this.time = time;
-            this.gameMode = gameMode;
-            this.player1Score = p1Score;
-            this.player2Score = p2Score;
-            this.winner = winner;
-            this.rallies = rallies;
-            this.duration = duration;
-            this.difficulty = difficulty;
-            this.maxCombo = maxCombo;
-            this.rank = rank;
-            // Set default values for two players combos
-            this.player1MaxCombo = 0;
-            this.player2MaxCombo = 0;
-        }
-        
-        // Constructor for two players mode
-        public GameHistoryEntry(String date, String time, String gameMode, int p1Score, int p2Score, 
-                              String winner, int rallies, String duration, String difficulty, 
-                              int p1MaxCombo, int p2MaxCombo, String rank) {
-            this.date = date;
-            this.time = time;
-            this.gameMode = gameMode;
-            this.player1Score = p1Score;
-            this.player2Score = p2Score;
-            this.winner = winner;
-            this.rallies = rallies;
-            this.duration = duration;
-            this.difficulty = difficulty;
-            this.player1MaxCombo = p1MaxCombo;
-            this.player2MaxCombo = p2MaxCombo;
-            this.rank = rank;
-            // Set maxCombo to the higher of the two for compatibility
-            this.maxCombo = Math.max(p1MaxCombo, p2MaxCombo);
-        }
-        
-        @Override
-        public String toString() {
-            return date + " " + time + " | " + gameMode + " | " + player1Score + "-" + player2Score + 
-                   " | Winner: " + winner + " | Rallies: " + rallies + " | Duration: " + duration + 
-                   " | Difficulty: " + difficulty + " | Max Combo: " + maxCombo + " | Rank: " + rank;
-        }
-    }
-    
     // History input handler
     private void handleHistoryInput(KeyEvent e) {
         java.util.List<GameHistoryEntry> filteredHistory = getFilteredHistory();
-        
+
         switch (e.getKeyCode()) {
             case KeyEvent.VK_LEFT:
                 // Change mode selection
@@ -16532,7 +14366,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         repaint();
     }
-    
+
     // Helper method per calcolare quante card sono visibili
     private int calculateMaxVisibleCards() {
         int cardHeight = (int)(110 * scaleY);
@@ -16541,7 +14375,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         int availableHeight = getHeight() - startY - 50;
         return availableHeight / (cardHeight + cardSpacing);
     }
-    
+
     private java.util.List<GameHistoryEntry> getFilteredHistory() {
         java.util.List<GameHistoryEntry> filtered = new java.util.ArrayList<>();
         for (GameHistoryEntry entry : gameHistory) {
@@ -16553,12 +14387,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         return filtered;
     }
-    
+
     // Draw history screen
     private void drawHistory(Graphics2D g) {
         // Draw background
         drawMenuBackground(g);
-        
+
         // Title
         if (primaryFont != null) {
             g.setFont(primaryFont.deriveFont(Font.BOLD, (float)(48 * scaleX)));
@@ -16570,7 +14404,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         int titleX = (getWidth() - titleWidth) / 2;
         int titleY = (int)(70 * scaleY);
         g.drawString(title, titleX, titleY);
-        
+
         // Mode selection
         if (primaryFont != null) {
             g.setFont(primaryFont.deriveFont(Font.PLAIN, (float)(22 * scaleX)));
@@ -16579,25 +14413,25 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         int modeY = (int)(110 * scaleY);
         int totalModeWidth = 0;
         FontMetrics modeFm = g.getFontMetrics();
-        
+
         // Calculate total width for centering
         for (int i = 0; i < modeNames.length; i++) {
             totalModeWidth += modeFm.stringWidth(modeNames[i]);
             if (i < modeNames.length - 1) totalModeWidth += (int)(60 * scaleX); // spacing
         }
-        
+
         int startModeX = (getWidth() - totalModeWidth) / 2;
         int currentModeX = startModeX;
-        
+
         for (int i = 0; i < modeNames.length; i++) {
             if (i == selectedHistoryMode) {
                 // Selected mode - highlighted with glow effect
                 g.setColor(new Color(0, 255, 255, 80)); // Cyan glow
                 int padding = (int)(8 * scaleX);
                 int textWidth = modeFm.stringWidth(modeNames[i]);
-                g.fillRoundRect(currentModeX - padding, modeY - modeFm.getAscent() - padding, 
+                g.fillRoundRect(currentModeX - padding, modeY - modeFm.getAscent() - padding,
                                textWidth + 2 * padding, modeFm.getHeight() + 2 * padding, 10, 10);
-                
+
                 g.setColor(Color.CYAN);
                 g.drawString(modeNames[i], currentModeX, modeY);
             } else {
@@ -16605,15 +14439,15 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 g.setColor(new Color(150, 150, 150));
                 g.drawString(modeNames[i], currentModeX, modeY);
             }
-            
+
             currentModeX += modeFm.stringWidth(modeNames[i]) + (int)(60 * scaleX);
         }
-        
+
         // Instructions removed per user request
-        
+
         // Get filtered history based on selected mode
         java.util.List<GameHistoryEntry> filteredHistory = getFilteredHistory();
-        
+
         // History entries as cards
         if (filteredHistory.isEmpty()) {
             g.setColor(new Color(150, 150, 150));
@@ -16627,11 +14461,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             drawHistoryCards(g);
         }
     }
-    
+
     private void drawHistoryCards(Graphics2D g) {
         // Get filtered history based on current mode
         java.util.List<GameHistoryEntry> filteredHistory = getFilteredHistory();
-        
+
         if (filteredHistory.isEmpty()) {
             // Mostra messaggio cronologia vuota
             g.setColor(Color.GRAY);
@@ -16644,51 +14478,51 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             g.drawString(emptyMessage, messageX, messageY);
             return;
         }
-        
+
         int cardWidth = (int)(getWidth() * 0.95); // Card più larghe
         int cardHeight = (int)(110 * scaleY); // Card più alte
         int cardSpacing = (int)(8 * scaleY); // Spacing ridotto
         int startY = (int)(170 * scaleY); // Adjusted for mode selection
         int startX = (getWidth() - cardWidth) / 2;
-        
+
         // Calcola quante card possiamo mostrare
         int availableHeight = getHeight() - startY - 50;
         int maxVisible = availableHeight / (cardHeight + cardSpacing);
-        
+
         // Mostra le partite con scroll offset
         int displayedCards = 0;
         for (int i = historyScrollOffset; i < filteredHistory.size() && displayedCards < maxVisible; i++) {
             GameHistoryEntry entry = filteredHistory.get(i);
-            
+
             int cardY = startY + displayedCards * (cardHeight + cardSpacing);
-            
+
             // Evidenzia card selezionata
             boolean isSelected = (i == selectedHistoryCard);
             if (isSelected) {
                 drawSelectedCardHighlight(g, startX, cardY, cardWidth, cardHeight);
             }
-            
+
             drawHistoryCard(g, entry, startX, cardY, cardWidth, cardHeight);
-            
+
             displayedCards++;
         }
-        
+
         // Mostra indicatori di scroll intelligenti - più grandi e visibili
         g.setFont(primaryFont.deriveFont(Font.BOLD, (float)(20 * scaleX))); // Font più grande e bold
         FontMetrics scrollFm = g.getFontMetrics();
-        
+
         // Indicatore scroll up - freccia disegnata a mano
         if (historyScrollOffset > 0) {
             int arrowSize = (int)(12 * scaleX);
             int upX = getWidth() / 2;
             int upY = startY - (int)(25 * scaleY);
-            
+
             // Background semi-trasparente
             g.setColor(new Color(0, 0, 0, 120));
-            g.fillRoundRect(upX - arrowSize - (int)(5 * scaleX), upY - arrowSize - (int)(5 * scaleY), 
-                           arrowSize * 2 + (int)(10 * scaleX), arrowSize + (int)(10 * scaleY), 
+            g.fillRoundRect(upX - arrowSize - (int)(5 * scaleX), upY - arrowSize - (int)(5 * scaleY),
+                           arrowSize * 2 + (int)(10 * scaleX), arrowSize + (int)(10 * scaleY),
                            (int)(8 * scaleX), (int)(8 * scaleY));
-            
+
             // Disegna freccia su
             g.setColor(new Color(100, 200, 255));
             g.setStroke(new BasicStroke(2f));
@@ -16696,19 +14530,19 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             int[] yPoints = {upY - arrowSize, upY, upY};
             g.drawPolygon(xPoints, yPoints, 3);
         }
-        
+
         // Indicatore scroll down - freccia disegnata a mano
         if (historyScrollOffset + maxVisible < filteredHistory.size()) {
             int arrowSize = (int)(12 * scaleX);
             int downX = getWidth() / 2;
             int downY = startY + (maxVisible * (cardHeight + cardSpacing)) + (int)(35 * scaleY);
-            
+
             // Background semi-trasparente
             g.setColor(new Color(0, 0, 0, 120));
-            g.fillRoundRect(downX - arrowSize - (int)(5 * scaleX), downY - (int)(5 * scaleY), 
-                           arrowSize * 2 + (int)(10 * scaleX), arrowSize + (int)(10 * scaleY), 
+            g.fillRoundRect(downX - arrowSize - (int)(5 * scaleX), downY - (int)(5 * scaleY),
+                           arrowSize * 2 + (int)(10 * scaleX), arrowSize + (int)(10 * scaleY),
                            (int)(8 * scaleX), (int)(8 * scaleY));
-            
+
             // Disegna freccia giù
             g.setColor(new Color(100, 200, 255));
             g.setStroke(new BasicStroke(2f));
@@ -16717,43 +14551,43 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             g.drawPolygon(xPoints, yPoints, 3);
         }
     }
-    
+
     // Disegna l'evidenziazione per la card selezionata
     private void drawSelectedCardHighlight(Graphics2D g, int x, int y, int width, int height) {
         // Border bianco per card selezionata
         g.setColor(new Color(255, 255, 255, 150)); // Bianco semi-trasparente
         g.setStroke(new BasicStroke(3f)); // Border spesso
         g.drawRect(x - 2, y - 2, width + 4, height + 4);
-        
+
         // Glow effect interno bianco
         g.setColor(new Color(255, 255, 255, 40)); // Bianco molto trasparente
         g.fillRect(x, y, width, height);
-        
+
         // Corner highlights per un effetto più marcato
         g.setColor(Color.WHITE);
         g.setStroke(new BasicStroke(2f));
         int cornerSize = 15;
-        
+
         // Top-left corner
         g.drawLine(x - 2, y - 2, x - 2 + cornerSize, y - 2);
         g.drawLine(x - 2, y - 2, x - 2, y - 2 + cornerSize);
-        
+
         // Top-right corner
         g.drawLine(x + width + 2 - cornerSize, y - 2, x + width + 2, y - 2);
         g.drawLine(x + width + 2, y - 2, x + width + 2, y - 2 + cornerSize);
-        
+
         // Bottom-left corner
         g.drawLine(x - 2, y + height + 2 - cornerSize, x - 2, y + height + 2);
         g.drawLine(x - 2, y + height + 2, x - 2 + cornerSize, y + height + 2);
-        
+
         // Bottom-right corner
         g.drawLine(x + width + 2, y + height + 2 - cornerSize, x + width + 2, y + height + 2);
         g.drawLine(x + width + 2 - cornerSize, y + height + 2, x + width + 2, y + height + 2);
-        
+
         // Reset stroke
         g.setStroke(new BasicStroke(1f));
     }
-    
+
     private void drawHistoryCard(Graphics2D g, GameHistoryEntry entry, int x, int y, int width, int height) {
         // Check game mode to use different layouts
         if (entry.gameMode.equals("Two Players")) {
@@ -16809,7 +14643,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void drawSinglePlayerHistoryCard(Graphics2D g, GameHistoryEntry entry, int x, int y, int width, int height) {
         // Card background with winner paddle glow colors - square corners
         boolean isLeftPaddleWinner = entry.winner.equals("PLAYER") || entry.winner.equals("PLAYER 1");
-        Color paddleGlowColor = getPaddleGlowColor(isLeftPaddleWinner);
+        Color paddleGlowColor = generalSettings.getPaddleGlowColor(isLeftPaddleWinner);
         
         // Create subtle gradient using paddle glow color
         Color darkGlow = new Color(paddleGlowColor.getRed()/4, paddleGlowColor.getGreen()/4, paddleGlowColor.getBlue()/4, 200);
@@ -17600,126 +15434,22 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Bottom border only
         g.fillRect(x, y + height - pixelSize, width, pixelSize);
     }
-    
-    // Load game history from file
-    private void loadGameHistory() {
-        gameHistory.clear();
-        try (BufferedReader br = new BufferedReader(new FileReader(HISTORY_FILE))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                if (!line.trim().isEmpty() && !line.startsWith("#")) {
-                    String[] parts = line.split("\\|");
-                    if (parts.length >= 13) {
-                        // New format with player1MaxCombo and player2MaxCombo
-                        GameHistoryEntry entry = new GameHistoryEntry(
-                            parts[0].trim(), parts[1].trim(), parts[2].trim(),
-                            Integer.parseInt(parts[3].trim()), Integer.parseInt(parts[4].trim()),
-                            parts[5].trim(), Integer.parseInt(parts[6].trim()),
-                            parts[7].trim(), parts[8].trim(), 
-                            Integer.parseInt(parts[11].trim()), Integer.parseInt(parts[12].trim()), parts[10].trim()
-                        );
-                        gameHistory.add(entry);
-                    } else if (parts.length >= 11) {
-                        // Format with maxCombo and rank (single player)
-                        GameHistoryEntry entry = new GameHistoryEntry(
-                            parts[0].trim(), parts[1].trim(), parts[2].trim(),
-                            Integer.parseInt(parts[3].trim()), Integer.parseInt(parts[4].trim()),
-                            parts[5].trim(), Integer.parseInt(parts[6].trim()),
-                            parts[7].trim(), parts[8].trim(), Integer.parseInt(parts[9].trim()), parts[10].trim()
-                        );
-                        gameHistory.add(entry);
-                    } else if (parts.length >= 9) {
-                        // Old format compatibility - default values for missing fields
-                        GameHistoryEntry entry = new GameHistoryEntry(
-                            parts[0].trim(), parts[1].trim(), parts[2].trim(),
-                            Integer.parseInt(parts[3].trim()), Integer.parseInt(parts[4].trim()),
-                            parts[5].trim(), Integer.parseInt(parts[6].trim()),
-                            parts[7].trim(), parts[8].trim(), 0, "UNRANKED"
-                        );
-                        gameHistory.add(entry);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("DEBUG: Could not load game history: " + e.getMessage());
-        }
-    }
-    
-    // Save game history entry
-    // Save game history entry for single player mode
-    private void saveGameHistoryEntry(String gameMode, int p1Score, int p2Score, String winner, 
-                                     int rallies, String duration, String difficulty, int maxCombo, String rank) {
-        try {
-            // Create entry
-            java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("dd/MM/yyyy");
-            java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm:ss");
-            java.util.Date now = new java.util.Date();
-            
-            GameHistoryEntry entry = new GameHistoryEntry(
-                dateFormat.format(now), timeFormat.format(now), gameMode,
-                p1Score, p2Score, winner, rallies, duration, difficulty, maxCombo, rank
-            );
-            
-            // Add to list
-            gameHistory.add(0, entry); // Add to beginning for newest first
-            
-            // Save to file
-            try (java.io.PrintWriter pw = new java.io.PrintWriter(new java.io.FileWriter(HISTORY_FILE, true))) {
-                pw.println(entry.date + "|" + entry.time + "|" + entry.gameMode + "|" + 
-                          entry.player1Score + "|" + entry.player2Score + "|" + entry.winner + "|" + 
-                          entry.rallies + "|" + entry.duration + "|" + entry.difficulty + "|" + 
-                          entry.maxCombo + "|" + entry.rank);
-            }
-            
-        } catch (Exception e) {
-            System.out.println("DEBUG: Could not save game history: " + e.getMessage());
-        }
-    }
-    
-    // Save game history entry for two players mode
-    private void saveGameHistoryEntryTwoPlayers(String gameMode, int p1Score, int p2Score, String winner, 
-                                               int rallies, String duration, String difficulty, 
-                                               int p1MaxCombo, int p2MaxCombo, String rank) {
-        try {
-            // Create entry
-            java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("dd/MM/yyyy");
-            java.text.SimpleDateFormat timeFormat = new java.text.SimpleDateFormat("HH:mm:ss");
-            java.util.Date now = new java.util.Date();
-            
-            GameHistoryEntry entry = new GameHistoryEntry(
-                dateFormat.format(now), timeFormat.format(now), gameMode,
-                p1Score, p2Score, winner, rallies, duration, difficulty, 
-                p1MaxCombo, p2MaxCombo, rank
-            );
-            
-            // Add to list
-            gameHistory.add(0, entry); // Add to beginning for newest first
-            
-            // Save to file with new format including both combos
-            try (java.io.PrintWriter pw = new java.io.PrintWriter(new java.io.FileWriter(HISTORY_FILE, true))) {
-                pw.println(entry.date + "|" + entry.time + "|" + entry.gameMode + "|" + 
-                          entry.player1Score + "|" + entry.player2Score + "|" + entry.winner + "|" + 
-                          entry.rallies + "|" + entry.duration + "|" + entry.difficulty + "|" + 
-                          entry.maxCombo + "|" + entry.rank + "|" + p1MaxCombo + "|" + p2MaxCombo);
-            }
-            
-        } catch (Exception e) {
-            System.out.println("DEBUG: Could not save game history: " + e.getMessage());
-        }
-    }
-    
+
+
+
+
     // Save current game result to history
     private void saveGameResult() {
         try {
             // Determine game mode
             String gameMode = currentState == GameState.SINGLE_PLAYER ? "Single Player" : "Two Players";
-            
+
             // Calculate game duration
             long durationMs = gameEndTime - gameStartTime;
             int minutes = (int) (durationMs / 60000);
             int seconds = (int) ((durationMs % 60000) / 1000);
             String duration = String.format("%d:%02d", minutes, seconds);
-            
+
             // Get difficulty
             String difficulty;
             if (currentState == GameState.SINGLE_PLAYER) {
@@ -17728,24 +15458,24 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             } else {
                 difficulty = "N/A";
             }
-            
+
             // Calculate rank for this game
             String gameRank = "N/A";
             if (currentState == GameState.SINGLE_PLAYER) {
                 gameRank = calculateRank();
             }
-            
+
             // Save the entry based on game mode
             if (currentState == GameState.SINGLE_PLAYER) {
                 // Single player mode - use original max combo system
                 int currentMaxCombo = maxCombo;
-                saveGameHistoryEntry(gameMode, score1, score2, winner, rallies, duration, difficulty, currentMaxCombo, gameRank);
+                historySettings.saveGameHistoryEntry(gameMode, score1, score2, winner, rallies, duration, difficulty, currentMaxCombo, gameRank);
             } else if (currentState == GameState.PLAYING) {
                 // Two players mode - use separate combo systems
-                saveGameHistoryEntryTwoPlayers(gameMode, score1, score2, winner, rallies, duration, difficulty, 
+                historySettings.saveGameHistoryEntryTwoPlayers(gameMode, score1, score2, winner, rallies, duration, difficulty,
                                              player1MaxCombo, player2MaxCombo, gameRank);
             }
-            
+
         } catch (Exception e) {
             System.out.println("DEBUG: Could not save game result: " + e.getMessage());
         }

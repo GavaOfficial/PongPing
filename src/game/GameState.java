@@ -1,0 +1,19 @@
+package game;
+
+public enum GameState {
+    SETTINGS,
+    MENU,
+    PLAYING,
+    PAUSED,
+    GAME_OVER,
+    SINGLE_PLAYER,
+    TRANSITIONING,
+    BACKGROUND_SELECTION,
+    PADDLE_SELECTION,
+    RIGHT_PADDLE_SELECTION,
+    FIRST_ACCESS,
+    DEBUG,
+    GAME_MODE_SELECTION,
+    RANK,
+    HISTORY
+}
