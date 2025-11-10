@@ -1,6 +1,7 @@
 package game;
 
 public enum GameState {
+    INTRO,
     SETTINGS,
     MENU,
     PLAYING,
@@ -15,5 +16,8 @@ public enum GameState {
     DEBUG,
     GAME_MODE_SELECTION,
     RANK,
-    HISTORY
+    HISTORY,
+    CIRCLE_MODE_MENU,
+    CIRCLE_MODE,
+    ADVANCEMENT
 }

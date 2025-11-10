@@ -17,15 +17,22 @@ public class SettingsContext {
 
     // Game mode selection
     public static int selectedGameMode = 0;
-    public static String[] gameModes = {"NORMALE"};
+    public static String[] gameModes = {"NORMALE", "CIRCLE"};
     public static String[] gameModeDescriptions = {
-            "Modalità normale: gioco classico standard"
+            "Modalità normale: gioco classico standard",
+            "Circle Defense: difendi il cerchio centrale dalle palle!"
     };
 
     // Current game mode
-    public static int currentGameMode = 0; // 0=Normal
+    public static int currentGameMode = 0; // 0=Normal, 1=Circle
     public static boolean isUsingKeyboardNavigation = false; // Track if user is navigating with keyboard
     public static int hoveredMenuItem = -1; // Track which menu item is currently hovered (-1 = none)
+
+    // Circle Mode settings
+    public static int circleModeInitialHealth = 100; // Initial health for circle mode (default 100 HP)
+    public static int circleMaxCombo = 0; // Max combo reached in Circle Mode
+    public static int circleMaxScore = 0; // Max balls deflected in Circle Mode
+    public static boolean wasInCircleMode = false; // Was user in Circle Mode when they closed the game
 
 
     // Audio settings

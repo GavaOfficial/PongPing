@@ -69,11 +69,62 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     protected void setState(GameState newState) {
         if (currentState != newState) {
             System.out.println("DEBUG (StateChange): " + currentState + " → " + newState);
+            GameState previousState = currentState; // Salva lo stato precedente prima di cambiarlo
             currentState = newState;
-            
+
             // Inizializza particelle di sfondo quando entriamo nel menu
             if (newState == GameState.MENU || newState == GameState.FIRST_ACCESS) {
                 createBackgroundParticles();
+
+                // Se veniamo dalla selezione modalità, copia la posizione e velocità della preview ball
+                if (newState == GameState.MENU && previousState == GameState.GAME_MODE_SELECTION) {
+                    menuBallX = previewBallX;
+                    menuBallY = previewBallY;
+                    menuBallVX = previewBallVX;
+                    menuBallVY = previewBallVY;
+                }
+            }
+
+            // Inizializza palla della preview quando entriamo in selezione modalità
+            if (newState == GameState.GAME_MODE_SELECTION) {
+                createBackgroundParticles();
+
+                // Set selectedGameMode based on where we're coming from
+                if (previousState == GameState.MENU) {
+                    selectedGameMode = 0; // Show CLASSICO when coming from MENU
+                } else if (previousState == GameState.CIRCLE_MODE_MENU) {
+                    selectedGameMode = 1; // Show CIRCLE when coming from CIRCLE_MODE_MENU
+                }
+
+                // Se veniamo dal MENU, copia la posizione e velocità della palla del menu
+                // altrimenti resetta al centro
+                if (previousState == GameState.MENU) {
+                    // Transizione fluida dalla home - copia posizione e velocità
+                    previewBallX = menuBallX;
+                    previewBallY = menuBallY;
+                    previewBallVX = menuBallVX;
+                    previewBallVY = menuBallVY;
+                } else {
+                    // Reset preview ball position and velocity
+                    previewBallX = BOARD_WIDTH / 2 - menuBallSize / 2;
+                    previewBallY = BOARD_HEIGHT / 2 - menuBallSize / 2;
+                    double initialSpeed = 3.0 * Math.min(scaleX, scaleY);
+                    previewBallVX = (Math.random() > 0.5) ? initialSpeed : -initialSpeed;
+                    previewBallVY = initialSpeed;
+                }
+            }
+
+            // Initialize Circle Mode menu statistics display
+            if (newState == GameState.CIRCLE_MODE_MENU) {
+                // Set displayed values to actual max values
+                displayedMaxCombo = circleMaxCombo;
+                displayedMaxScore = circleMaxScore;
+                // Reset trapezoid expansion state when returning to Circle Mode menu
+                isModalitaTrapezoidExpanding = false;
+                modalitaExpansionProgress = 0.0;
+                // Reset entrance animation
+                circleModeMenuAnimationProgress = 0.0;
+                circleModeMenuAnimationStartTime = 0;
             }
         }
     }
@@ -222,10 +273,31 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private boolean showMotivationalMessage = false;
     private static final double MESSAGE_SHOW_DELAY = 1; // Show immediately
     private static final double MESSAGE_SCROLL_SPEED = 2.0; // Positive speed
-    
-    
 
-    
+    // Intro slot machine variables
+    private static final char[] TARGET_LETTERS = {'G', 'A', 'V', 'A'};
+    private char[] currentIntroLetters = {'A', 'A', 'A', 'A'}; // Current displayed letters
+    private boolean[] introLetterSettled = {false, false, false, false}; // Which letters have settled
+    private long introStartTime = 0; // When intro animation started
+    private long[] introLetterSettleTime = {0, 0, 0, 0}; // When each letter should settle
+    private static final long INTRO_CREATED_BY_DURATION = 1500; // 1.5 seconds for "created by"
+    private static final long INTRO_SPIN_DURATION = 3000; // 3 seconds for all letters to settle
+    private static final long LETTER_SETTLE_INTERVAL = 500; // 500ms between each letter settling
+    private static final long INTRO_WAIT_AFTER_COMPLETE = 800; // 800ms wait after animation completes
+    private boolean introComplete = false; // Intro animation finished
+    private boolean introSlotMachineStarted = false; // Slot machine animation has started
+    private long introCompleteTime = 0; // When intro animation completed
+    private static final String RANDOM_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private Random introRandom = new Random();
+
+    // Intro transition variables
+    private boolean isTransitioningFromIntro = false;
+    private double introTransitionProgress = 0.0; // 0.0 = intro, 1.0 = next screen
+    private static final double INTRO_TRANSITION_SPEED = 0.05; // Fade speed
+    private GameState introNextState = GameState.MENU; // Where to go after intro
+
+
+
     // Paddle width animation variables for settings
     private double leftPaddleWidthProgress = 1.0; // 1.0 = expanded, 0.0 = normal
     private double rightPaddleWidthProgress = 0.0; // 1.0 = expanded, 0.0 = normal
@@ -271,8 +343,125 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     // Chess pattern animation variables
     private double chessAnimationTime = 0.0;
     private long lastChessUpdate = 0;
-    
-    
+
+    // Circle Mode variables
+    private double circleCenterX = BOARD_WIDTH / 2.0;
+    private double circleCenterY = BOARD_HEIGHT / 2.0;
+    private double circleRadius = 80.0; // Radius of center circle to defend (ridotto)
+    private double circleHealth = 100.0; // Current health of center circle
+    private double circleMaxHealth = 100.0; // Maximum health
+
+    // Circle Mode paddle (semicircular)
+    private double circlePaddleAngle = 0.0; // Current angle in radians (direction towards mouse)
+    private double circlePaddleArcDegrees = 50.0; // Arc coverage in degrees
+    private double circlePaddleDistance = 20.0; // Distance from circle edge (ben staccato)
+    private double circlePaddleThickness = 10.0; // Thickness of paddle arc
+
+    // Circle Mode balls system
+    private java.util.List<CircleBall> circleBalls = new ArrayList<>();
+    private long lastBallSpawnTime = 0;
+    private long ballSpawnInterval = 2000; // milliseconds between spawns (decreases over time)
+    private int maxSimultaneousBalls = 3; // Maximum balls on screen (increases over time)
+
+    // Circle Mode progression
+    private long circleModeStartTime = 0;
+    private double circleDamageMultiplier = 1.0; // Damage multiplier (increases over time)
+    private double circleBallSpeedMultiplier = 1.0; // Speed multiplier (increases over time)
+    private int circleScore = 0; // Balls deflected
+    private long circleSurvivalTime = 0; // Survival time in milliseconds
+    private boolean circleModePaused = false; // Circle Mode pause state
+    private long circleModePauseStartTime = 0; // When pause started
+    private boolean circleModeStartButtonHovered = false; // Track if mouse is over START button
+
+    // Circle Mode Menu - hold to start system
+    private boolean holdingCentralBall = false; // Track if holding mouse on central ball
+    private int holdProgress = 0; // Progress of hold (0-60 frames = 1 second at 60 FPS)
+    private static final int HOLD_DURATION = 60; // 60 frames = 1 second
+
+    // Circle Mode menu statistics countdown animation
+    private int displayedMaxCombo = 0; // Animated value shown on screen
+    private int displayedMaxScore = 0; // Animated value shown on screen
+
+    // Circle Mode menu entrance animation
+    private double circleModeMenuAnimationProgress = 0.0; // 0.0 = start, 1.0 = complete
+    private long circleModeMenuAnimationStartTime = 0; // When animation started
+    private static final long CIRCLE_MENU_ANIMATION_DURATION = 800; // 800ms entrance animation
+
+    // Circle Mode combo system
+    private int circleComboCount = 0; // Current combo
+    // circleMaxCombo and circleMaxScore are now in SettingsContext for persistence
+    private boolean showCircleCombo = false; // Show combo display
+    private int circleComboShowTimer = 0; // Timer for combo visibility
+
+    // Circle Mode combo visual effects
+    private float circleComboScale = 1.0f;
+    private float circleComboPulse = 0.0f;
+    private float circleComboGlow = 0.0f;
+    private Color circleComboColor = Color.YELLOW;
+    private boolean circleComboMilestoneHit = false;
+    private int circleComboMilestoneTimer = 0;
+    private long lastCircleComboTime = 0;
+
+    // Circle Mode menu effect - balls from mouse position when hovering START
+    private java.util.List<CircleBall> circleMenuBalls = new ArrayList<>();
+    private long lastMenuBallSpawnTime = 0;
+
+    // Modalita trapezoid state
+    private boolean modalitaTrapezoidClicked = false; // Track if trapezoid is clicked
+    private boolean modalitaTrapezoidHovered = false; // Track if trapezoid is hovered
+
+    // Modalita trapezoid expansion transition
+    private boolean isModalitaTrapezoidExpanding = false;
+    private double modalitaExpansionProgress = 0.0; // 0.0 = normal size, 1.0 = full screen
+
+    // Advancement trapezoid state (right side)
+    private boolean advancementTrapezoidClicked = false; // Track if trapezoid is clicked
+    private boolean advancementTrapezoidHovered = false; // Track if trapezoid is hovered
+
+    // Circle Mode death animation
+    private boolean circleModeDeathAnimationActive = false;
+    private long deathAnimationStartTime = 0;
+    private double explosionRadius = 0;
+
+    // Circle Mode window expansion
+    private Dimension originalWindowSize = null; // Window size before Circle Mode
+    private Dimension screenSize = null; // Full screen size
+    private double windowExpansionProgress = 0.0; // 0.0 = original, 1.0 = fullscreen
+    private Timer windowExpansionTimer = null; // Timer for smooth window expansion
+    private int currentWindowWidth = 0;
+    private int currentWindowHeight = 0;
+    private int targetWindowWidth = 0;
+    private int targetWindowHeight = 0;
+    private Point pauseWindowLocation = null; // Window position when paused (to prevent moving)
+    private boolean circleModeFullscreenActive = false; // Track if fullscreen is active
+
+    // Circle Mode power-ups
+    private java.util.List<CirclePowerUp> circlePowerUps = new ArrayList<>();
+    private long lastPowerUpSpawnTime = 0;
+    private long powerUpSpawnInterval = 15000; // Power-up every 15 seconds
+    private boolean circleSlowMoActive = false;
+    private long circleSlowMoEndTime = 0;
+    private double circleSlowMoFactor = 1.0; // Current speed factor (0.5 = slow, 1.0 = normal)
+    private boolean circlePaddleEnlargedActive = false;
+    private long circlePaddleEnlargedEndTime = 0;
+    private double circlePaddleEnlargeProgress = 0.0; // Transition progress (0.0 = normal, 1.0 = fully enlarged)
+    private boolean circleShieldActive = false;
+    private long circleShieldEndTime = 0;
+
+    // 100 Combo Frenzy effect - Spiral + Pulse Pattern
+    private boolean combo100FrenzyActive = false;
+    private long combo100FrenzyEndTime = 0;
+    private long normalBallSpawnInterval = 2000; // Save normal interval to restore later
+
+    // Pattern variables for spectacular effect
+    private double frenzySpiralAngle = 0.0; // Rotating angle for continuous spiral
+    private long lastFrenzyPatternSpawn = 0; // Last time we spawned a ball in spiral
+    private int frenzySpiralBallCount = 0; // Number of balls spawned in current spiral
+    private int spiralDirection = 1; // 1 = orario, -1 = antiorario
+
+    // Random spiral trigger
+    private long nextSpiralTriggerTime = 0; // Quando partirà la prossima spirale casuale
+    private int spiralBallsDeflected = 0; // Contatore palle spirale respinte (ogni 2 = 1 palla normale)
 
     private Random random = new Random();
     
@@ -280,9 +469,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     // Method to check if any transition is active
     private boolean isAnyTransitionActive() {
-        return isTransitioning || 
-               isHomeToThemesTransition || 
-               isHomeToPaddleTransition || 
+        return isTransitioning ||
+               isHomeToThemesTransition ||
+               isHomeToPaddleTransition ||
                isHomeToSettingsTransition ||
                isSettingsToHomeTransition ||
                isThemesToHomeTransition ||
@@ -290,7 +479,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                isTransitioningFromDemo ||
                isTransitioningDemoToMenu ||
                isRankToHomeTransition ||
-               isPaddleToHomeTransition;
+               isPaddleToHomeTransition ||
+               isModalitaTrapezoidExpanding;
     }
 
     
@@ -371,7 +561,26 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private double menuBall2VY = 3;
     private boolean menuBall2Active = false;
     private boolean menuBall2Falling = false;
-    
+
+    // Game mode preview ball (for CLASSICO mode preview)
+    private double previewBallX = 400;
+    private double previewBallY = 300;
+    private double previewBallVX = 3;
+    private double previewBallVY = 3;
+
+    // Mode transition animation
+    private boolean isModeTransitionActive = false;
+    private double modeTransitionProgress = 0.0;
+    private int transitionFromMode = 0;
+    private int transitionToMode = 0;
+    private double transitionStartX = 0;
+    private double transitionStartY = 0;
+    private GameState stateBeforeModeSelection = GameState.MENU; // Remember state before entering mode selection
+
+    // Game mode selection hover state
+    private boolean leftArrowHovered = false;
+    private boolean rightArrowHovered = false;
+
     // Component listener for resize events
     private boolean needsResize = false;
 
@@ -405,6 +614,23 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             }
         });
 
+        // Add WindowStateListener to handle fullscreen/maximize immediately
+        SwingUtilities.invokeLater(() -> {
+            Window window = SwingUtilities.getWindowAncestor(PongGame.this);
+            if (window instanceof JFrame) {
+                ((JFrame) window).addWindowStateListener(new java.awt.event.WindowStateListener() {
+                    @Override
+                    public void windowStateChanged(java.awt.event.WindowEvent e) {
+                        // Force immediate update on maximize/fullscreen (no animation)
+                        if ((e.getNewState() & JFrame.MAXIMIZED_BOTH) != 0 ||
+                            (e.getOldState() & JFrame.MAXIMIZED_BOTH) != 0) {
+                            forceImmediateResize();
+                        }
+                    }
+                });
+            }
+        });
+
         ContextLoader.load(musicSettings, languageSettings, historySettings);
         updateLocalizedArrays(); // Initialize localized strings
         generalSettings.loadSettingsFromFile(languageSettings); // Load settings before music to apply volume
@@ -412,18 +638,16 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         initializeMouseCursors(); // Initialize cursor visibility system
         updateDimensions();
         
-        // Determine if this is first run (no settings file exists)
+        // Always start with INTRO screen
+        currentState = GameState.INTRO;
+        introStartTime = System.currentTimeMillis();
+
+        // Determine if this is first run (no settings file exists) for later use
         isFirstRun = !settingsFileExists();
-        if (isFirstRun) {
-            currentState = GameState.FIRST_ACCESS;
-            // First run - show first access setup screen
-            isDemoMode = false;
-            isTransitioningToDemo = false;
-            isTransitioningFromDemo = false;
-            demoTransitionProgress = 0.0;
-        } else {
-            currentState = GameState.MENU;
-        }
+        isDemoMode = false;
+        isTransitioningToDemo = false;
+        isTransitioningFromDemo = false;
+        demoTransitionProgress = 0.0;
         
         // Initialize menu ball position and velocity scaled to screen size
         menuBallX = BOARD_WIDTH / 2 - menuBallSize / 2;
@@ -442,6 +666,34 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
 
     
+    // Force immediate resize without animation (used for fullscreen/maximize)
+    private void forceImmediateResize() {
+        Dimension size = getSize();
+        if (size.width < MIN_WIDTH || size.height < MIN_HEIGHT) {
+            size.width = Math.max(size.width, MIN_WIDTH);
+            size.height = Math.max(size.height, MIN_HEIGHT);
+        }
+
+        // Set dimensions immediately (no animation)
+        currentAnimatedWidth = size.width;
+        currentAnimatedHeight = size.height;
+        currentAnimatedScaleX = (double) size.width / BASE_WIDTH;
+        currentAnimatedScaleY = (double) size.height / BASE_HEIGHT;
+
+        targetWidth = size.width;
+        targetHeight = size.height;
+        targetScaleX = currentAnimatedScaleX;
+        targetScaleY = currentAnimatedScaleY;
+
+        // Stop any ongoing animation
+        if (resizeTimer != null) {
+            resizeTimer.stop();
+        }
+
+        // Apply immediately
+        updateDimensionsImmediate();
+    }
+
     private void updateDimensions() {
         Dimension size = getSize();
         if (size.width < MIN_WIDTH || size.height < MIN_HEIGHT) {
@@ -449,7 +701,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             size.width = Math.max(size.width, MIN_WIDTH);
             size.height = Math.max(size.height, MIN_HEIGHT);
         }
-        
+
         // Set target dimensions
         targetWidth = size.width;
         targetHeight = size.height;
@@ -570,12 +822,54 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             menuBallVX *= speedRatio;
             menuBallVY *= speedRatio;
         }
-        
+
+        // Update Circle Mode center position and rescale all balls on resize
+        if (currentState == GameState.CIRCLE_MODE) {
+            // Calculate scale ratios
+            double oldCenterX = circleCenterX;
+            double oldCenterY = circleCenterY;
+
+            // Update center
+            circleCenterX = BOARD_WIDTH / 2.0;
+            circleCenterY = BOARD_HEIGHT / 2.0;
+
+            // Calculate how much the board size changed
+            double scaleRatioX = circleCenterX / oldCenterX;
+            double scaleRatioY = circleCenterY / oldCenterY;
+
+            // Rescale all existing balls to maintain relative positions (create snapshot to avoid ConcurrentModificationException)
+            java.util.List<CircleBall> ballsToRescale = new ArrayList<>(circleBalls);
+            for (CircleBall ball : ballsToRescale) {
+                // Calculate relative position from old center
+                double relX = ball.x - oldCenterX;
+                double relY = ball.y - oldCenterY;
+
+                // Scale relative position
+                relX *= scaleRatioX;
+                relY *= scaleRatioY;
+
+                // Update ball position relative to new center
+                ball.x = circleCenterX + relX;
+                ball.y = circleCenterY + relY;
+            }
+
+            // Rescale all power-ups too (create snapshot to avoid ConcurrentModificationException)
+            java.util.List<CirclePowerUp> powerUpsToRescale = new ArrayList<>(circlePowerUps);
+            for (CirclePowerUp powerUp : powerUpsToRescale) {
+                double relX = powerUp.x - oldCenterX;
+                double relY = powerUp.y - oldCenterY;
+                relX *= scaleRatioX;
+                relY *= scaleRatioY;
+                powerUp.x = circleCenterX + relX;
+                powerUp.y = circleCenterY + relY;
+            }
+        }
+
         // ===== AGGIORNA SCROLL TARGET DOPO RIDIMENSIONAMENTO =====
         // Quando la finestra viene ridimensionata, i limiti di scroll cambiano
         // Dobbiamo aggiornare i target del sistema smooth scrolling
         updateScrollTargetsAfterResize();
-        
+
         repaint();
     }
     
@@ -940,6 +1234,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         
         switch (currentState) {
+            case INTRO:
+                drawIntro(g2d);
+                break;
             case SETTINGS:
                 drawSettings(g2d);
                 break;
@@ -1008,6 +1305,15 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 break;
             case HISTORY:
                 drawHistory(g2d);
+                break;
+            case CIRCLE_MODE_MENU:
+                drawCircleModeMenu(g2d);
+                break;
+            case CIRCLE_MODE:
+                drawCircleMode(g2d);
+                if (circleModePaused) {
+                    drawCircleModePauseOverlay(g2d);
+                }
                 break;
         }
     }
@@ -2311,13 +2617,19 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     private void drawMenu(Graphics2D g) {
-        
+
         // Draw selected background theme
         drawMenuBackground(g);
-        
+
+        // Draw MODALITA trapezoid (expanding if transition active) UNDER paddles and ball
+        drawModalitaTrapezoid(g);
+
+        // Draw ADVANCEMENT trapezoid
+        drawAdvancementTrapezoid(g);
+
         // Draw full-height decorative paddles
         drawMenuPaddles(g);
-        
+
         // Draw animated background ball
         drawMenuBall(g);
         
@@ -2389,12 +2701,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 Color menuColor = currentTextColors.getOrDefault("menuItems", Color.WHITE);
                 int menuAlpha = (int)(menuColor.getAlpha() * textFadeProgress);
                 g.setColor(new Color(menuColor.getRed(), menuColor.getGreen(), menuColor.getBlue(), menuAlpha));
-                g.drawString(menuItems[i], 
-                    (BOARD_WIDTH - menuFm.stringWidth(menuItems[i])) / 2, 
+                g.drawString(menuItems[i],
+                    (BOARD_WIDTH - menuFm.stringWidth(menuItems[i])) / 2,
                     menuStartY + i * menuSpacing);
             }
         }
-        
+
         // Draw "by Gava" signature
         drawGavaSignature(g);
     }
@@ -3717,172 +4029,358 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void drawGameModeSelection(Graphics2D g) {
         // Draw selected background first
         drawMenuBackground(g);
-        
+
         // Draw contrast overlay
         drawMenuContrastEffect(g);
-        
-        // Draw vertical paddles on the sides
-        drawGameModeSelectionPaddles(g);
-        
-        // Draw title
-        float titleSize = (float)(36 * Math.min(scaleX, scaleY));
-        g.setFont(primaryFont.deriveFont(titleSize));
-        FontMetrics titleFm = g.getFontMetrics();
-        String title = "MODALITA' DI GIOCO";
-        int titleX = (BOARD_WIDTH - titleFm.stringWidth(title)) / 2;
-        int titleY = (int)(120 * scaleY);
-        
-        // Title glow effect
-        g.setColor(new Color(0, 255, 255, 80));
-        for (int i = 1; i <= 2; i++) {
-            g.drawString(title, titleX - i, titleY - i);
-            g.drawString(title, titleX + i, titleY + i);
-        }
-        Color titleColor = currentTextColors.getOrDefault("menuTitle", Color.WHITE);
-        g.setColor(titleColor);
-        g.drawString(title, titleX, titleY);
-        
-        // Draw game modes in vertical list
-        int modeWidth = (int)(400 * scaleX);
-        int modeHeight = (int)(80 * scaleY);
-        int modeSpacing = (int)(20 * scaleY);
-        int startX = (BOARD_WIDTH - modeWidth) / 2;
-        int startY = (int)(200 * scaleY);
-        
-        for (int i = 0; i < gameModes.length; i++) {
-            int modeY = startY + i * (modeHeight + modeSpacing);
-            boolean isSelected = (i == selectedGameMode);
-            
-            // Mode background
-            if (isSelected) {
-                g.setColor(new Color(40, 40, 60, 200));
+
+        // If transition is active, draw both previews with transition ball
+        if (isModeTransitionActive) {
+            // Draw both previews (fading)
+            float alpha = (float)(1.0 - modeTransitionProgress);
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+            if (transitionFromMode == 0) {
+                drawGameModeClassicoPreview(g);
             } else {
-                g.setColor(new Color(20, 20, 30, 150));
+                drawGameModeCirclePreview(g);
             }
-            g.fillRoundRect(startX, modeY, modeWidth, modeHeight, 15, 15);
-            
-            // Mode border
-            if (isSelected) {
-                g.setColor(new Color(100, 150, 255));
-                g.setStroke(new BasicStroke(2));
-                g.drawRoundRect(startX, modeY, modeWidth, modeHeight, 15, 15);
+
+            alpha = (float)modeTransitionProgress;
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+            if (transitionToMode == 0) {
+                drawGameModeClassicoPreview(g);
+            } else {
+                drawGameModeCirclePreview(g);
             }
-            
-            // Game mode title
-            float modeSize = (float)(28 * Math.min(scaleX, scaleY));
-            g.setFont(primaryFont.deriveFont(modeSize));
-            FontMetrics modeFm = g.getFontMetrics();
-            
-            g.setColor(isSelected ? new Color(150, 200, 255) : Color.WHITE);
-            String modeTitle = gameModes[i];
-            int modeTitleX = startX + (modeWidth - modeFm.stringWidth(modeTitle)) / 2;
-            int modeTitleY = modeY + (int)(35 * scaleY);
-            g.drawString(modeTitle, modeTitleX, modeTitleY);
-            
-            // Game mode description
-            float descSize = (float)(16 * Math.min(scaleX, scaleY));
-            g.setFont(secondaryFont.deriveFont(descSize));
-            FontMetrics descFm = g.getFontMetrics();
-            
-            g.setColor(isSelected ? new Color(180, 180, 180) : new Color(140, 140, 140));
-            String description = gameModeDescriptions[i];
-            int descX = startX + (modeWidth - descFm.stringWidth(description)) / 2;
-            int descY = modeY + (int)(58 * scaleY);
-            g.drawString(description, descX, descY);
+
+            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+
+            // Draw transition ball
+            drawModeTransitionBall(g);
+        } else {
+            // Draw preview based on selected mode (0 = CLASSICO, 1 = CIRCLE)
+            if (selectedGameMode == 0) {
+                // CLASSICO: Draw two paddles like in paddle selection home
+                drawGameModeClassicoPreview(g);
+            } else {
+                // CIRCLE: Draw circle center + arc paddle
+                drawGameModeCirclePreview(g);
+            }
         }
+
+        // Draw selector at bottom with arrows
+        drawGameModeSelector(g);
     }
     
-    private void drawGameModeSelectionPaddles(Graphics2D g) {
-        // Use same dimensions as menu paddles but rotated 90 degrees
-        int widePaddleWidth = (int)(250 * Math.min(scaleX, scaleY)); // Wide dimension from menu
-        int paddleHeight = (int)(menuPaddleHeight * 1.8); // Tall dimension from menu
+    // Draw CLASSICO mode preview (two paddles like home with bouncing ball)
+    private void drawGameModeClassicoPreview(Graphics2D g) {
+        // Make paddles same as home - inclined at edges
+        int widePaddleWidth = (int)(250 * Math.min(scaleX, scaleY));
+        int paddleHeight = (int)(menuPaddleHeight * 1.8);
         int paddleYOffset = (int)(-paddleHeight * 0.2);
-        
+
         // Save original transform
         java.awt.geom.AffineTransform originalTransform = g.getTransform();
-        
-        // Left paddle position - rotated 90 degrees from menu position
-        int leftCenterX = (int)(80 * scaleX); // Distance from left edge
-        int leftCenterY = BOARD_HEIGHT / 2;
-        
+
+        // Left paddle - rotated 25° counter-clockwise, attached to left edge
+        int leftCenterX = 0;
+        int leftCenterY = paddleYOffset + paddleHeight / 2;
+
         g.translate(leftCenterX, leftCenterY);
-        g.rotate(Math.toRadians(0)); // No rotation - straight vertical
-        
-        // Apply selected paddle theme for left paddle
+        g.rotate(Math.toRadians(-25));
+
+        // Use selected paddle theme
         if (selectedPaddleTheme >= 0 && selectedPaddleTheme < bluePaddleThemeImages.size()) {
             BufferedImage paddleImg = bluePaddleThemeImages.get(selectedPaddleTheme);
             if (paddleImg != null) {
-                // Custom theme paddle with rounded corners and clipping
-                g.setClip(new java.awt.geom.RoundRectangle2D.Float(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, 12, 12));
+                // Custom theme paddle with rounded corners
+                int cornerRadius = Math.max(4, widePaddleWidth / 4);
+                g.setClip(new java.awt.geom.RoundRectangle2D.Float(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, cornerRadius, cornerRadius));
                 g.drawImage(paddleImg, -widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, this);
                 g.setClip(null);
             } else {
-                // Default gradient for left paddle
-                GradientPaint leftGradient = new GradientPaint(
+                // Default gradient
+                GradientPaint leftPaddleGradient = new GradientPaint(
                     -widePaddleWidth/2, -paddleHeight/2, new Color(100, 150, 255),
                     widePaddleWidth/2, paddleHeight/2, new Color(150, 200, 255));
-                g.setPaint(leftGradient);
-                g.fillRoundRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, 12, 12);
+                g.setPaint(leftPaddleGradient);
+                g.fillRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight);
                 g.setPaint(null);
             }
         } else {
-            // Default gradient for left paddle
-            GradientPaint leftGradient = new GradientPaint(
+            // Fallback to default gradient
+            GradientPaint leftPaddleGradient = new GradientPaint(
                 -widePaddleWidth/2, -paddleHeight/2, new Color(100, 150, 255),
                 widePaddleWidth/2, paddleHeight/2, new Color(150, 200, 255));
-            g.setPaint(leftGradient);
-            g.fillRoundRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, 12, 12);
+            g.setPaint(leftPaddleGradient);
+            g.fillRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight);
             g.setPaint(null);
         }
-        
+
         // Left paddle glow
         int glowWidth = Math.max(2, (int)(8 * Math.min(scaleX, scaleY)));
-        g.setColor(generalSettings.getPaddleGlowColor(true)); // Use theme-based glow
+        g.setColor(generalSettings.getPaddleGlowColor(true));
         g.fillRect(widePaddleWidth/2, -paddleHeight/2, glowWidth, paddleHeight);
-        
-        // Reset transform for right paddle
+
+        // Reset transform
         g.setTransform(originalTransform);
-        
-        // Right paddle position - rotated 90 degrees from menu position
-        int rightCenterX = BOARD_WIDTH - (int)(80 * scaleX); // Distance from right edge
-        int rightCenterY = BOARD_HEIGHT / 2;
-        
+
+        // Right paddle - rotated 25° clockwise, attached to right edge
+        int rightCenterX = BOARD_WIDTH;
+        int rightCenterY = paddleYOffset + paddleHeight / 2;
+
         g.translate(rightCenterX, rightCenterY);
-        g.rotate(Math.toRadians(0)); // No rotation - straight vertical
-        
-        // Apply selected right paddle theme
+        g.rotate(Math.toRadians(25));
+
+        // Draw right paddle with selected theme
         if (selectedRightPaddleTheme >= 0 && selectedRightPaddleTheme < redPaddleThemeImages.size()) {
             BufferedImage rightPaddleImg = redPaddleThemeImages.get(selectedRightPaddleTheme);
             if (rightPaddleImg != null) {
-                // Custom theme paddle with rounded corners and clipping
-                g.setClip(new java.awt.geom.RoundRectangle2D.Float(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, 12, 12));
+                // Custom theme paddle with rounded corners
+                int cornerRadius = Math.max(4, widePaddleWidth / 4);
+                g.setClip(new java.awt.geom.RoundRectangle2D.Float(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, cornerRadius, cornerRadius));
                 g.drawImage(rightPaddleImg, -widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, this);
                 g.setClip(null);
             } else {
-                // Default red gradient for right paddle
-                GradientPaint rightGradient = new GradientPaint(
+                // Default gradient
+                GradientPaint rightPaddleGradient = new GradientPaint(
                     -widePaddleWidth/2, -paddleHeight/2, new Color(255, 100, 100),
                     widePaddleWidth/2, paddleHeight/2, new Color(255, 150, 150));
-                g.setPaint(rightGradient);
-                g.fillRoundRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, 12, 12);
+                g.setPaint(rightPaddleGradient);
+                g.fillRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight);
                 g.setPaint(null);
             }
         } else {
-            // Default red gradient for right paddle
-            GradientPaint rightGradient = new GradientPaint(
+            // Fallback to default gradient
+            GradientPaint rightPaddleGradient = new GradientPaint(
                 -widePaddleWidth/2, -paddleHeight/2, new Color(255, 100, 100),
                 widePaddleWidth/2, paddleHeight/2, new Color(255, 150, 150));
-            g.setPaint(rightGradient);
-            g.fillRoundRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight, 12, 12);
+            g.setPaint(rightPaddleGradient);
+            g.fillRect(-widePaddleWidth/2, -paddleHeight/2, widePaddleWidth, paddleHeight);
             g.setPaint(null);
         }
-        
+
         // Right paddle glow
-        g.setColor(generalSettings.getPaddleGlowColor(false)); // Use theme-based glow
+        g.setColor(generalSettings.getPaddleGlowColor(false));
         g.fillRect(-widePaddleWidth/2 - glowWidth, -paddleHeight/2, glowWidth, paddleHeight);
-        
+
         // Reset transform
         g.setTransform(originalTransform);
+
+        // Draw bouncing ball (same style as menu ball) - ONLY if not transitioning
+        if (!isModeTransitionActive) {
+            int glowSize = (int)(10 * Math.min(scaleX, scaleY));
+
+            // Outer glow
+            g.setColor(new Color(255, 255, 255, 30));
+            g.fillOval((int)previewBallX - glowSize, (int)previewBallY - glowSize,
+                       menuBallSize + glowSize*2, menuBallSize + glowSize*2);
+
+            // Inner glow
+            g.setColor(new Color(255, 255, 255, 60));
+            g.fillOval((int)previewBallX - glowSize/2, (int)previewBallY - glowSize/2,
+                       menuBallSize + glowSize, menuBallSize + glowSize);
+
+            // Main ball
+            g.setColor(Color.WHITE);
+            g.fillOval((int)previewBallX, (int)previewBallY, menuBallSize, menuBallSize);
+
+            // Add subtle highlight
+            g.setColor(new Color(255, 255, 255, 200));
+            int highlightSize = menuBallSize / 3;
+            g.fillOval((int)previewBallX + highlightSize/2, (int)previewBallY + highlightSize/2,
+                       highlightSize, highlightSize);
+        }
+    }
+
+    // Draw mode transition ball with smooth position, color, and size interpolation
+    private void drawModeTransitionBall(Graphics2D g) {
+        double progress = modeTransitionProgress;
+
+        // Use easing for smooth transition
+        double easedProgress = easeInOutQuad(progress);
+
+        // Calculate exact Circle Mode central ball parameters
+        double scaleFactor = Math.min(scaleX, scaleY);
+        double circleBallRadius = circleRadius * scaleFactor; // EXACT radius of Circle Mode center ball
+        double circleBallCenterX = BOARD_WIDTH / 2.0;
+        double circleBallCenterY = BOARD_HEIGHT / 2.0;
+
+        // Determine start and end parameters based on transition direction
+        double startX, startY, startRadius;
+        int startR, startG, startB, startAlpha;
+        double endX, endY, endRadius;
+        int endR, endG, endB, endAlpha;
+
+        if (transitionToMode == 1) {
+            // Going to CIRCLE mode: white ball -> central blue ball
+            startX = transitionStartX + menuBallSize / 2.0; // Center of white ball
+            startY = transitionStartY + menuBallSize / 2.0;
+            startRadius = menuBallSize / 2.0;
+            startR = 255; startG = 255; startB = 255; startAlpha = 255;
+
+            // End: EXACT Circle Mode center ball
+            endX = circleBallCenterX;
+            endY = circleBallCenterY;
+            endRadius = circleBallRadius;
+            endR = 40; endG = 40; endB = 60; endAlpha = 200; // EXACT Circle Mode color
+        } else {
+            // Going to CLASSICO mode: central blue ball -> white ball
+            startX = circleBallCenterX;
+            startY = circleBallCenterY;
+            startRadius = circleBallRadius;
+            startR = 40; startG = 40; startB = 60; startAlpha = 200;
+
+            // End: white bouncing ball
+            endX = transitionStartX + menuBallSize / 2.0;
+            endY = transitionStartY + menuBallSize / 2.0;
+            endRadius = menuBallSize / 2.0;
+            endR = 255; endG = 255; endB = 255; endAlpha = 255;
+        }
+
+        // Interpolate all properties
+        double currentCenterX = startX + (endX - startX) * easedProgress;
+        double currentCenterY = startY + (endY - startY) * easedProgress;
+        double currentRadius = startRadius + (endRadius - startRadius) * easedProgress;
+
+        int currentR = (int)(startR + (endR - startR) * progress);
+        int currentG = (int)(startG + (endG - startG) * progress);
+        int currentB = (int)(startB + (endB - startB) * progress);
+        int currentAlpha = (int)(startAlpha + (endAlpha - startAlpha) * progress);
+
+        Color currentColor = new Color(currentR, currentG, currentB, currentAlpha);
+
+        // Draw glow effect (fades out when transitioning to Circle Mode)
+        double glowFactor = transitionToMode == 1 ? (1.0 - progress) : progress;
+        int glowSize = (int)(10 * scaleFactor);
+
+        if (glowFactor > 0.1) {
+            // Outer glow
+            g.setColor(new Color(255, 255, 255, (int)(30 * glowFactor)));
+            g.fillOval((int)(currentCenterX - currentRadius - glowSize),
+                       (int)(currentCenterY - currentRadius - glowSize),
+                       (int)(currentRadius * 2 + glowSize * 2),
+                       (int)(currentRadius * 2 + glowSize * 2));
+
+            // Inner glow
+            g.setColor(new Color(255, 255, 255, (int)(60 * glowFactor)));
+            g.fillOval((int)(currentCenterX - currentRadius - glowSize/2),
+                       (int)(currentCenterY - currentRadius - glowSize/2),
+                       (int)(currentRadius * 2 + glowSize),
+                       (int)(currentRadius * 2 + glowSize));
+        }
+
+        // Draw main ball with interpolated color and alpha
+        g.setColor(currentColor);
+        g.fillOval((int)(currentCenterX - currentRadius),
+                   (int)(currentCenterY - currentRadius),
+                   (int)(currentRadius * 2),
+                   (int)(currentRadius * 2));
+
+        // Highlight (fades out when transitioning to Circle Mode)
+        if (glowFactor > 0.1) {
+            g.setColor(new Color(255, 255, 255, (int)(200 * glowFactor)));
+            double highlightRadius = currentRadius / 3.0;
+            g.fillOval((int)(currentCenterX - currentRadius/2),
+                       (int)(currentCenterY - currentRadius/2),
+                       (int)highlightRadius,
+                       (int)highlightRadius);
+        }
+    }
+
+    // Draw CIRCLE mode preview (circle + arc paddle)
+    private void drawGameModeCirclePreview(Graphics2D g) {
+        int centerX = BOARD_WIDTH / 2;
+        int centerY = BOARD_HEIGHT / 2;
+        double scaleFactor = Math.min(scaleX, scaleY);
+        double previewCircleRadius = 80.0 * scaleFactor;
+
+        // Draw center circle (blue gradient)
+        g.setColor(new Color(40, 40, 60, 200));
+        g.fillOval((int)(centerX - previewCircleRadius), (int)(centerY - previewCircleRadius),
+                   (int)(previewCircleRadius * 2), (int)(previewCircleRadius * 2));
+
+        // Draw arc paddle (using selected blue paddle theme)
+        double paddleAngle = Math.PI / 4; // 45 degrees
+        double arcDegrees = 50.0;
+        double paddleDistance = 20.0 * scaleFactor;
+        double paddleThickness = 10.0 * scaleFactor;
+        double paddleOrbitRadius = previewCircleRadius + paddleDistance;
+
+        java.awt.geom.Arc2D.Double arcShape = new java.awt.geom.Arc2D.Double(
+            centerX - paddleOrbitRadius,
+            centerY - paddleOrbitRadius,
+            paddleOrbitRadius * 2,
+            paddleOrbitRadius * 2,
+            Math.toDegrees(paddleAngle) - arcDegrees / 2.0,
+            arcDegrees,
+            java.awt.geom.Arc2D.OPEN
+        );
+
+        g.setStroke(new BasicStroke((float)(paddleThickness * 2), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+        // Use blue paddle gradient
+        GradientPaint paddleGradient = new GradientPaint(
+            (float)(centerX - previewCircleRadius), (float)(centerY - previewCircleRadius), new Color(100, 150, 255),
+            (float)(centerX + previewCircleRadius), (float)(centerY + previewCircleRadius), new Color(150, 200, 255));
+        g.setPaint(paddleGradient);
+        g.draw(arcShape);
+        g.setPaint(null);
+    }
+
+    // Draw mode selector at bottom with arrows
+    private void drawGameModeSelector(Graphics2D g) {
+        int selectorY = (int)(BOARD_HEIGHT - 100 * scaleY);
+        int centerX = BOARD_WIDTH / 2;
+
+        // Mode names
+        String[] modeNames = {getText("GAME_MODE_CLASSIC"), getText("GAME_MODE_CIRCLE")};
+        String currentMode = modeNames[selectedGameMode];
+
+        // Draw mode name
+        float modeSize = (float)(48 * Math.min(scaleX, scaleY));
+        g.setFont(primaryFont.deriveFont(Font.BOLD, modeSize));
+        FontMetrics fm = g.getFontMetrics();
+        int textX = centerX - fm.stringWidth(currentMode) / 2;
+
+        // Glow effect
+        g.setColor(new Color(100, 200, 255, 100));
+        for (int i = 1; i <= 2; i++) {
+            g.drawString(currentMode, textX - i, selectorY - i);
+            g.drawString(currentMode, textX + i, selectorY + i);
+        }
+        g.setColor(Color.WHITE);
+        g.drawString(currentMode, textX, selectorY);
+
+        // Draw arrows (horizontal - pointing left and right)
+        int arrowSize = (int)(30 * Math.min(scaleX, scaleY));
+        int arrowSpacing = (int)(200 * scaleX);
+        int arrowCenterY = selectorY - arrowSize/3;
+
+        // Left arrow (pointing LEFT ←) - highlight on hover
+        int leftArrowX = centerX - arrowSpacing;
+        int[] leftXPoints = {leftArrowX, leftArrowX + arrowSize, leftArrowX + arrowSize};
+        int[] leftYPoints = {arrowCenterY, arrowCenterY - arrowSize/2, arrowCenterY + arrowSize/2};
+
+        if (leftArrowHovered) {
+            // Brighter color on hover
+            g.setColor(new Color(200, 230, 255));
+        } else {
+            g.setColor(new Color(150, 200, 255));
+        }
+        g.fillPolygon(leftXPoints, leftYPoints, 3);
+
+        // Right arrow (pointing RIGHT →) - highlight on hover
+        int rightArrowX = centerX + arrowSpacing;
+        int[] rightXPoints = {rightArrowX, rightArrowX - arrowSize, rightArrowX - arrowSize};
+        int[] rightYPoints = {arrowCenterY, arrowCenterY - arrowSize/2, arrowCenterY + arrowSize/2};
+
+        if (rightArrowHovered) {
+            // Brighter color on hover
+            g.setColor(new Color(200, 230, 255));
+        } else {
+            g.setColor(new Color(150, 200, 255));
+        }
+        g.fillPolygon(rightXPoints, rightYPoints, 3);
     }
     
     private void drawGame(Graphics2D g) {
@@ -4503,7 +5001,42 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         if (currentState != GameState.RANK) {
             difficultyAnimationTime += 0.1;
         }
-        
+
+        // Check if intro animation is complete and start automatic transition
+        if (currentState == GameState.INTRO && introComplete && !isTransitioningFromIntro) {
+            long currentTime = System.currentTimeMillis();
+            if (introCompleteTime == 0) {
+                // Mark when animation completed
+                introCompleteTime = currentTime;
+            } else if (currentTime - introCompleteTime >= INTRO_WAIT_AFTER_COMPLETE) {
+                // Wait time elapsed, start automatic transition
+                isTransitioningFromIntro = true;
+                introTransitionProgress = 0.0;
+
+                // Determine next state
+                if (isFirstRun) {
+                    introNextState = GameState.FIRST_ACCESS;
+                } else {
+                    if (wasInCircleMode) {
+                        introNextState = GameState.CIRCLE_MODE_MENU;
+                    } else {
+                        introNextState = GameState.MENU;
+                    }
+                }
+            }
+        }
+
+        // Handle intro to next screen transition
+        if (isTransitioningFromIntro) {
+            introTransitionProgress += INTRO_TRANSITION_SPEED;
+            if (introTransitionProgress >= 1.0) {
+                introTransitionProgress = 1.0;
+                isTransitioningFromIntro = false;
+                setState(introNextState); // Transition to next state
+            }
+            return;
+        }
+
         // Handle transition animation
         if (currentState == GameState.TRANSITIONING) {
             // Check if this is a pause transition
@@ -4571,8 +5104,13 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             updatePaddleToHomeTransition();
             return;
         }
-        
-        
+
+        // Handle modalita trapezoid expansion transition
+        if (isModalitaTrapezoidExpanding) {
+            updateModalitaTrapezoidExpansion();
+            return;
+        }
+
         // Update menu ball animation
         if (currentState == GameState.MENU) {
             updateMenuBall();
@@ -4586,7 +5124,14 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             updateParticles(); // Aggiorna particelle di sfondo
             return;
         }
-        
+
+        // Update game mode selection preview ball
+        if (currentState == GameState.GAME_MODE_SELECTION) {
+            updateGameModePreview();
+            updateParticles(); // Aggiorna particelle di sfondo
+            return;
+        }
+
         // Update demo transitions and paddle physics
         if (currentState == GameState.SETTINGS && isTransitioningToDemo) {
             demoTransitionProgress += 0.03; // Transition speed
@@ -4751,7 +5296,19 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             updatePauseLineAnimation();
             return; // Don't process game logic when paused
         }
-        
+
+        // Handle Circle Mode Menu update (ball effects when hovering START)
+        if (currentState == GameState.CIRCLE_MODE_MENU) {
+            updateCircleModeMenu();
+            return;
+        }
+
+        // Handle Circle Mode update
+        if (currentState == GameState.CIRCLE_MODE) {
+            updateCircleMode();
+            return;
+        }
+
         if (currentState != GameState.PLAYING && currentState != GameState.SINGLE_PLAYER) return;
         
         // Calculate scaled paddle speed based on screen height and settings
@@ -5184,7 +5741,125 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             menuBall2VY = Math.max(-baseSpeed * 2.5, Math.min(baseSpeed * 2.5, menuBall2VY));
         }
     }
-    
+
+    private void updateGameModePreview() {
+        // Update mode transition animation
+        if (isModeTransitionActive) {
+            modeTransitionProgress += 0.05; // Transition speed
+            if (modeTransitionProgress >= 1.0) {
+                modeTransitionProgress = 1.0;
+                isModeTransitionActive = false;
+            }
+            return; // Don't update ball physics during transition
+        }
+
+        // Move preview ball (only when CLASSICO mode is selected)
+        if (selectedGameMode != 0) return; // Only update for CLASSICO mode (index 0)
+
+        previewBallX += previewBallVX;
+        previewBallY += previewBallVY;
+
+        // Aggiungi gravità per far cadere la palla gradualmente
+        double gravity = 0.02 * scaleY;
+        previewBallVY += gravity;
+
+        // Scale velocity based on screen size
+        double baseSpeed = 4.5 * Math.min(scaleX, scaleY);
+
+        // Get paddle properties (same as in drawGameModeClassicoPreview)
+        int widePaddleWidth = (int)(250 * Math.min(scaleX, scaleY));
+        int paddleHeight = (int)(menuPaddleHeight * 1.8);
+        int paddleYOffset = (int)(-paddleHeight * 0.2);
+
+        // Paddle centers (same positions as in preview)
+        int leftCenterX = 0;
+        int leftCenterY = paddleYOffset + paddleHeight / 2;
+        int rightCenterX = BOARD_WIDTH;
+        int rightCenterY = paddleYOffset + paddleHeight / 2;
+
+        // Ball properties
+        double ballCenterX = previewBallX + menuBallSize / 2;
+        double ballCenterY = previewBallY + menuBallSize / 2;
+        double ballRadius = menuBallSize / 2;
+
+        // La palla passa attraverso i muri e riappare dall'altro lato
+        if (previewBallY + menuBallSize < 0) {
+            previewBallY = BOARD_HEIGHT;
+        }
+
+        if (previewBallY > BOARD_HEIGHT) {
+            previewBallY = -menuBallSize;
+        }
+
+        // Left paddle collision
+        if (isCollidingWithRotatedPaddle(ballCenterX, ballCenterY, ballRadius,
+                                        leftCenterX, leftCenterY, widePaddleWidth, paddleHeight, -25) &&
+            previewBallVX < 0) {
+            previewBallVX = Math.abs(previewBallVX);
+
+            // Calcola direzione base verso il paddle destro con bias verso l'alto
+            double targetX = rightCenterX;
+            double targetY = rightCenterY - BOARD_HEIGHT * 0.3;
+            double directionX = targetX - ballCenterX;
+            double directionY = targetY - ballCenterY;
+            double distance = Math.sqrt(directionX * directionX + directionY * directionY);
+
+            // Aggiungi variazione casuale per ondulazione
+            double randomAngle = (Math.random() - 0.5) * Math.PI * 0.4; // ±36 gradi
+
+            // Normalizza e scala la velocità
+            if (distance > 0) {
+                double normalizedX = directionX / distance;
+                double normalizedY = directionY / distance;
+
+                // Applica rotazione per ondulazione
+                double rotatedX = normalizedX * Math.cos(randomAngle) - normalizedY * Math.sin(randomAngle);
+                double rotatedY = normalizedX * Math.sin(randomAngle) + normalizedY * Math.cos(randomAngle);
+
+                previewBallVX = rotatedX * baseSpeed;
+                previewBallVY = rotatedY * baseSpeed;
+            }
+
+            previewBallX += 5; // Move right to prevent sticking
+        }
+
+        // Right paddle collision
+        if (isCollidingWithRotatedPaddle(ballCenterX, ballCenterY, ballRadius,
+                                        rightCenterX, rightCenterY, widePaddleWidth, paddleHeight, 25) &&
+            previewBallVX > 0) {
+            previewBallVX = -Math.abs(previewBallVX);
+
+            // Calcola direzione base verso il paddle sinistro con bias verso l'alto
+            double targetX = leftCenterX;
+            double targetY = leftCenterY - BOARD_HEIGHT * 0.3;
+            double directionX = targetX - ballCenterX;
+            double directionY = targetY - ballCenterY;
+            double distance = Math.sqrt(directionX * directionX + directionY * directionY);
+
+            // Aggiungi variazione casuale per ondulazione
+            double randomAngle = (Math.random() - 0.5) * Math.PI * 0.4; // ±36 gradi
+
+            // Normalizza e scala la velocità
+            if (distance > 0) {
+                double normalizedX = directionX / distance;
+                double normalizedY = directionY / distance;
+
+                // Applica rotazione per ondulazione
+                double rotatedX = normalizedX * Math.cos(randomAngle) - normalizedY * Math.sin(randomAngle);
+                double rotatedY = normalizedX * Math.sin(randomAngle) + normalizedY * Math.cos(randomAngle);
+
+                previewBallVX = rotatedX * baseSpeed;
+                previewBallVY = rotatedY * baseSpeed;
+            }
+
+            previewBallX -= 5; // Move left to prevent sticking
+        }
+
+        // Keep ball velocity reasonable
+        previewBallVX = Math.max(-baseSpeed * 2.5, Math.min(baseSpeed * 2.5, previewBallVX));
+        previewBallVY = Math.max(-baseSpeed * 2.5, Math.min(baseSpeed * 2.5, previewBallVY));
+    }
+
     private void startHomeToThemesTransition() {
         isHomeToThemesTransition = true;
         homeToThemesProgress = 0.0;
@@ -7990,11 +8665,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void triggerComboIncrement() {
         lastComboTime = System.currentTimeMillis();
         comboScale = 1.5f; // Immediate scale boost
-        
+
         // Show combo and reset timer
         showCombo = true;
         comboShowTimer = COMBO_SHOW_DURATION;
-        
+
         // Check for milestones
         if (comboCount % 10 == 0 && comboCount > 0) {
             comboMilestoneHit = true;
@@ -8003,7 +8678,108 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             createParticles(BOARD_WIDTH / 4, 50, comboColor, 15);
         }
     }
-    
+
+    // Circle Mode combo effects system
+    private void updateCircleComboEffects() {
+        long currentTime = System.currentTimeMillis();
+
+        // Update pulse animation (sine wave for smooth pulsing)
+        circleComboPulse = (float)Math.sin(currentTime * 0.01) * 0.3f + 1.0f; // Range: 0.7 to 1.3
+
+        // Update scale based on combo level and recent activity
+        if (currentTime - lastCircleComboTime < 500) { // Recent combo hit
+            circleComboScale = Math.min(circleComboScale + 0.1f, 2.0f); // Grow on hit
+        } else {
+            circleComboScale = Math.max(circleComboScale - 0.05f, 1.0f); // Shrink back to normal
+        }
+
+        // Update glow intensity based on combo count
+        if (circleComboCount > 0) {
+            float targetGlow = Math.min(circleComboCount * 0.1f, 1.0f);
+            circleComboGlow += (targetGlow - circleComboGlow) * 0.1f;
+        } else {
+            circleComboGlow *= 0.9f; // Fade out when no combo
+        }
+
+        // Update color based on combo level
+        updateCircleComboColor();
+
+        // Handle combo visibility timer
+        if (showCircleCombo) {
+            circleComboShowTimer--;
+            if (circleComboShowTimer <= 0) {
+                showCircleCombo = false; // Hide combo after timer expires
+            }
+        }
+
+        // Handle milestone effects
+        if (circleComboMilestoneHit) {
+            circleComboMilestoneTimer--;
+            if (circleComboMilestoneTimer <= 0) {
+                circleComboMilestoneHit = false;
+            }
+        }
+    }
+
+    private void updateCircleComboColor() {
+        if (circleComboCount >= 50) {
+            circleComboColor = new Color(255, 0, 255); // Magenta for epic combos
+        } else if (circleComboCount >= 20) {
+            circleComboColor = new Color(255, 100, 0); // Orange for great combos
+        } else if (circleComboCount >= 10) {
+            circleComboColor = new Color(255, 255, 0); // Yellow for good combos
+        } else if (circleComboCount >= 5) {
+            circleComboColor = new Color(0, 255, 0); // Green for decent combos
+        } else {
+            circleComboColor = Color.WHITE; // White for small combos
+        }
+    }
+
+    private void triggerCircleComboIncrement() {
+        lastCircleComboTime = System.currentTimeMillis();
+        circleComboScale = 1.5f; // Immediate scale boost
+
+        // Show combo and reset timer
+        showCircleCombo = true;
+        circleComboShowTimer = COMBO_SHOW_DURATION;
+
+        // Check for milestones
+        if (circleComboCount % 10 == 0 && circleComboCount > 0) {
+            circleComboMilestoneHit = true;
+            circleComboMilestoneTimer = 60; // 1 second at 60 FPS
+            // Add extra particles for milestone
+            createParticles(BOARD_WIDTH / 4, BOARD_HEIGHT - 100, circleComboColor, 15);
+        }
+    }
+
+    private void trigger100ComboFrenzy() {
+        long currentTime = System.currentTimeMillis();
+
+        // Activate frenzy mode for 20 seconds
+        combo100FrenzyActive = true;
+        combo100FrenzyEndTime = currentTime + 20000;
+
+        // Initialize pattern variables
+        frenzySpiralAngle = 0.0;
+        frenzySpiralBallCount = 0;
+        lastFrenzyPatternSpawn = currentTime;
+
+        // Scegli casualmente la direzione della spirale (50% orario, 50% antiorario)
+        spiralDirection = random.nextBoolean() ? 1 : -1;
+
+        // Save current spawn interval - patterns will spawn independently
+        normalBallSpawnInterval = ballSpawnInterval;
+
+        // Create massive particle explosion
+        createParticles(BOARD_WIDTH / 2, BOARD_HEIGHT / 2, new Color(255, 215, 0), 50);
+        createParticles(BOARD_WIDTH / 2, BOARD_HEIGHT / 2, new Color(255, 0, 255), 50);
+
+        // Extra screen shake for epic effect
+        addScreenShake(15);
+
+        System.out.println("🔥 SPIRAL FRENZY ACTIVATED! 🔥");
+    }
+
     // Right paddle combo effects system
     private void updateRightComboEffects() {
         long currentTime = System.currentTimeMillis();
@@ -8630,6 +9406,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     public void stopGameLoop() {
+        // Save current game state before stopping
+        saveSettingsToFile();
+
         gameRunning = false;
         if (gameLoopThread != null) {
             try {
@@ -8660,8 +9439,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         }
         
         // Debug key removed
-        
+
         switch (currentState) {
+            case INTRO:
+                handleIntroInput(e);
+                break;
             case SETTINGS:
                 handleSettingsInput(e);
                 break;
@@ -8705,9 +9487,43 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             case HISTORY:
                 handleHistoryInput(e);
                 break;
+            case CIRCLE_MODE_MENU:
+                handleCircleModeMenuInput(e);
+                break;
+            case CIRCLE_MODE:
+                handleCircleModeInput(e);
+                break;
         }
     }
-    
+
+    private void handleIntroInput(KeyEvent e) {
+        // Any key press skips intro and starts transition immediately
+        if (!isTransitioningFromIntro) {
+            // Skip animation - immediately settle all letters
+            for (int i = 0; i < 4; i++) {
+                introLetterSettled[i] = true;
+                currentIntroLetters[i] = TARGET_LETTERS[i];
+            }
+            introComplete = true;
+
+            // Start transition immediately
+            isTransitioningFromIntro = true;
+            introTransitionProgress = 0.0;
+
+            // Determine next state
+            if (isFirstRun) {
+                introNextState = GameState.FIRST_ACCESS;
+            } else {
+                // Check if user was in Circle Mode when they closed the game
+                if (wasInCircleMode) {
+                    introNextState = GameState.CIRCLE_MODE_MENU;
+                } else {
+                    introNextState = GameState.MENU;
+                }
+            }
+        }
+    }
+
     private void handleRankInput(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_ENTER || e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             // Start rank-to-home transition
@@ -9219,6 +10035,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 mouseOnBackground = false;
                 leftPaddleSelected = false;
                 rightPaddleSelected = false;
+                stateBeforeModeSelection = currentState; // Save current state (MENU)
                 setState(GameState.GAME_MODE_SELECTION);
                 break;
             case KeyEvent.VK_ENTER:
@@ -9933,19 +10750,34 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     private void updatePaddleToHomeTransition() {
         if (!isPaddleToHomeTransition) return;
-        
+
         // Update transition progress (same speed as home-to-paddle transition)
         paddleToHomeProgress += 0.04; // Same speed as updateHomeToPaddleTransition
-        
+
         // Check if transition is complete
         if (paddleToHomeProgress >= 1.0) {
             paddleToHomeProgress = 1.0;
             isPaddleToHomeTransition = false;
-            
+
             setState(GameState.MENU);
         }
     }
-    
+
+    private void updateModalitaTrapezoidExpansion() {
+        if (!isModalitaTrapezoidExpanding) return;
+
+        // Update transition progress
+        modalitaExpansionProgress += 0.05; // Fast expansion
+
+        // Check if transition is complete
+        if (modalitaExpansionProgress >= 1.0) {
+            modalitaExpansionProgress = 1.0;
+            isModalitaTrapezoidExpanding = false;
+            stateBeforeModeSelection = currentState; // Save current state (CIRCLE_MODE_MENU)
+            setState(GameState.GAME_MODE_SELECTION);
+        }
+    }
+
     private void returnToMainMenuFromPause() {
         isPaused = false;
         wasSinglePlayer = false;
@@ -10042,21 +10874,45 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         if (isAnyTransitionActive()) {
             return;
         }
-        
+
         // Store click position and state for cross-platform compatibility
         mouseClickStartX = e.getX();
         mouseClickStartY = e.getY();
         mouseClickStarted = true;
+
+        // Check if clicking on central ball in Circle Mode Menu
+        if (currentState == GameState.CIRCLE_MODE_MENU) {
+            int mouseX = e.getX();
+            int mouseY = e.getY();
+
+            // Calculate if click is inside central ball
+            double scaleFactor = Math.min(scaleX, scaleY);
+            double scaledRadius = circleRadius * scaleFactor;
+            double centerX = BOARD_WIDTH / 2.0;
+            double centerY = BOARD_HEIGHT / 2.0;
+            double distToCenter = Math.sqrt(Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2));
+
+            if (distToCenter <= scaledRadius) {
+                holdingCentralBall = true;
+                holdProgress = 0;
+            }
+        }
     }
     
     @Override
     public void mouseReleased(MouseEvent e) {
+        // Reset hold state for Circle Mode Menu
+        if (currentState == GameState.CIRCLE_MODE_MENU) {
+            holdingCentralBall = false;
+            holdProgress = 0;
+        }
+
         // Block mouse input during transitions
         if (isAnyTransitionActive()) {
             mouseClickStarted = false; // Reset click state
             return;
         }
-        
+
         // Only process if mouse was pressed and released in similar position (cross-platform click detection)
         if (mouseClickStarted) {
             int deltaX = Math.abs(e.getX() - mouseClickStartX);
@@ -10076,6 +10932,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                         handleSimplePaddleClick(e, true);
                     } else if (currentState == GameState.RIGHT_PADDLE_SELECTION) {
                         handleSimplePaddleClick(e, false);
+                    } else if (currentState == GameState.CIRCLE_MODE_MENU) {
+                        handleCircleModeMenuMouseClick(e);
+                    } else if (currentState == GameState.GAME_MODE_SELECTION) {
+                        handleGameModeSelectionMouseClick(e);
                     }
                 });
             }
@@ -10097,7 +10957,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             hoveredSetting = -1;
             mouseOnBackground = false;
             isUsingKeyboardNavigationSettings = false; // Reset keyboard navigation when mouse leaves
-            
+
             System.out.println("DEBUG: Mouse exited - reset to NONE state");
             repaint();
         }
@@ -10156,6 +11016,59 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             // No mouse handling in original system
         } else if (currentState == GameState.RIGHT_PADDLE_SELECTION) {
             // No mouse handling in original system
+        } else if (currentState == GameState.CIRCLE_MODE_MENU) {
+            handleCircleModeMenuMouseMove(e);
+        } else if (currentState == GameState.CIRCLE_MODE) {
+            handleCircleModeMouseMove(e);
+        } else if (currentState == GameState.GAME_MODE_SELECTION) {
+            handleGameModeSelectionMouseMove(e);
+        }
+    }
+
+    private void handleGameModeSelectionMouseMove(MouseEvent e) {
+        int mouseX = e.getX();
+        int mouseY = e.getY();
+
+        // Don't update hover during transition
+        if (isModeTransitionActive) {
+            leftArrowHovered = false;
+            rightArrowHovered = false;
+            return;
+        }
+
+        // Calculate arrow positions (same as in handleGameModeSelectionMouseClick)
+        int selectorY = (int)(BOARD_HEIGHT - 100 * scaleY);
+        int centerX = BOARD_WIDTH / 2;
+        int arrowSize = (int)(30 * Math.min(scaleX, scaleY));
+        int arrowSpacing = (int)(200 * scaleX);
+        int arrowCenterY = selectorY - arrowSize/3;
+
+        // Left arrow bounds
+        int leftArrowX = centerX - arrowSpacing;
+        int leftArrowMinX = leftArrowX - arrowSize/2;
+        int leftArrowMaxX = leftArrowX + arrowSize;
+        int leftArrowMinY = arrowCenterY - arrowSize/2 - arrowSize/4;
+        int leftArrowMaxY = arrowCenterY + arrowSize/2 + arrowSize/4;
+
+        // Right arrow bounds
+        int rightArrowX = centerX + arrowSpacing;
+        int rightArrowMinX = rightArrowX - arrowSize;
+        int rightArrowMaxX = rightArrowX + arrowSize/2;
+        int rightArrowMinY = arrowCenterY - arrowSize/2 - arrowSize/4;
+        int rightArrowMaxY = arrowCenterY + arrowSize/2 + arrowSize/4;
+
+        // Update hover state
+        boolean wasLeftHovered = leftArrowHovered;
+        boolean wasRightHovered = rightArrowHovered;
+
+        leftArrowHovered = (mouseX >= leftArrowMinX && mouseX <= leftArrowMaxX &&
+                           mouseY >= leftArrowMinY && mouseY <= leftArrowMaxY);
+        rightArrowHovered = (mouseX >= rightArrowMinX && mouseX <= rightArrowMaxX &&
+                            mouseY >= rightArrowMinY && mouseY <= rightArrowMaxY);
+
+        // Repaint if hover state changed
+        if (leftArrowHovered != wasLeftHovered || rightArrowHovered != wasRightHovered) {
+            repaint();
         }
     }
     
@@ -10164,7 +11077,21 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         int mouseY = e.getY();
         int menuStartY = (int)(300 * scaleY);
         int menuSpacing = (int)(60 * scaleY);
-        
+
+        // Check if mouse is over MODALITA trapezoid
+        boolean modalitaWasHovered = modalitaTrapezoidHovered;
+        modalitaTrapezoidHovered = isInsideModalitaTrapezoid(mouseX, mouseY);
+        if (modalitaTrapezoidHovered != modalitaWasHovered) {
+            repaint();
+        }
+
+        // Check if mouse is over ADVANCEMENT trapezoid
+        boolean advancementWasHovered = advancementTrapezoidHovered;
+        advancementTrapezoidHovered = isInsideAdvancementTrapezoid(mouseX, mouseY);
+        if (advancementTrapezoidHovered != advancementWasHovered) {
+            repaint();
+        }
+
         // Check which menu item the mouse is over
         boolean overMenuItem = false;
         hoveredMenuItem = -1; // Reset hovered item
@@ -11193,7 +12120,24 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void handleMenuMouseClick(MouseEvent e) {
         int mouseX = e.getX();
         int mouseY = e.getY();
-        
+
+        // Check for MODALITA trapezoid click
+        if (isInsideModalitaTrapezoid(mouseX, mouseY)) {
+            // Start expansion transition
+            isModalitaTrapezoidExpanding = true;
+            modalitaExpansionProgress = 0.0;
+            repaint();
+            return;
+        }
+
+        // Check for ADVANCEMENT trapezoid click
+        if (isInsideAdvancementTrapezoid(mouseX, mouseY)) {
+            // TODO: Implement advancement functionality
+            advancementTrapezoidClicked = true;
+            repaint();
+            return;
+        }
+
         // Check for paddle clicks using EXACT same functions as mouse motion for consistency
         boolean clickedOnLeftPaddle = isMouseOverLeftPaddleArea(mouseX, mouseY);
         
@@ -12581,7 +13525,13 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             properties.setProperty("music.enabled", String.valueOf(musicEnabled));
             properties.setProperty("selected.background", String.valueOf(selectedBackground));
             properties.setProperty("language.code", currentLanguageCode);
-            
+            properties.setProperty("circle.max.combo", String.valueOf(circleMaxCombo));
+            properties.setProperty("circle.max.score", String.valueOf(circleMaxScore));
+
+            // Save if user was in Circle Mode (menu or playing)
+            wasInCircleMode = (currentState == GameState.CIRCLE_MODE_MENU || currentState == GameState.CIRCLE_MODE);
+            properties.setProperty("was.in.circle.mode", String.valueOf(wasInCircleMode));
+
             System.out.println("DEBUG (Salvataggio): Valori che sto scrivendo nel file:");
             System.out.println("  paddle.speed=" + paddleSpeedSetting);
             System.out.println("  ai.difficulty=" + aiDifficultySetting);
@@ -13707,7 +14657,132 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             return new Color((int)(255 * temperature * temperature), (int)(100 * temperature), 0, (int)(alpha * 0.6f));
         }
     }
-    
+
+    // Intro slot machine animation
+    private void drawIntro(Graphics2D g) {
+        // Draw black background
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, getWidth(), getHeight());
+
+        // Get current time for animation
+        long currentTime = System.currentTimeMillis();
+        long elapsedTime = currentTime - introStartTime;
+
+        // Phase 1: Show only "created by" text first (fade in)
+        if (elapsedTime < INTRO_CREATED_BY_DURATION) {
+            // Calculate fade in alpha
+            float alpha = 1.0f;
+            if (elapsedTime < 400) {
+                // Fade in during first 400ms
+                alpha = elapsedTime / 400.0f;
+            }
+            alpha = Math.max(0.0f, Math.min(1.0f, alpha));
+
+            // Draw "created by" text
+            float createdBySize = (float)(Math.min(getWidth(), getHeight()) * 0.06);
+            Font createdByFont = secondaryFont.deriveFont(Font.PLAIN, createdBySize);
+            g.setFont(createdByFont);
+            g.setColor(new Color(200, 200, 200, (int)(alpha * 255)));
+
+            String createdByText = "created by";
+            FontMetrics createdByFm = g.getFontMetrics();
+            int createdByWidth = createdByFm.stringWidth(createdByText);
+            int createdByX = (getWidth() - createdByWidth) / 2;
+            int createdByY = getHeight() / 2 - (int)(getHeight() * 0.15);
+
+            g.drawString(createdByText, createdByX, createdByY);
+            return; // Don't show letters yet
+        }
+
+        // Phase 2: Keep "created by" visible and start slot machine animation
+        // Draw "created by" text (now always visible)
+        float createdBySize = (float)(Math.min(getWidth(), getHeight()) * 0.06);
+        Font createdByFont = secondaryFont.deriveFont(Font.PLAIN, createdBySize);
+        g.setFont(createdByFont);
+        g.setColor(new Color(200, 200, 200));
+
+        String createdByText = "created by";
+        FontMetrics createdByFm = g.getFontMetrics();
+        int createdByWidth = createdByFm.stringWidth(createdByText);
+        int createdByX = (getWidth() - createdByWidth) / 2;
+        int createdByY = getHeight() / 2 - (int)(getHeight() * 0.15);
+
+        g.drawString(createdByText, createdByX, createdByY);
+
+        // Initialize slot machine timing when transitioning to phase 2
+        if (!introSlotMachineStarted) {
+            introSlotMachineStarted = true;
+            long slotMachineStartTime = currentTime;
+            // Calculate when each letter should settle (staggered timing)
+            for (int i = 0; i < 4; i++) {
+                introLetterSettleTime[i] = slotMachineStartTime + (i * LETTER_SETTLE_INTERVAL);
+            }
+        }
+
+        // Calculate time relative to slot machine start
+        long slotMachineTime = elapsedTime - INTRO_CREATED_BY_DURATION;
+
+        // Large font for letters
+        float letterSize = (float)(Math.min(getWidth(), getHeight()) * 0.2); // 20% of screen size
+        Font letterFont = primaryFont.deriveFont(Font.BOLD, letterSize);
+        g.setFont(letterFont);
+
+        // Calculate total width needed for 4 letters with spacing
+        FontMetrics fm = g.getFontMetrics(letterFont);
+        int letterWidth = fm.charWidth('A'); // Approximate width
+        int spacing = (int)(letterWidth * 0.5); // Space between letters
+        int totalWidth = (letterWidth * 4) + (spacing * 3);
+        int startX = (getWidth() - totalWidth) / 2;
+        int centerY = getHeight() / 2 + fm.getAscent() / 2;
+
+        // Draw each letter
+        for (int i = 0; i < 4; i++) {
+            int letterX = startX + (i * (letterWidth + spacing));
+
+            // Check if this letter should have settled yet
+            if (currentTime >= introLetterSettleTime[i]) {
+                if (!introLetterSettled[i]) {
+                    // Letter just settled
+                    introLetterSettled[i] = true;
+                    currentIntroLetters[i] = TARGET_LETTERS[i];
+                }
+
+                // Draw settled letter with white color
+                g.setColor(Color.WHITE);
+                g.drawString(String.valueOf(currentIntroLetters[i]), letterX, centerY);
+            } else {
+                // Still spinning - show random letters
+                // Change letter every few frames for spinning effect
+                if (slotMachineTime % 50 < 25) { // Change every 50ms
+                    currentIntroLetters[i] = RANDOM_LETTERS.charAt(introRandom.nextInt(RANDOM_LETTERS.length()));
+                }
+
+                // Draw spinning letter with dimmed color to show it's still changing
+                g.setColor(new Color(150, 150, 150));
+                g.drawString(String.valueOf(currentIntroLetters[i]), letterX, centerY);
+            }
+        }
+
+        // Check if all letters have settled
+        if (!introComplete && allLettersSettled()) {
+            introComplete = true;
+        }
+
+        // Draw transition fade overlay
+        if (isTransitioningFromIntro && introTransitionProgress > 0) {
+            int fadeAlpha = (int)(introTransitionProgress * 255);
+            g.setColor(new Color(0, 0, 0, fadeAlpha));
+            g.fillRect(0, 0, getWidth(), getHeight());
+        }
+    }
+
+    private boolean allLettersSettled() {
+        for (boolean settled : introLetterSettled) {
+            if (!settled) return false;
+        }
+        return true;
+    }
+
     // First Access page methods
     private void drawFirstAccess(Graphics2D g) {
         // Update chess animation
@@ -14272,39 +15347,57 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     private void handleGameModeSelectionInput(KeyEvent e) {
         int keyCode = e.getKeyCode();
-        
+
         switch (keyCode) {
-            case KeyEvent.VK_UP:
-                selectedGameMode = (selectedGameMode - 1 + gameModes.length) % gameModes.length;
+            case KeyEvent.VK_LEFT:
+                // Start transition animation
+                transitionFromMode = selectedGameMode;
+                transitionToMode = (selectedGameMode - 1 + gameModes.length) % gameModes.length;
+                startModeTransition();
+                selectedGameMode = transitionToMode;
                 break;
-            case KeyEvent.VK_DOWN:
-                selectedGameMode = (selectedGameMode + 1) % gameModes.length;
+            case KeyEvent.VK_RIGHT:
+                // Start transition animation
+                transitionFromMode = selectedGameMode;
+                transitionToMode = (selectedGameMode + 1) % gameModes.length;
+                startModeTransition();
+                selectedGameMode = transitionToMode;
                 break;
             case KeyEvent.VK_ENTER:
                 // Start game with selected mode
                 startGameWithMode(selectedGameMode);
                 break;
             case KeyEvent.VK_ESCAPE:
-                // Return to main menu
-                setState(GameState.MENU);
+                // Return to previous state (MENU or CIRCLE_MODE_MENU)
+                setState(stateBeforeModeSelection);
                 break;
         }
         repaint();
     }
+
+    private void startModeTransition() {
+        isModeTransitionActive = true;
+        modeTransitionProgress = 0.0;
+        transitionStartX = previewBallX;
+        transitionStartY = previewBallY;
+    }
     
     private void startGameWithMode(int gameMode) {
         currentGameMode = gameMode;
-        
+
         // Show selection briefly before starting game
         System.out.println("Starting game with mode: " + gameModes[gameMode]);
-        
+
         // Handle different game modes
         switch (gameMode) {
-            case 0: // NORMALE
-                startNewGame(true); // Single player normal mode
+            case 0: // CLASSICO
+                setState(GameState.MENU); // Go to main menu (home) where user can choose Single/Two Players
+                break;
+            case 1: // CIRCLE
+                setState(GameState.CIRCLE_MODE_MENU); // Go to Circle Mode menu first
                 break;
             default:
-                startNewGame(true);
+                setState(GameState.MENU);
                 break;
         }
     }
@@ -15478,6 +16571,2467 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
 
         } catch (Exception e) {
             System.out.println("DEBUG: Could not save game result: " + e.getMessage());
+        }
+    }
+
+    // ========== CIRCLE MODE IMPLEMENTATION ==========
+
+    // Circle Ball class - represents balls coming from all directions
+    private class CircleBall {
+        double x, y;
+        double vx, vy;
+        double radius = BALL_SIZE / 2.0;
+        boolean active = true;
+        boolean isSpiralBall = false; // Palle della spirale fanno meno danno
+
+        CircleBall(double x, double y, double vx, double vy) {
+            this.x = x;
+            this.y = y;
+            this.vx = vx;
+            this.vy = vy;
+        }
+
+        CircleBall(double x, double y, double vx, double vy, boolean isSpiralBall) {
+            this.x = x;
+            this.y = y;
+            this.vx = vx;
+            this.vy = vy;
+            this.isSpiralBall = isSpiralBall;
+        }
+    }
+
+    // Circle PowerUp class - power-ups that move like balls
+    private class CirclePowerUp {
+        double x, y;
+        double vx, vy; // Velocity (moves towards center like balls)
+        int type; // 0=Health, 1=SlowMo, 2=PaddleEnlarge, 3=Shield
+        double radius = 15.0;
+        boolean active = true;
+        long spawnTime;
+
+        CirclePowerUp(double x, double y, double vx, double vy, int type) {
+            this.x = x;
+            this.y = y;
+            this.vx = vx;
+            this.vy = vy;
+            this.type = type;
+            this.spawnTime = System.currentTimeMillis();
+        }
+    }
+
+    // Update Circle Mode Menu (handle ball effects when hovering START)
+    private void updateCircleModeMenu() {
+        // Initialize entrance animation if not started
+        if (circleModeMenuAnimationStartTime == 0) {
+            circleModeMenuAnimationStartTime = System.currentTimeMillis();
+            circleModeMenuAnimationProgress = 0.0;
+        }
+
+        // Update entrance animation progress
+        long currentTime = System.currentTimeMillis();
+        long elapsed = currentTime - circleModeMenuAnimationStartTime;
+        if (elapsed < CIRCLE_MENU_ANIMATION_DURATION) {
+            circleModeMenuAnimationProgress = (double) elapsed / CIRCLE_MENU_ANIMATION_DURATION;
+        } else {
+            circleModeMenuAnimationProgress = 1.0;
+        }
+
+        // Update center position for menu
+        circleCenterX = BOARD_WIDTH / 2.0;
+        circleCenterY = BOARD_HEIGHT / 2.0;
+
+        // Update hold progress
+        if (holdingCentralBall) {
+            holdProgress++;
+
+            // Animate statistics countdown (from max to 0) synchronized with hold progress
+            float progress = (float) holdProgress / HOLD_DURATION; // 0.0 to 1.0
+            displayedMaxCombo = (int) (circleMaxCombo * (1.0f - progress));
+            displayedMaxScore = (int) (circleMaxScore * (1.0f - progress));
+
+            if (holdProgress >= HOLD_DURATION) {
+                // Start the game!
+                startCircleMode();
+                holdProgress = 0;
+                holdingCentralBall = false;
+                return;
+            }
+        } else {
+            // Reset displayed values when not holding
+            displayedMaxCombo = circleMaxCombo;
+            displayedMaxScore = circleMaxScore;
+        }
+
+        // Update paddle angle using global mouse position (works even when mouse leaves window)
+        updateCirclePaddleAngleFromGlobalMouse();
+
+        // Spawn balls from mouse position when hovering START (with delay)
+        // (reuse currentTime from animation update above)
+        if (circleModeStartButtonHovered && currentTime - lastMenuBallSpawnTime > 800) {
+            // Spawn ball from mouse position at bottom of screen
+            Point mousePos = getMousePosition();
+            if (mousePos != null) {
+                spawnMenuBall(mousePos.x, BOARD_HEIGHT);
+                lastMenuBallSpawnTime = currentTime;
+            }
+        }
+
+        // Update menu balls - USE SAME LOGIC AS GAME
+        double scaleFactor = Math.min(scaleX, scaleY);
+        Iterator<CircleBall> it = circleMenuBalls.iterator();
+        while (it.hasNext()) {
+            CircleBall ball = it.next();
+
+            // Move ball (scale velocity to match window size - same as game)
+            ball.x += ball.vx * scaleFactor;
+            ball.y += ball.vy * scaleFactor;
+
+            // Check collision with paddle - USE SAME METHOD AS GAME
+            if (checkCirclePaddleCollision(ball)) {
+                // Apply paddle physics (bounce) - USE SAME METHOD AS GAME
+                applyCirclePaddlePhysics(ball);
+            }
+
+            // Check collision with center circle - USE SAME LOGIC AS GAME
+            double scaledCircleRadius = circleRadius * scaleFactor;
+            double scaledBallRadius = ball.radius * scaleFactor;
+            double distToCenter = Math.sqrt(Math.pow(ball.x - circleCenterX, 2) + Math.pow(ball.y - circleCenterY, 2));
+            if (distToCenter < scaledCircleRadius + scaledBallRadius) {
+                // Ball hit the center circle - remove it
+                it.remove();
+                continue;
+            }
+
+            // Remove balls that go off screen
+            if (ball.x < -50 || ball.x > BOARD_WIDTH + 50 ||
+                ball.y < -50 || ball.y > BOARD_HEIGHT + 50) {
+                it.remove();
+            }
+        }
+    }
+
+    // Spawn a menu ball from given position
+    private void spawnMenuBall(double x, double y) {
+        // Calculate direction towards center
+        double dx = circleCenterX - x;
+        double dy = circleCenterY - y;
+        double distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 1) return; // Too close to center
+
+        // Normalize and set speed
+        double speed = 3.0 * Math.min(scaleX, scaleY);
+        double vx = (dx / distance) * speed;
+        double vy = (dy / distance) * speed;
+
+        circleMenuBalls.add(new CircleBall(x, y, vx, vy));
+    }
+
+    // Start Circle Mode
+    private void startCircleMode() {
+        System.out.println("DEBUG: Starting Circle Mode");
+
+        // Save current window size and get screen size
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame) {
+            JFrame frame = (JFrame) window;
+            originalWindowSize = frame.getSize(); // Save current size for restoration
+            screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+            windowExpansionProgress = 0.0;
+
+            // Remove window decorations (hide minimize/maximize/close buttons)
+            frame.dispose();
+            frame.setUndecorated(true);
+            frame.setVisible(true);
+
+            // Start with base dimensions (800x600)
+            int startWidth = BASE_WIDTH;
+            int startHeight = BASE_HEIGHT;
+            currentWindowWidth = startWidth;
+            currentWindowHeight = startHeight;
+            targetWindowWidth = startWidth;
+            targetWindowHeight = startHeight;
+
+            // Resize to base size
+            frame.setSize(startWidth, startHeight);
+            frame.setLocationRelativeTo(null); // Center window
+
+            System.out.println("DEBUG: Window will expand from " + startWidth + "x" + startHeight +
+                             " to " + screenSize.width + "x" + screenSize.height);
+
+            // Start smooth expansion timer (60 FPS)
+            startWindowExpansionTimer();
+        }
+
+        // Initialize circle mode state
+        circleHealth = circleModeInitialHealth;
+        circleMaxHealth = circleModeInitialHealth;
+        circleBalls.clear();
+        circlePowerUps.clear();
+        circleMenuBalls.clear(); // Clear menu balls when starting game
+        circleScore = 0;
+        circleModeStartTime = System.currentTimeMillis();
+        lastBallSpawnTime = circleModeStartTime;
+        lastPowerUpSpawnTime = circleModeStartTime;
+
+        // Reset progression variables
+        circleDamageMultiplier = 1.0;
+        circleBallSpeedMultiplier = 1.0;
+        ballSpawnInterval = 2000;
+        maxSimultaneousBalls = 3;
+        circlePaddleDistance = 20.0; // Mantieni distanza fissa ben staccato
+
+        // Update center position based on current board size
+        circleCenterX = BOARD_WIDTH / 2.0;
+        circleCenterY = BOARD_HEIGHT / 2.0;
+
+        // Reset power-up states
+        circleSlowMoActive = false;
+        circleSlowMoFactor = 1.0;
+        circlePaddleEnlargedActive = false;
+        circlePaddleEnlargeProgress = 0.0;
+        circleShieldActive = false;
+
+        // Reset 100 combo frenzy state
+        combo100FrenzyActive = false;
+        normalBallSpawnInterval = 2000;
+
+        // Reset combo system
+        circleComboCount = 0;
+        showCircleCombo = false;
+        circleComboShowTimer = 0;
+        circleComboScale = 1.0f;
+        circleComboPulse = 0.0f;
+        circleComboGlow = 0.0f;
+        circleComboMilestoneHit = false;
+        circleComboMilestoneTimer = 0;
+
+        // Reset frenzy pattern variables
+        combo100FrenzyActive = false;
+        frenzySpiralAngle = 0.0;
+        frenzySpiralBallCount = 0;
+        lastFrenzyPatternSpawn = 0;
+        spiralDirection = 1;
+        spiralBallsDeflected = 0;
+
+        // Imposta il primo trigger casuale della spirale (tra 30 e 50 secondi)
+        long currentTime = System.currentTimeMillis();
+        nextSpiralTriggerTime = currentTime + 30000 + random.nextInt(20000);
+
+        // Reset pause and animation states
+        circleModePaused = false;
+        circleModeDeathAnimationActive = false;
+        circleModeFullscreenActive = false; // Reset fullscreen state
+
+        // Set state to CIRCLE_MODE
+        setState(GameState.CIRCLE_MODE);
+
+        // Start game loop if not running
+        if (!gameRunning) {
+            startGameLoop();
+        }
+    }
+
+    // Update Circle Mode logic
+    private void updateCircleMode() {
+        // Update death animation if active
+        if (circleModeDeathAnimationActive) {
+            updateDeathAnimation();
+            return; // Don't update game logic during death animation
+        }
+
+        // Don't update if paused
+        if (circleModePaused) {
+            return;
+        }
+
+        // Update paddle angle using global mouse position (works even when mouse leaves window)
+        updateCirclePaddleAngleFromGlobalMouse();
+
+        long currentTime = System.currentTimeMillis();
+        circleSurvivalTime = currentTime - circleModeStartTime;
+
+        // Update progression (difficulty increases over time)
+        updateCircleProgression();
+
+        // Update power-up timers with smooth transitions
+
+        // Slow-mo: gradually return to normal speed when ending
+        if (circleSlowMoActive) {
+            if (currentTime > circleSlowMoEndTime) {
+                circleSlowMoActive = false;
+                // Start smooth transition back to normal speed
+            }
+        }
+
+        // Smoothly transition slow-mo factor
+        if (circleSlowMoActive) {
+            // Ramp to slow speed (0.5)
+            if (circleSlowMoFactor > 0.5) {
+                circleSlowMoFactor -= 0.02; // Transition over ~25 frames
+                if (circleSlowMoFactor < 0.5) circleSlowMoFactor = 0.5;
+            }
+        } else {
+            // Ramp back to normal speed (1.0)
+            if (circleSlowMoFactor < 1.0) {
+                circleSlowMoFactor += 0.02; // Transition over ~25 frames
+                if (circleSlowMoFactor > 1.0) circleSlowMoFactor = 1.0;
+            }
+        }
+
+        // Paddle enlarge: gradually shrink when ending
+        if (circlePaddleEnlargedActive) {
+            if (currentTime > circlePaddleEnlargedEndTime) {
+                circlePaddleEnlargedActive = false;
+                // Start smooth transition back to normal size
+            }
+        }
+
+        // Smoothly transition paddle enlarge progress
+        if (circlePaddleEnlargedActive) {
+            // Expand to full size (1.0)
+            if (circlePaddleEnlargeProgress < 1.0) {
+                // Molto più veloce durante il frenzy della spirale
+                double expandSpeed = combo100FrenzyActive ? 0.20 : 0.05;
+                circlePaddleEnlargeProgress += expandSpeed;
+                if (circlePaddleEnlargeProgress > 1.0) circlePaddleEnlargeProgress = 1.0;
+            }
+        } else {
+            // Shrink back to normal size (0.0)
+            if (circlePaddleEnlargeProgress > 0.0) {
+                // Rimpicciolisce alla stessa velocità con cui si è allargato
+                double shrinkSpeed = 0.05;
+                circlePaddleEnlargeProgress -= shrinkSpeed;
+                if (circlePaddleEnlargeProgress < 0.0) circlePaddleEnlargeProgress = 0.0;
+            }
+        }
+
+        if (circleShieldActive && currentTime > circleShieldEndTime) {
+            circleShieldActive = false;
+        }
+
+        // Trigger spirale casuale: controlla se è il momento di far partire una spirale
+        if (!combo100FrenzyActive && currentTime >= nextSpiralTriggerTime) {
+            trigger100ComboFrenzy();
+            // Imposta il prossimo trigger tra 40 e 60 secondi
+            nextSpiralTriggerTime = currentTime + 40000 + random.nextInt(20000);
+        }
+
+        // 100 Combo Frenzy: end the spectacular pattern when time is up
+        if (combo100FrenzyActive && currentTime > combo100FrenzyEndTime) {
+            combo100FrenzyActive = false;
+            spiralBallsDeflected = 0; // Reset contatore palle spirale
+            System.out.println("🎆 Spiral Frenzy ended - returning to normal");
+        }
+
+        // Update combo effects (pulse, scale, glow, color, visibility timer)
+        updateCircleComboEffects();
+
+        // Spawn new balls
+        if (combo100FrenzyActive) {
+            // During frenzy: Continuous spiral stream
+            int maxBalls = 50; // Allow many balls during frenzy
+
+            // Spawn one ball frequently to create continuous spiral stream
+            if (currentTime - lastFrenzyPatternSpawn > 150 && circleBalls.size() < maxBalls) {
+                spawnSpiralBall(); // Spawn single ball in spiral pattern
+                lastFrenzyPatternSpawn = currentTime;
+
+                // Increment spiral angle for next ball (creates continuous rotation)
+                // spiralDirection: 1 = orario, -1 = antiorario
+                frenzySpiralAngle += (Math.PI / 8) * spiralDirection; // Rotate 22.5 degrees per ball
+            }
+        } else {
+            // Normal mode: spawn single random balls
+            if (currentTime - lastBallSpawnTime > ballSpawnInterval && circleBalls.size() < maxSimultaneousBalls) {
+                spawnCircleBall();
+                lastBallSpawnTime = currentTime;
+            }
+        }
+
+        // Spawn power-ups
+        if (currentTime - lastPowerUpSpawnTime > powerUpSpawnInterval && circlePowerUps.size() < 2) {
+            spawnCirclePowerUp();
+            lastPowerUpSpawnTime = currentTime;
+        }
+
+        // Apply slow-mo effect (use smooth transition factor)
+        double speedFactor = circleSlowMoFactor;
+
+        // Apply window scale to maintain visual speed consistency
+        double scaleFactor = Math.min(scaleX, scaleY);
+
+        // Update all balls
+        Iterator<CircleBall> ballIterator = circleBalls.iterator();
+        while (ballIterator.hasNext()) {
+            CircleBall ball = ballIterator.next();
+
+            // Move ball (scale velocity to match window size)
+            // Le palle della spirale non vengono rallentate dallo slow-mo
+            double ballSpeedFactor = ball.isSpiralBall ? 1.0 : speedFactor;
+            ball.x += ball.vx * ballSpeedFactor * scaleFactor;
+            ball.y += ball.vy * ballSpeedFactor * scaleFactor;
+
+            // Check collision with paddle (same pattern as normal mode)
+            if (checkCirclePaddleCollision(ball)) {
+                // Apply paddle physics (bounce)
+                applyCirclePaddlePhysics(ball);
+
+                // Le palle della spirale: ogni 2 respinte = 1 palla normale
+                if (ball.isSpiralBall) {
+                    spiralBallsDeflected++;
+
+                    // Ogni 2 palle della spirale respinte contano come 1 palla normale
+                    if (spiralBallsDeflected >= 2) {
+                        circleScore++;
+                        spiralBallsDeflected = 0; // Reset contatore
+
+                        // Increment combo
+                        circleComboCount++;
+                        if (circleComboCount > circleMaxCombo) {
+                            circleMaxCombo = circleComboCount;
+                        }
+                        triggerCircleComboIncrement();
+                    }
+
+                    musicSettings.playPaddleHitSound();
+                    createParticles((int)ball.x, (int)ball.y, new Color(255, 215, 0), 15);
+                    addScreenShake(2);
+                } else {
+                    // Palle normali: contano sempre
+                    circleScore++;
+
+                    // Increment combo
+                    circleComboCount++;
+                    if (circleComboCount > circleMaxCombo) {
+                        circleMaxCombo = circleComboCount;
+                    }
+                    triggerCircleComboIncrement();
+
+                    musicSettings.playPaddleHitSound();
+
+                    // Create particles at collision point
+                    createParticles((int)ball.x, (int)ball.y, new Color(100, 200, 255), 10);
+                    addScreenShake(3);
+                }
+            }
+
+            // Check collision with center circle
+            // Use scaled radius to match what's drawn on screen (reuse scaleFactor from above)
+            double scaledCircleRadius = circleRadius * scaleFactor;
+            double scaledBallRadius = ball.radius * scaleFactor;
+            double distToCenter = Math.sqrt(Math.pow(ball.x - circleCenterX, 2) + Math.pow(ball.y - circleCenterY, 2));
+            if (distToCenter < scaledCircleRadius + scaledBallRadius) {
+                // Ball hit the center circle
+                if (!circleShieldActive) {
+                    // Palle della spirale fanno molto meno danno (1/3 del danno normale)
+                    double baseDamage = ball.isSpiralBall ? 1.67 : 5.0;
+                    double damage = baseDamage * circleDamageMultiplier;
+                    circleHealth -= damage;
+                    System.out.println("DEBUG: Circle hit! Damage: " + damage + " (spiral: " + ball.isSpiralBall + "), Health: " + circleHealth);
+
+                    // Reset combo when taking damage
+                    circleComboCount = 0;
+                    showCircleCombo = false;
+                }
+                ballIterator.remove();
+                // TODO: Play sound effect
+                // playSound("score");
+
+                // Check game over
+                if (circleHealth <= 0 && !circleModeDeathAnimationActive) {
+                    circleHealth = 0;
+                    startDeathAnimation();
+                }
+                continue;
+            }
+
+            // Remove balls that go off screen
+            if (ball.x < -50 || ball.x > BOARD_WIDTH + 50 || ball.y < -50 || ball.y > BOARD_HEIGHT + 50) {
+                ballIterator.remove();
+            }
+        }
+
+        // Update power-ups (SAME physics as normal balls, but activate when hitting center)
+        Iterator<CirclePowerUp> powerUpIterator = circlePowerUps.iterator();
+        while (powerUpIterator.hasNext()) {
+            CirclePowerUp powerUp = powerUpIterator.next();
+
+            // Move power-up (same as balls)
+            powerUp.x += powerUp.vx * speedFactor * scaleFactor;
+            powerUp.y += powerUp.vy * speedFactor * scaleFactor;
+
+            // Check collision with paddle - BOUNCE (same physics as normal balls)
+            if (checkCirclePowerUpPaddleCollision(powerUp)) {
+                applyCirclePowerUpPaddlePhysics(powerUp);
+                // Create particles at collision point
+                createParticles((int)powerUp.x, (int)powerUp.y, getPowerUpColor(powerUp.type), 8);
+            }
+
+            // Check collision with center circle - ACTIVATE power-up if touching
+            double scaledCircleRadius = circleRadius * scaleFactor;
+            double scaledPowerUpRadius = powerUp.radius * scaleFactor;
+            double distToCenter = Math.sqrt(Math.pow(powerUp.x - circleCenterX, 2) + Math.pow(powerUp.y - circleCenterY, 2));
+            if (distToCenter < scaledCircleRadius + scaledPowerUpRadius) {
+                // Power-up hit center - ACTIVATE IT (instead of dealing damage)!
+                activatePowerUp(powerUp.type);
+                powerUpIterator.remove();
+                // TODO: Play sound effect
+                // playSound("powerup");
+                continue;
+            }
+
+            // Remove power-ups that go off screen
+            if (powerUp.x < -50 || powerUp.x > BOARD_WIDTH + 50 || powerUp.y < -50 || powerUp.y > BOARD_HEIGHT + 50) {
+                powerUpIterator.remove();
+            }
+        }
+    }
+
+    // Spawn a new ball from a random edge
+    private void spawnCircleBall() {
+        // Choose random edge: 0=top, 1=right, 2=bottom, 3=left
+        int edge = random.nextInt(4);
+        double spawnX, spawnY;
+
+        switch (edge) {
+            case 0: // Top
+                spawnX = random.nextDouble() * BOARD_WIDTH;
+                spawnY = -20;
+                break;
+            case 1: // Right
+                spawnX = BOARD_WIDTH + 20;
+                spawnY = random.nextDouble() * BOARD_HEIGHT;
+                break;
+            case 2: // Bottom
+                spawnX = random.nextDouble() * BOARD_WIDTH;
+                spawnY = BOARD_HEIGHT + 20;
+                break;
+            default: // Left
+                spawnX = -20;
+                spawnY = random.nextDouble() * BOARD_HEIGHT;
+                break;
+        }
+
+        // Calculate direction towards center
+        double dx = circleCenterX - spawnX;
+        double dy = circleCenterY - spawnY;
+        double distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Normalize and apply speed - CAP at reasonable max to prevent tunneling
+        double baseSpeed = 3.0 * circleBallSpeedMultiplier;
+        double maxSpeed = 8.0; // Cap to prevent balls passing through paddle
+        baseSpeed = Math.min(baseSpeed, maxSpeed);
+        double vx = (dx / distance) * baseSpeed;
+        double vy = (dy / distance) * baseSpeed;
+
+        // Add small random variation
+        double angleVariation = (random.nextDouble() - 0.5) * 0.3; // ±0.15 radians
+        double cos = Math.cos(angleVariation);
+        double sin = Math.sin(angleVariation);
+        double vxNew = vx * cos - vy * sin;
+        double vyNew = vx * sin + vy * cos;
+
+        circleBalls.add(new CircleBall(spawnX, spawnY, vxNew, vyNew));
+        System.out.println("DEBUG: Spawned ball at (" + (int)spawnX + ", " + (int)spawnY + ") towards center with speed " + baseSpeed);
+    }
+
+    // Spawn a single ball in continuous spiral pattern - CIRCULAR spawn path
+    private void spawnSpiralBall() {
+        // Spiral pattern: balls spawn from a CIRCLE at rotating angles
+        // This creates a true circular spiral visual as they converge toward center
+
+        // Use frenzySpiralAngle for current angle (θ)
+        double angle = frenzySpiralAngle;
+
+        // SPAWN FROM A CIRCLE with DECREASING radius - spiral starts far, moves closer
+        // First ball starts far, then radius decreases gradually
+        double maxRadius = Math.min(BOARD_WIDTH, BOARD_HEIGHT) * 0.65; // Start far (65%)
+        double minRadius = Math.min(BOARD_WIDTH, BOARD_HEIGHT) * 0.60; // End closer (60%) - farther to avoid center ball
+
+        // Calculate radius that decreases over time (creates inward spiral)
+        // Use modulo to repeat the spiral pattern
+        int ballsPerSpiral = 40; // Number of balls before spiral repeats
+        double spiralProgress = (frenzySpiralBallCount % ballsPerSpiral) / (double)ballsPerSpiral;
+        double spawnRadius = maxRadius - (maxRadius - minRadius) * spiralProgress;
+
+        // Convert polar coordinates to Cartesian for spawn position
+        double spawnX = circleCenterX + Math.cos(angle) * spawnRadius;
+        double spawnY = circleCenterY + Math.sin(angle) * spawnRadius;
+
+        // Calculate direction: STRAIGHT toward center
+        // The spiral visual forms from rotating spawn angle on circular path
+        double dx = circleCenterX - spawnX;
+        double dy = circleCenterY - spawnY;
+        double distance = Math.sqrt(dx * dx + dy * dy);
+
+        // All balls have the same speed
+        double speedMultiplier = 1.0; // Constant speed for all balls
+
+        double baseSpeed = 4.0 * circleBallSpeedMultiplier * speedMultiplier;
+        double maxSpeed = 8.0;
+        baseSpeed = Math.min(baseSpeed, maxSpeed);
+
+        // Velocity straight toward center (no tangential component needed)
+        double vx = (dx / distance) * baseSpeed;
+        double vy = (dy / distance) * baseSpeed;
+
+        // Create the ball with straight velocity toward center (mark as spiral ball for reduced damage)
+        // The spiral effect comes from the rotating spawn angle
+        circleBalls.add(new CircleBall(spawnX, spawnY, vx, vy, true));
+
+        // Increment ball count for tracking
+        frenzySpiralBallCount++;
+    }
+
+    // Spawn a power-up from random edge (like balls)
+    private void spawnCirclePowerUp() {
+        // Choose random edge: 0=top, 1=right, 2=bottom, 3=left
+        int edge = random.nextInt(4);
+        double spawnX, spawnY;
+
+        switch (edge) {
+            case 0: // Top
+                spawnX = random.nextDouble() * BOARD_WIDTH;
+                spawnY = -20;
+                break;
+            case 1: // Right
+                spawnX = BOARD_WIDTH + 20;
+                spawnY = random.nextDouble() * BOARD_HEIGHT;
+                break;
+            case 2: // Bottom
+                spawnX = random.nextDouble() * BOARD_WIDTH;
+                spawnY = BOARD_HEIGHT + 20;
+                break;
+            default: // Left
+                spawnX = -20;
+                spawnY = random.nextDouble() * BOARD_HEIGHT;
+                break;
+        }
+
+        // Calculate direction towards center (like balls)
+        double dx = circleCenterX - spawnX;
+        double dy = circleCenterY - spawnY;
+        double distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Power-ups move slower than balls
+        double baseSpeed = 2.0;
+        double vx = (dx / distance) * baseSpeed;
+        double vy = (dy / distance) * baseSpeed;
+
+        int powerUpType = random.nextInt(4); // 0=Health, 1=SlowMo, 2=PaddleEnlarge, 3=Shield
+        circlePowerUps.add(new CirclePowerUp(spawnX, spawnY, vx, vy, powerUpType));
+        System.out.println("DEBUG: Spawned power-up type " + powerUpType + " at (" + (int)spawnX + ", " + (int)spawnY + ") towards center");
+    }
+
+    // Check collision between ball and paddle (semicircular arc)
+    // Similar to normal mode - just checks overlap, doesn't modify ball
+    private boolean checkCirclePaddleCollision(CircleBall ball) {
+        // Calculate ball's angle and distance from center
+        double ballAngle = Math.atan2(ball.y - circleCenterY, ball.x - circleCenterX);
+        double ballDistFromCenter = Math.sqrt(Math.pow(ball.x - circleCenterX, 2) + Math.pow(ball.y - circleCenterY, 2));
+
+        // Calculate paddle orbit radius (use scaled values)
+        double scaleFactor = Math.min(scaleX, scaleY);
+        double scaledCircleRadius = circleRadius * scaleFactor;
+        double scaledPaddleDistance = circlePaddleDistance * scaleFactor;
+        double scaledPaddleThickness = circlePaddleThickness * scaleFactor;
+        double paddleOrbitRadius = scaledCircleRadius + scaledPaddleDistance;
+
+        // Check angular overlap (if ball is within paddle's arc)
+        double arcRadians = Math.toRadians(circlePaddleArcDegrees / 2.0);
+        // Apply smooth enlarge transition (1.0 = normal, 1.5 = fully enlarged)
+        double enlargeFactor = 1.0 + (0.5 * circlePaddleEnlargeProgress);
+        arcRadians *= enlargeFactor;
+
+        // Calculate angle difference
+        double angleDiff = ballAngle - circlePaddleAngle;
+
+        // Normalize angle difference to [-PI, PI]
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+        boolean withinArc = Math.abs(angleDiff) <= arcRadians;
+
+        // CHECK 1: Front face collision (outer side of paddle)
+        if (withinArc) {
+            // Paddle is drawn with stroke centered on paddleOrbitRadius with thickness scaledPaddleThickness * 2
+            // So it extends from (paddleOrbitRadius - scaledPaddleThickness) to (paddleOrbitRadius + scaledPaddleThickness)
+            double paddleInnerEdge = paddleOrbitRadius - scaledPaddleThickness; // Inner edge (toward center)
+            double paddleOuterEdge = paddleOrbitRadius + scaledPaddleThickness; // Outer edge (away from center)
+
+            // Consider ball radius (like Pong Ping does with ballX + BALL_SIZE and ballX)
+            double scaledBallRadius = ball.radius * scaleFactor;
+
+            // Ball's distance from center (center point)
+            // Check if ball surface overlaps with paddle surface
+            if (ballDistFromCenter - scaledBallRadius <= paddleOuterEdge &&
+                ballDistFromCenter + scaledBallRadius >= paddleInnerEdge) {
+                // Ball must be moving INWARD (toward center) to collide
+                double radialVelocity = (ball.vx * Math.cos(ballAngle) + ball.vy * Math.sin(ballAngle));
+                if (radialVelocity < 0) {
+                    return true; // Front face collision
+                }
+            }
+        }
+
+        // CHECK 2: Side edge collision (left and right ends of arc)
+        // Calculate positions of arc endpoints (at the paddle center line)
+        double leftEdgeAngle = circlePaddleAngle - arcRadians;
+        double rightEdgeAngle = circlePaddleAngle + arcRadians;
+
+        // Consider ball radius for edge collision
+        double scaledBallRadius = ball.radius * scaleFactor;
+
+        // Left edge position (center of paddle stroke)
+        double leftEdgeX = circleCenterX + Math.cos(leftEdgeAngle) * paddleOrbitRadius;
+        double leftEdgeY = circleCenterY + Math.sin(leftEdgeAngle) * paddleOrbitRadius;
+        double distToLeftEdge = Math.sqrt(Math.pow(ball.x - leftEdgeX, 2) + Math.pow(ball.y - leftEdgeY, 2));
+
+        // Right edge position (center of paddle stroke)
+        double rightEdgeX = circleCenterX + Math.cos(rightEdgeAngle) * paddleOrbitRadius;
+        double rightEdgeY = circleCenterY + Math.sin(rightEdgeAngle) * paddleOrbitRadius;
+        double distToRightEdge = Math.sqrt(Math.pow(ball.x - rightEdgeX, 2) + Math.pow(ball.y - rightEdgeY, 2));
+
+        // Collision if ball surface touches edge
+        // Edge has thickness of scaledPaddleThickness (half of total stroke thickness)
+        double edgeCollisionRadius = scaledBallRadius + scaledPaddleThickness;
+        if (distToLeftEdge < edgeCollisionRadius || distToRightEdge < edgeCollisionRadius) {
+            return true; // Side edge collision
+        }
+
+        return false;
+    }
+
+    // Apply paddle physics to ball (similar to applyPaddlePhysics in normal mode)
+    private void applyCirclePaddlePhysics(CircleBall ball) {
+        // Calculate collision normal (radial direction - OUTWARD from center)
+        // This is the normal of the paddle's INNER surface (the side facing the center)
+        double ballAngle = Math.atan2(ball.y - circleCenterY, ball.x - circleCenterX);
+
+        // Normal points INWARD (toward center) so balls bounce OUTWARD
+        double normalX = -Math.cos(ballAngle);
+        double normalY = -Math.sin(ballAngle);
+
+        // Reflect velocity: v' = v - 2(v·n)n
+        double dotProduct = ball.vx * normalX + ball.vy * normalY;
+        ball.vx = ball.vx - 2 * dotProduct * normalX;
+        ball.vy = ball.vy - 2 * dotProduct * normalY;
+
+        // Push ball away from center (outward)
+        ball.x -= normalX * 5.0;
+        ball.y -= normalY * 5.0;
+
+        // Apply speed limit (same as normal mode)
+        double speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        double maxSpeed = 10.0;
+        if (speed > maxSpeed) {
+            ball.vx = (ball.vx / speed) * maxSpeed;
+            ball.vy = (ball.vy / speed) * maxSpeed;
+        }
+    }
+
+    // Check collision between power-up and paddle (SAME logic as normal balls)
+    private boolean checkCirclePowerUpPaddleCollision(CirclePowerUp powerUp) {
+        // Calculate power-up's angle and distance from center
+        double powerUpAngle = Math.atan2(powerUp.y - circleCenterY, powerUp.x - circleCenterX);
+        double powerUpDistFromCenter = Math.sqrt(Math.pow(powerUp.x - circleCenterX, 2) + Math.pow(powerUp.y - circleCenterY, 2));
+
+        // Calculate paddle orbit radius (use scaled values)
+        double scaleFactor = Math.min(scaleX, scaleY);
+        double scaledCircleRadius = circleRadius * scaleFactor;
+        double scaledPaddleDistance = circlePaddleDistance * scaleFactor;
+        double scaledPaddleThickness = circlePaddleThickness * scaleFactor;
+        double paddleOrbitRadius = scaledCircleRadius + scaledPaddleDistance;
+
+        // Check angular overlap (if power-up is within paddle's arc)
+        double arcRadians = Math.toRadians(circlePaddleArcDegrees / 2.0);
+        // Apply smooth enlarge transition (1.0 = normal, 1.5 = fully enlarged)
+        double enlargeFactor = 1.0 + (0.5 * circlePaddleEnlargeProgress);
+        arcRadians *= enlargeFactor;
+
+        // Calculate angle difference
+        double angleDiff = powerUpAngle - circlePaddleAngle;
+
+        // Normalize angle difference to [-PI, PI]
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+        boolean withinArc = Math.abs(angleDiff) <= arcRadians;
+
+        // CHECK 1: Front face collision (outer side of paddle)
+        if (withinArc) {
+            // Paddle is drawn with stroke centered on paddleOrbitRadius with thickness scaledPaddleThickness * 2
+            // So it extends from (paddleOrbitRadius - scaledPaddleThickness) to (paddleOrbitRadius + scaledPaddleThickness)
+            double paddleInnerEdge = paddleOrbitRadius - scaledPaddleThickness; // Inner edge (toward center)
+            double paddleOuterEdge = paddleOrbitRadius + scaledPaddleThickness; // Outer edge (away from center)
+
+            // Consider power-up radius (like Pong Ping does with ballX + BALL_SIZE and ballX)
+            double scaledPowerUpRadius = powerUp.radius * scaleFactor;
+
+            // Power-up's distance from center (center point)
+            // Check if power-up surface overlaps with paddle surface
+            if (powerUpDistFromCenter - scaledPowerUpRadius <= paddleOuterEdge &&
+                powerUpDistFromCenter + scaledPowerUpRadius >= paddleInnerEdge) {
+                // Power-up must be moving INWARD (toward center) to collide
+                double radialVelocity = (powerUp.vx * Math.cos(powerUpAngle) + powerUp.vy * Math.sin(powerUpAngle));
+                if (radialVelocity < 0) {
+                    return true; // Front face collision
+                }
+            }
+        }
+
+        // CHECK 2: Side edge collision (left and right ends of arc)
+        double leftEdgeAngle = circlePaddleAngle - arcRadians;
+        double rightEdgeAngle = circlePaddleAngle + arcRadians;
+
+        // Consider power-up radius for edge collision
+        double scaledPowerUpRadius = powerUp.radius * scaleFactor;
+
+        // Left edge position (center of paddle stroke)
+        double leftEdgeX = circleCenterX + Math.cos(leftEdgeAngle) * paddleOrbitRadius;
+        double leftEdgeY = circleCenterY + Math.sin(leftEdgeAngle) * paddleOrbitRadius;
+        double distToLeftEdge = Math.sqrt(Math.pow(powerUp.x - leftEdgeX, 2) + Math.pow(powerUp.y - leftEdgeY, 2));
+
+        // Right edge position (center of paddle stroke)
+        double rightEdgeX = circleCenterX + Math.cos(rightEdgeAngle) * paddleOrbitRadius;
+        double rightEdgeY = circleCenterY + Math.sin(rightEdgeAngle) * paddleOrbitRadius;
+        double distToRightEdge = Math.sqrt(Math.pow(powerUp.x - rightEdgeX, 2) + Math.pow(powerUp.y - rightEdgeY, 2));
+
+        // Collision if power-up surface touches edge
+        // Edge has thickness of scaledPaddleThickness (half of total stroke thickness)
+        double edgeCollisionRadius = scaledPowerUpRadius + scaledPaddleThickness;
+        if (distToLeftEdge < edgeCollisionRadius || distToRightEdge < edgeCollisionRadius) {
+            return true; // Side edge collision
+        }
+
+        return false;
+    }
+
+    // Apply paddle physics to power-up (SAME logic as normal balls)
+    private void applyCirclePowerUpPaddlePhysics(CirclePowerUp powerUp) {
+        // Calculate collision normal (radial direction - OUTWARD from center)
+        double powerUpAngle = Math.atan2(powerUp.y - circleCenterY, powerUp.x - circleCenterX);
+
+        // Normal points INWARD (toward center) so power-ups bounce OUTWARD
+        double normalX = -Math.cos(powerUpAngle);
+        double normalY = -Math.sin(powerUpAngle);
+
+        // Reflect velocity: v' = v - 2(v·n)n
+        double dotProduct = powerUp.vx * normalX + powerUp.vy * normalY;
+        powerUp.vx = powerUp.vx - 2 * dotProduct * normalX;
+        powerUp.vy = powerUp.vy - 2 * dotProduct * normalY;
+
+        // Push power-up away from center (outward)
+        powerUp.x -= normalX * 5.0;
+        powerUp.y -= normalY * 5.0;
+
+        // Apply speed limit (same as normal balls)
+        double speed = Math.sqrt(powerUp.vx * powerUp.vx + powerUp.vy * powerUp.vy);
+        double maxSpeed = 10.0;
+        if (speed > maxSpeed) {
+            powerUp.vx = (powerUp.vx / speed) * maxSpeed;
+            powerUp.vy = (powerUp.vy / speed) * maxSpeed;
+        }
+    }
+
+    // Get power-up color based on type (for particles)
+    private Color getPowerUpColor(int type) {
+        switch (type) {
+            case 0: return new Color(100, 255, 100); // Health - verde
+            case 1: return new Color(100, 150, 255); // SlowMo - blu
+            case 2: return new Color(255, 255, 0);   // PaddleEnlarge - giallo
+            case 3: return new Color(200, 100, 255); // Shield - viola
+            default: return Color.WHITE;
+        }
+    }
+
+    // Activate collected power-up
+    private void activatePowerUp(int type) {
+        long currentTime = System.currentTimeMillis();
+        switch (type) {
+            case 0: // Health
+                circleHealth = Math.min(circleMaxHealth, circleHealth + 25);
+                System.out.println("DEBUG: Health power-up activated! Health: " + circleHealth);
+                break;
+            case 1: // SlowMo
+                circleSlowMoActive = true;
+                circleSlowMoEndTime = currentTime + 5000; // 5 seconds
+                System.out.println("DEBUG: Slow-mo power-up activated!");
+                break;
+            case 2: // Paddle Enlarge
+                circlePaddleEnlargedActive = true;
+                circlePaddleEnlargedEndTime = currentTime + 8000; // 8 seconds
+                System.out.println("DEBUG: Paddle enlarge power-up activated!");
+                break;
+            case 3: // Shield
+                circleShieldActive = true;
+                circleShieldEndTime = currentTime + 4000; // 4 seconds
+                System.out.println("DEBUG: Shield power-up activated!");
+                break;
+        }
+    }
+
+    // Update difficulty progression over time - PROGRESSIONE COSTANTE E CONTINUA
+    private void updateCircleProgression() {
+        double timeInSeconds = circleSurvivalTime / 1000.0;
+
+        // Increase damage over time - CONTINUA (ogni 60 secondi +3x danno, no limite)
+        circleDamageMultiplier = 1.0 + (timeInSeconds / 60.0) * 3.0;
+        circleDamageMultiplier = Math.min(10.0, circleDamageMultiplier); // Max 10x per evitare one-shot troppo estremo
+
+        // Increase ball speed over time - CONTINUA (ogni 30 secondi +0.5x velocità)
+        circleBallSpeedMultiplier = 1.0 + (timeInSeconds / 30.0) * 0.5;
+        circleBallSpeedMultiplier = Math.min(4.0, circleBallSpeedMultiplier); // Max 4x per evitare tunneling
+
+        // Decrease spawn interval - CONTINUA (diventa sempre più veloce)
+        ballSpawnInterval = (long)(2000 - (timeInSeconds / 30.0) * 1000);
+        ballSpawnInterval = Math.max(300, ballSpawnInterval); // Min 300ms (molto veloce)
+
+        // Increase max simultaneous balls - CONTINUA (ogni 15 secondi +1 palla)
+        maxSimultaneousBalls = 3 + (int)(timeInSeconds / 15.0);
+        maxSimultaneousBalls = Math.min(15, maxSimultaneousBalls); // Max 15 palle simultanee
+
+        // Paddle distance remains fixed (removed progressive increase)
+
+        // Expand window progressively (0% -> 100% over 120 seconds)
+        expandWindowProgressively(timeInSeconds);
+    }
+
+    // Start smooth window expansion timer
+    private void startWindowExpansionTimer() {
+        if (windowExpansionTimer != null) {
+            windowExpansionTimer.stop();
+        }
+
+        windowExpansionTimer = new Timer(16, new ActionListener() { // 60 FPS
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                updateWindowExpansionAnimation();
+            }
+        });
+        windowExpansionTimer.start();
+    }
+
+    // Update window expansion animation (called by timer)
+    private void updateWindowExpansionAnimation() {
+        if (originalWindowSize == null || screenSize == null) {
+            return;
+        }
+
+        // Don't expand window while paused
+        if (circleModePaused) {
+            return;
+        }
+
+        // Smooth interpolation towards target size
+        double smoothFactor = 0.05; // Lower = smoother but slower
+        currentWindowWidth += (targetWindowWidth - currentWindowWidth) * smoothFactor;
+        currentWindowHeight += (targetWindowHeight - currentWindowHeight) * smoothFactor;
+
+        // Apply new size if changed enough (avoid micro-updates)
+        int roundedWidth = (int)Math.round(currentWindowWidth);
+        int roundedHeight = (int)Math.round(currentWindowHeight);
+
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame) {
+            JFrame frame = (JFrame) window;
+            Dimension currentSize = frame.getSize();
+
+            // Only update if size actually changed
+            if (Math.abs(currentSize.width - roundedWidth) > 1 || Math.abs(currentSize.height - roundedHeight) > 1) {
+                frame.setSize(roundedWidth, roundedHeight);
+                frame.setLocationRelativeTo(null); // Keep centered
+            }
+        }
+    }
+
+    // Update target window size based on game progression
+    private void expandWindowProgressively(double timeInSeconds) {
+        if (screenSize == null) {
+            return;
+        }
+
+        // Calculate expansion progress (0.0 to 1.0 over 120 seconds)
+        windowExpansionProgress = Math.min(1.0, timeInSeconds / 120.0);
+
+        // Switch to fullscreen exclusive mode at 98% to avoid lag
+        if (windowExpansionProgress >= 0.98 && !circleModeFullscreenActive) {
+            enterCircleModeFullscreen();
+            return; // Stop normal expansion
+        }
+
+        // Calculate new target size (interpolate between base size and screen size)
+        int startWidth = BASE_WIDTH;
+        int startHeight = BASE_HEIGHT;
+
+        targetWindowWidth = (int)(startWidth + (screenSize.width - startWidth) * windowExpansionProgress);
+        targetWindowHeight = (int)(startHeight + (screenSize.height - startHeight) * windowExpansionProgress);
+
+        // The timer will smoothly animate to these targets
+    }
+
+    // Enter fullscreen exclusive mode (faster than window resizing)
+    private void enterCircleModeFullscreen() {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame) {
+            JFrame frame = (JFrame) window;
+
+            // Get graphics device for fullscreen
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            GraphicsDevice gd = ge.getDefaultScreenDevice();
+
+            // Check if fullscreen is supported
+            if (gd.isFullScreenSupported()) {
+                try {
+                    // Stop the expansion timer (no longer needed)
+                    if (windowExpansionTimer != null) {
+                        windowExpansionTimer.stop();
+                    }
+
+                    // Enter fullscreen exclusive mode
+                    gd.setFullScreenWindow(frame);
+                    circleModeFullscreenActive = true;
+
+                    System.out.println("DEBUG: Entered fullscreen mode at " + (int)(windowExpansionProgress * 100) + "% expansion");
+                } catch (Exception e) {
+                    System.err.println("DEBUG: Failed to enter fullscreen: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    // Cleanup Circle Mode resources (window, timers, etc.)
+    private void cleanupCircleMode() {
+        System.out.println("DEBUG: Cleaning up Circle Mode. Score: " + circleScore + ", Survival time: " + (circleSurvivalTime / 1000) + "s");
+
+        // Update max score if current score is higher
+        if (circleScore > circleMaxScore) {
+            circleMaxScore = circleScore;
+            saveSettingsToFile(); // Save immediately when new record is achieved
+        }
+
+        // Save to history
+        try {
+            String gameMode = "CIRCLE";
+            String winner = "N/A"; // Circle mode is solo survival
+            int rallies = circleScore; // Use score as rallies equivalent
+
+            // Calculate duration
+            long durationMs = circleSurvivalTime;
+            int minutes = (int)(durationMs / 60000);
+            int seconds = (int)((durationMs % 60000) / 1000);
+            String duration = String.format("%02d:%02d", minutes, seconds);
+
+            String difficulty = "N/A"; // Circle mode doesn't use AI difficulty
+            String rank = "N/A"; // No ranking system for Circle Mode yet
+
+            // Save to history - use circleScore as player1Score, 0 as player2Score
+            historySettings.saveGameHistoryEntry(gameMode, circleScore, 0, winner, rallies, duration, difficulty, circleMaxCombo, rank);
+
+            System.out.println("DEBUG: Circle Mode game saved to history");
+        } catch (Exception e) {
+            System.out.println("DEBUG: Could not save Circle Mode to history: " + e.getMessage());
+        }
+
+        // Stop window expansion timer
+        if (windowExpansionTimer != null) {
+            windowExpansionTimer.stop();
+            windowExpansionTimer = null;
+        }
+
+        // Exit fullscreen if active
+        if (circleModeFullscreenActive) {
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            GraphicsDevice gd = ge.getDefaultScreenDevice();
+            gd.setFullScreenWindow(null); // Exit fullscreen
+            circleModeFullscreenActive = false;
+            System.out.println("DEBUG: Exited fullscreen mode");
+        }
+
+        // Restore original window size and decorations
+        if (originalWindowSize != null) {
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window instanceof JFrame) {
+                JFrame frame = (JFrame) window;
+
+                // Restore window decorations (show minimize/maximize/close buttons)
+                frame.dispose();
+                frame.setUndecorated(false);
+                frame.setResizable(true); // Re-enable resizing
+                frame.setVisible(true);
+
+                frame.setSize(originalWindowSize);
+                frame.setLocationRelativeTo(null);
+                System.out.println("DEBUG: Restored window size to " + originalWindowSize.width + "x" + originalWindowSize.height);
+            }
+            originalWindowSize = null;
+            screenSize = null;
+            windowExpansionProgress = 0.0;
+        }
+
+        // Reset pause state
+        circleModePaused = false;
+    }
+
+    // Helper method to draw a pixelated line (for retro pixel border effect)
+    private void drawPixelLine(Graphics2D g, int x1, int y1, int x2, int y2, int pixelSize) {
+        // Calculate line length and direction
+        int dx = x2 - x1;
+        int dy = y2 - y1;
+        double length = Math.sqrt(dx * dx + dy * dy);
+
+        if (length == 0) return;
+
+        // Calculate number of pixels to draw along the line
+        int numPixels = (int)(length / pixelSize);
+
+        // Draw pixels along the line
+        for (int i = 0; i <= numPixels; i++) {
+            double t = i / (double)numPixels;
+            int px = (int)(x1 + dx * t);
+            int py = (int)(y1 + dy * t);
+
+            // Draw a square pixel
+            g.fillRect(px - pixelSize/2, py - pixelSize/2, pixelSize, pixelSize);
+        }
+    }
+
+    // Draw Circle Mode Menu
+    private void drawCircleModeMenu(Graphics2D g) {
+        // Draw selected background first
+        drawMenuBackground(g);
+
+        // Draw MODALITA trapezoid (expanding if transition active) UNDER paddles and ball
+        drawModalitaTrapezoid(g);
+
+        // Draw ADVANCEMENT trapezoid
+        drawAdvancementTrapezoid(g);
+
+        // Update center position to match game (BOARD_WIDTH/HEIGHT, not circleCenterX/Y)
+        double tempCenterX = circleCenterX;
+        double tempCenterY = circleCenterY;
+        circleCenterX = BOARD_WIDTH / 2.0;
+        circleCenterY = BOARD_HEIGHT / 2.0;
+
+        // Calculate scaled circle radius (same as game)
+        double scaledRadius = circleRadius * Math.min(scaleX, scaleY);
+
+        // Draw center circle (the one to defend) - exact same as game
+        g.setColor(new Color(40, 40, 60, 200));
+        g.fillOval((int)(circleCenterX - scaledRadius), (int)(circleCenterY - scaledRadius),
+                   (int)(scaledRadius * 2), (int)(scaledRadius * 2));
+
+        // Draw paddle (semicircular arc) - exact same as game
+        drawCirclePaddle(g);
+
+        // Draw menu balls (from hover effect) - create snapshot to avoid ConcurrentModificationException
+        g.setColor(Color.WHITE);
+        double scaledBallRadius = BALL_SIZE / 2.0 * Math.min(scaleX, scaleY);
+        java.util.List<CircleBall> menuBallsSnapshot = new ArrayList<>(circleMenuBalls);
+        for (CircleBall ball : menuBallsSnapshot) {
+            g.fillOval((int)(ball.x - scaledBallRadius), (int)(ball.y - scaledBallRadius),
+                       (int)(scaledBallRadius * 2), (int)(scaledBallRadius * 2));
+        }
+
+        // Restore center position
+        circleCenterX = tempCenterX;
+        circleCenterY = tempCenterY;
+
+        // Calculate eased animation progress (ease-out cubic for smooth deceleration)
+        double easedProgress = 1.0 - Math.pow(1.0 - circleModeMenuAnimationProgress, 3);
+
+        // Draw "PONG PING" title (higher position) - slides down from above screen
+        float pongPingSize = (float)(48 * Math.min(scaleX, scaleY));
+        g.setFont(primaryFont.deriveFont(pongPingSize));
+        FontMetrics pongPingFm = g.getFontMetrics();
+        String pongPingTitle = "PONG PING";
+        int pongPingX = (BOARD_WIDTH - pongPingFm.stringWidth(pongPingTitle)) / 2;
+        int pongPingYFinal = (int)(100 * scaleY);
+        int pongPingYStart = -(int)(150 * scaleY); // Start above screen
+        int pongPingY = (int)(pongPingYStart + (pongPingYFinal - pongPingYStart) * easedProgress);
+
+        // Glow effect (cyan like home menu)
+        int glowOffset = Math.max(1, (int)(3 * Math.min(scaleX, scaleY)));
+        g.setColor(new Color(0, 255, 255, 50));
+        for (int i = 1; i <= glowOffset; i++) {
+            g.drawString(pongPingTitle, pongPingX - i, pongPingY - i);
+            g.drawString(pongPingTitle, pongPingX + i, pongPingY + i);
+        }
+        Color titleColor = currentTextColors.getOrDefault("menuTitle", Color.WHITE);
+        g.setColor(titleColor);
+        g.drawString(pongPingTitle, pongPingX, pongPingY);
+
+        // Draw "Circle" text below and to the right of PONG PING - also slides down
+        float circleSize = (float)(32 * Math.min(scaleX, scaleY));
+        g.setFont(primaryFont.deriveFont(Font.BOLD, circleSize));
+        FontMetrics circleFm = g.getFontMetrics();
+        String circleText = getText("CIRCLE_MODE_TITLE");
+
+        // Position: below PONG PING and aligned to the right side of PONG PING
+        int circleX = pongPingX + pongPingFm.stringWidth(pongPingTitle) - circleFm.stringWidth(circleText);
+        int circleYFinal = pongPingYFinal + (int)(45 * scaleY);
+        int circleYStart = pongPingYStart + (int)(45 * scaleY);
+        int circleY = (int)(circleYStart + (circleYFinal - circleYStart) * easedProgress);
+
+        // Glow effect for Circle
+        g.setColor(new Color(100, 200, 255, 80));
+        int circleGlow = Math.max(1, (int)(2 * Math.min(scaleX, scaleY)));
+        for (int i = 1; i <= circleGlow; i++) {
+            g.drawString(circleText, circleX - i, circleY - i);
+            g.drawString(circleText, circleX + i, circleY + i);
+        }
+        g.setColor(new Color(150, 200, 255));
+        g.drawString(circleText, circleX, circleY);
+
+        // Draw statistics on the sides (3 lines: MAX, description, number) - same sizes and alignment
+        int statsY = BOARD_HEIGHT / 2;
+        int lineSpacing = (int)(30 * scaleY);
+        int sideMargin = (int)(20 * scaleX);
+
+        // Font sizes (same for both sides)
+        float maxSize = (float)(18 * Math.min(scaleX, scaleY));
+        float descSize = (float)(16 * Math.min(scaleX, scaleY));
+        float numSize = (float)(28 * Math.min(scaleX, scaleY));
+
+        // LEFT SIDE: Max palle respinte - slides in from left
+        int leftXFinal = sideMargin;
+        int leftXStart = -(int)(200 * scaleX); // Start off screen to the left
+        int leftX = (int)(leftXStart + (leftXFinal - leftXStart) * easedProgress);
+
+        // Line 1: "MAX"
+        g.setFont(primaryFont.deriveFont(Font.BOLD, maxSize));
+        String maxText = getText("CIRCLE_MODE_MAX");
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(maxText, leftX + 2, statsY + 2);
+        g.setColor(new Color(255, 200, 100));
+        g.drawString(maxText, leftX, statsY);
+
+        // Line 2: "PALLE RESPINTE"
+        g.setFont(primaryFont.deriveFont(Font.PLAIN, descSize));
+        String ballsText = getText("CIRCLE_MODE_BALLS_DEFLECTED");
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(ballsText, leftX + 2, statsY + lineSpacing + 2);
+        g.setColor(new Color(200, 200, 200));
+        g.drawString(ballsText, leftX, statsY + lineSpacing);
+
+        // Line 3: Number (use animated value during countdown)
+        g.setFont(primaryFont.deriveFont(Font.BOLD, numSize));
+        String ballsValue = String.valueOf(displayedMaxScore);
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(ballsValue, leftX + 2, statsY + lineSpacing * 2 + 2);
+        g.setColor(new Color(255, 220, 120));
+        g.drawString(ballsValue, leftX, statsY + lineSpacing * 2);
+
+        // RIGHT SIDE: Max combo (aligned right) - slides in from right
+        int rightXFinal = BOARD_WIDTH - sideMargin;
+        int rightXStart = BOARD_WIDTH + (int)(200 * scaleX); // Start off screen to the right
+        int rightX = (int)(rightXStart + (rightXFinal - rightXStart) * easedProgress);
+
+        // Line 1: "MAX"
+        g.setFont(primaryFont.deriveFont(Font.BOLD, maxSize));
+        String rightMaxText = getText("CIRCLE_MODE_MAX");
+        FontMetrics maxFm = g.getFontMetrics();
+        int rightMaxX = rightX - maxFm.stringWidth(rightMaxText);
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(rightMaxText, rightMaxX + 2, statsY + 2);
+        g.setColor(new Color(100, 200, 255));
+        g.drawString(rightMaxText, rightMaxX, statsY);
+
+        // Line 2: "COMBO"
+        g.setFont(primaryFont.deriveFont(Font.PLAIN, descSize));
+        String comboText = getText("CIRCLE_MODE_COMBO");
+        FontMetrics descFm = g.getFontMetrics();
+        int rightDescX = rightX - descFm.stringWidth(comboText);
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(comboText, rightDescX + 2, statsY + lineSpacing + 2);
+        g.setColor(new Color(200, 200, 200));
+        g.drawString(comboText, rightDescX, statsY + lineSpacing);
+
+        // Line 3: Number (use animated value during countdown)
+        g.setFont(primaryFont.deriveFont(Font.BOLD, numSize));
+        String comboValue = String.valueOf(displayedMaxCombo);
+        FontMetrics numFm = g.getFontMetrics();
+        int rightNumX = rightX - numFm.stringWidth(comboValue);
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(comboValue, rightNumX + 2, statsY + lineSpacing * 2 + 2);
+        g.setColor(new Color(150, 220, 255));
+        g.drawString(comboValue, rightNumX, statsY + lineSpacing * 2);
+
+        // Draw MODALITA trapezoid button
+        drawModalitaTrapezoid(g);
+
+        // Draw ADVANCEMENT trapezoid button
+        drawAdvancementTrapezoid(g);
+
+        // Draw hold progress indicator on central ball - white ball that grows from center
+        if (holdingCentralBall && holdProgress > 0) {
+            double progressPercent = (double)holdProgress / HOLD_DURATION;
+            double centerX = BOARD_WIDTH / 2.0;
+            double centerY = BOARD_HEIGHT / 2.0;
+
+            // Calculate progress ball radius - grows from very small to full central ball radius
+            double minRadius = 5 * Math.min(scaleX, scaleY);
+            double progressRadius = minRadius + (scaledRadius - minRadius) * progressPercent;
+
+            // Draw white progress ball
+            g.setColor(new Color(255, 255, 255, 150)); // Semi-transparent white
+            int progressX = (int)(centerX - progressRadius);
+            int progressY = (int)(centerY - progressRadius);
+            int progressSize = (int)(progressRadius * 2);
+
+            g.fillOval(progressX, progressY, progressSize, progressSize);
+        }
+
+        // Draw instruction text at bottom - slides up from below screen
+        float instructionSize = (float)(20 * Math.min(scaleX, scaleY));
+        g.setFont(primaryFont.deriveFont(Font.PLAIN, instructionSize));
+        String instructionText = getText("CIRCLE_MODE_HOLD_INSTRUCTION");
+        FontMetrics instructionFm = g.getFontMetrics();
+        int instructionX = (BOARD_WIDTH - instructionFm.stringWidth(instructionText)) / 2;
+        int instructionYFinal = BOARD_HEIGHT - (int)(40 * scaleY);
+        int instructionYStart = BOARD_HEIGHT + (int)(100 * scaleY); // Start below screen
+        int instructionY = (int)(instructionYStart + (instructionYFinal - instructionYStart) * easedProgress);
+
+        // Draw shadow
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(instructionText, instructionX + 2, instructionY + 2);
+
+        // Draw text
+        g.setColor(Color.WHITE);
+        g.drawString(instructionText, instructionX, instructionY);
+    }
+
+    // Check if a point is inside the MODALITA trapezoid
+    private boolean isInsideModalitaTrapezoid(int mouseX, int mouseY) {
+        int smallParaHeight = (int)(40 * scaleY);
+        int smallTopWidth = (int)(100 * scaleX);
+        int smallParaY = 0; // Attached to top edge
+        int smallLeftMargin = (int)(5 * scaleX); // Left margin from screen edge
+
+        int smallBottomWidth = (int)(smallTopWidth * 0.6);
+        int smallCenterX = smallLeftMargin + smallTopWidth/2; // Center of top edge
+
+        int[] xPoints = {
+            smallLeftMargin,                              // Top-left (at left margin)
+            smallLeftMargin + smallTopWidth,              // Top-right
+            smallCenterX + smallBottomWidth/2,            // Bottom-right (narrower, symmetric)
+            smallCenterX - smallBottomWidth/2             // Bottom-left (narrower, symmetric)
+        };
+        int[] yPoints = {
+            smallParaY,                          // Top-left
+            smallParaY,                          // Top-right
+            smallParaY + smallParaHeight,        // Bottom-right
+            smallParaY + smallParaHeight         // Bottom-left
+        };
+
+        // Use Polygon.contains() to check if point is inside
+        Polygon trapezoid = new Polygon(xPoints, yPoints, 4);
+        return trapezoid.contains(mouseX, mouseY);
+    }
+
+    // Check if a point is inside the ADVANCEMENT trapezoid
+    private boolean isInsideAdvancementTrapezoid(int mouseX, int mouseY) {
+        int smallParaHeight = (int)(40 * scaleY);
+        int smallTopWidth = (int)(150 * scaleX); // Wider for "ADVANCEMENT"
+        int smallParaY = 0; // Attached to top edge
+        int smallRightMargin = (int)(5 * scaleX); // Right margin from screen edge
+
+        int smallBottomWidth = (int)(smallTopWidth * 0.6);
+        int smallCenterX = BOARD_WIDTH - smallRightMargin - smallTopWidth/2; // Center from right
+
+        int[] xPoints = {
+            smallCenterX - smallTopWidth/2,                // Top-left
+            smallCenterX + smallTopWidth/2,                // Top-right
+            smallCenterX + smallBottomWidth/2,             // Bottom-right (narrower, symmetric)
+            smallCenterX - smallBottomWidth/2              // Bottom-left (narrower, symmetric)
+        };
+        int[] yPoints = {
+            smallParaY,                          // Top-left
+            smallParaY,                          // Top-right
+            smallParaY + smallParaHeight,        // Bottom-right
+            smallParaY + smallParaHeight         // Bottom-left
+        };
+
+        // Use Polygon.contains() to check if point is inside
+        Polygon trapezoid = new Polygon(xPoints, yPoints, 4);
+        return trapezoid.contains(mouseX, mouseY);
+    }
+
+    // Draw MODALITA trapezoid button (reusable for both MENU and CIRCLE_MODE_MENU)
+    // Expands to full screen during transition
+    private void drawModalitaTrapezoid(Graphics2D g) {
+        // Starting dimensions (normal trapezoid)
+        int startHeight = (int)(40 * scaleY);
+        int startTopWidth = (int)(100 * scaleX);
+        int startLeftMargin = (int)(5 * scaleX);
+        int startBottomWidth = (int)(startTopWidth * 0.6);
+        int startCenterX = startLeftMargin + startTopWidth/2;
+
+        // Ending dimensions (full screen rectangle)
+        int endHeight = BOARD_HEIGHT;
+        int endTopWidth = BOARD_WIDTH;
+        int endBottomWidth = BOARD_WIDTH; // Full rectangle
+        int endCenterX = BOARD_WIDTH / 2;
+
+        // Interpolate dimensions based on expansion progress
+        double progress = isModalitaTrapezoidExpanding ? easeInOutQuad(modalitaExpansionProgress) : 0.0;
+
+        // Current dimensions
+        int currentHeight = (int)(startHeight + (endHeight - startHeight) * progress);
+        int currentTopWidth = (int)(startTopWidth + (endTopWidth - startTopWidth) * progress);
+        int currentBottomWidth = (int)(startBottomWidth + (endBottomWidth - startBottomWidth) * progress);
+        int currentCenterX = (int)(startCenterX + (endCenterX - startCenterX) * progress);
+
+        // Calculate trapezoid points
+        int[] smallXPoints = {
+            currentCenterX - currentTopWidth/2,      // Top-left
+            currentCenterX + currentTopWidth/2,      // Top-right
+            currentCenterX + currentBottomWidth/2,   // Bottom-right
+            currentCenterX - currentBottomWidth/2    // Bottom-left
+        };
+        int[] smallYPoints = {
+            0,                 // Top-left
+            0,                 // Top-right
+            currentHeight,     // Bottom-right
+            currentHeight      // Bottom-left
+        };
+
+        // Draw shadow
+        int smallShadowBlur = Math.min(10, (int)(10 * Math.min(scaleX, scaleY)));
+        int smallShadowOffsetX = (int)(5 * scaleX);
+        int smallShadowOffsetY = (int)(5 * scaleY);
+
+        for (int pass = 0; pass < 2; pass++) {
+            int blurSize = smallShadowBlur - (pass * 3);
+
+            for (int i = 0; i < blurSize; i += 2) {
+                double distance = i / (double)blurSize;
+                double gaussianFactor = Math.exp(-(distance * distance) / 0.3);
+                int alpha = (int)(60 * gaussianFactor / (pass + 1));
+
+                if (alpha < 5) continue;
+
+                g.setColor(new Color(0, 0, 0, alpha));
+
+                int[] shadowX = {
+                    smallXPoints[0] - i + smallShadowOffsetX,
+                    smallXPoints[1] + smallShadowOffsetX,
+                    smallXPoints[2] + smallShadowOffsetX,
+                    smallXPoints[3] - i/2 + smallShadowOffsetX
+                };
+                int[] shadowY = {
+                    smallYPoints[0] - i + smallShadowOffsetY,
+                    smallYPoints[1] - i + smallShadowOffsetY,
+                    smallYPoints[2] + smallShadowOffsetY,
+                    smallYPoints[3] + smallShadowOffsetY
+                };
+
+                g.fillPolygon(shadowX, shadowY, 4);
+            }
+        }
+
+        // Draw trapezoid background - change color based on click/hover state
+        if (modalitaTrapezoidClicked) {
+            g.setColor(new Color(5, 5, 25, 230)); // Very dark blue, almost black when clicked
+        } else if (modalitaTrapezoidHovered) {
+            g.setColor(new Color(15, 15, 40, 230)); // Slightly lighter dark blue when hovered
+        } else {
+            g.setColor(new Color(0, 0, 0, 230)); // Black by default
+        }
+        g.fillPolygon(smallXPoints, smallYPoints, 4);
+
+        // Draw pixel-style border and text only if not expanding (or in early stages)
+        if (progress < 0.2) { // Fade out in first 20% of animation
+            double fadeAlpha = 1.0 - (progress / 0.2); // 1.0 -> 0.0 in first 20%
+
+            // Draw pixel-style border
+            int smallPixelSize = (int)(2 * Math.min(scaleX, scaleY));
+            int borderAlpha = (int)(255 * fadeAlpha);
+            g.setColor(new Color(150, 150, 150, borderAlpha));
+
+            Object smallOldAntialiasing = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+
+            drawPixelLine(g, smallXPoints[0], smallYPoints[0], smallXPoints[1], smallYPoints[1], smallPixelSize);
+            drawPixelLine(g, smallXPoints[1], smallYPoints[1], smallXPoints[2], smallYPoints[2], smallPixelSize);
+            drawPixelLine(g, smallXPoints[2], smallYPoints[2], smallXPoints[3], smallYPoints[3], smallPixelSize);
+            drawPixelLine(g, smallXPoints[3], smallYPoints[3], smallXPoints[0], smallYPoints[0], smallPixelSize);
+
+            if (smallOldAntialiasing != null) {
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, smallOldAntialiasing);
+            }
+
+            // Draw "MODALITA" text
+            float modalitaSize = (float)(12 * Math.min(scaleX, scaleY));
+            g.setFont(primaryFont.deriveFont(Font.BOLD, modalitaSize));
+            String modalitaText = getText("CIRCLE_MODE_MODALITA");
+            FontMetrics modalitaFm = g.getFontMetrics();
+
+            int modalitaX = currentCenterX - modalitaFm.stringWidth(modalitaText)/2;
+            int modalitaY = currentHeight/2 + modalitaFm.getAscent()/2;
+
+            // Draw shadow
+            int shadowAlpha = (int)(200 * fadeAlpha);
+            g.setColor(new Color(0, 0, 0, shadowAlpha));
+            g.drawString(modalitaText, modalitaX + 2, modalitaY + 2);
+
+            // Draw text - change color based on click/hover state
+            int textAlpha = (int)(255 * fadeAlpha);
+            if (modalitaTrapezoidClicked || isModalitaTrapezoidExpanding) {
+                g.setColor(new Color(255, 255, 0, textAlpha)); // Yellow when clicked/expanding
+            } else if (modalitaTrapezoidHovered) {
+                g.setColor(new Color(255, 255, 255, textAlpha)); // White when hovered
+            } else {
+                g.setColor(new Color(255, 255, 255, textAlpha)); // White by default
+            }
+            g.drawString(modalitaText, modalitaX, modalitaY);
+        }
+    }
+
+    private void drawAdvancementTrapezoid(Graphics2D g) {
+        // Starting dimensions (normal trapezoid) - positioned on the RIGHT side
+        int startHeight = (int)(40 * scaleY);
+        int startTopWidth = (int)(150 * scaleX); // Wider for "ADVANCEMENT"
+        int startRightMargin = (int)(5 * scaleX);
+        int startBottomWidth = (int)(startTopWidth * 0.6);
+        int startCenterX = BOARD_WIDTH - startRightMargin - startTopWidth/2; // Position from right
+
+        // Current dimensions (no expansion for now, just static)
+        int currentHeight = startHeight;
+        int currentTopWidth = startTopWidth;
+        int currentBottomWidth = startBottomWidth;
+        int currentCenterX = startCenterX;
+
+        // Calculate trapezoid points
+        int[] xPoints = {
+            currentCenterX - currentTopWidth/2,      // Top-left
+            currentCenterX + currentTopWidth/2,      // Top-right
+            currentCenterX + currentBottomWidth/2,   // Bottom-right
+            currentCenterX - currentBottomWidth/2    // Bottom-left
+        };
+        int[] yPoints = {
+            0,                 // Top-left
+            0,                 // Top-right
+            currentHeight,     // Bottom-right
+            currentHeight      // Bottom-left
+        };
+
+        // Draw shadow
+        int shadowBlur = Math.min(10, (int)(10 * Math.min(scaleX, scaleY)));
+        int shadowOffsetX = (int)(5 * scaleX);
+        int shadowOffsetY = (int)(5 * scaleY);
+
+        for (int pass = 0; pass < 2; pass++) {
+            int blurSize = shadowBlur - (pass * 3);
+
+            for (int i = 0; i < blurSize; i += 2) {
+                double distance = i / (double)blurSize;
+                double gaussianFactor = Math.exp(-(distance * distance) / 0.3);
+                int alpha = (int)(60 * gaussianFactor / (pass + 1));
+
+                if (alpha < 5) continue;
+
+                g.setColor(new Color(0, 0, 0, alpha));
+
+                int[] shadowX = {
+                    xPoints[0] - i + shadowOffsetX,
+                    xPoints[1] + shadowOffsetX,
+                    xPoints[2] + shadowOffsetX,
+                    xPoints[3] - i/2 + shadowOffsetX
+                };
+                int[] shadowY = {
+                    yPoints[0] - i + shadowOffsetY,
+                    yPoints[1] - i + shadowOffsetY,
+                    yPoints[2] + shadowOffsetY,
+                    yPoints[3] + shadowOffsetY
+                };
+
+                g.fillPolygon(shadowX, shadowY, 4);
+            }
+        }
+
+        // Draw trapezoid background - change color based on click/hover state
+        if (advancementTrapezoidClicked) {
+            g.setColor(new Color(5, 5, 25, 230)); // Very dark blue, almost black when clicked
+        } else if (advancementTrapezoidHovered) {
+            g.setColor(new Color(15, 15, 40, 230)); // Slightly lighter dark blue when hovered
+        } else {
+            g.setColor(new Color(0, 0, 0, 230)); // Black by default
+        }
+        g.fillPolygon(xPoints, yPoints, 4);
+
+        // Draw pixel-style border
+        int pixelSize = (int)(2 * Math.min(scaleX, scaleY));
+        g.setColor(new Color(150, 150, 150));
+
+        Object oldAntialiasing = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+
+        drawPixelLine(g, xPoints[0], yPoints[0], xPoints[1], yPoints[1], pixelSize);
+        drawPixelLine(g, xPoints[1], yPoints[1], xPoints[2], yPoints[2], pixelSize);
+        drawPixelLine(g, xPoints[2], yPoints[2], xPoints[3], yPoints[3], pixelSize);
+        drawPixelLine(g, xPoints[3], yPoints[3], xPoints[0], yPoints[0], pixelSize);
+
+        if (oldAntialiasing != null) {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, oldAntialiasing);
+        }
+
+        // Draw "ADVANCEMENT" text
+        float advancementSize = (float)(12 * Math.min(scaleX, scaleY));
+        g.setFont(primaryFont.deriveFont(Font.BOLD, advancementSize));
+        String advancementText = getText("CIRCLE_MODE_ADVANCEMENT");
+        FontMetrics advancementFm = g.getFontMetrics();
+
+        int advancementX = currentCenterX - advancementFm.stringWidth(advancementText)/2;
+        int advancementY = currentHeight/2 + advancementFm.getAscent()/2;
+
+        // Draw shadow
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(advancementText, advancementX + 2, advancementY + 2);
+
+        // Draw text - change color based on click/hover state
+        if (advancementTrapezoidClicked) {
+            g.setColor(new Color(255, 255, 0)); // Yellow when clicked
+        } else if (advancementTrapezoidHovered) {
+            g.setColor(new Color(255, 255, 255)); // White when hovered
+        } else {
+            g.setColor(new Color(255, 255, 255)); // White by default
+        }
+        g.drawString(advancementText, advancementX, advancementY);
+    }
+
+    // Draw Circle Mode
+    private void drawCircleMode(Graphics2D g) {
+        // Draw background
+        drawMenuBackground(g);
+
+        // DON'T apply scale - work directly with scaled coordinates like drawGame() does
+        // Calculate scaled circle radius
+        double scaledRadius = circleRadius * Math.min(scaleX, scaleY);
+
+        // Draw center circle (the one to defend) with health-based effects
+        drawCentralCircleWithEffects(g, scaledRadius);
+
+        // Draw shield effect if active
+        if (circleShieldActive) {
+            g.setColor(new Color(100, 200, 255, 100));
+            g.setStroke(new BasicStroke(5));
+            g.drawOval((int)(circleCenterX - scaledRadius - 5), (int)(circleCenterY - scaledRadius - 5),
+                       (int)(scaledRadius * 2 + 10), (int)(scaledRadius * 2 + 10));
+        }
+
+        // Draw health bar
+        drawCircleHealthBar(g);
+
+        // Draw combo counter (if active)
+        if (circleComboCount > 0 && showCircleCombo) {
+            drawCircleCombo(g);
+        }
+
+        // Draw paddle (semicircular arc)
+        drawCirclePaddle(g);
+
+        // Draw all balls (create snapshot to avoid ConcurrentModificationException)
+        g.setColor(Color.WHITE);
+        double scaledBallRadius = BALL_SIZE / 2.0 * Math.min(scaleX, scaleY);
+        java.util.List<CircleBall> ballsSnapshot = new ArrayList<>(circleBalls);
+        for (CircleBall ball : ballsSnapshot) {
+            g.fillOval((int)(ball.x - scaledBallRadius), (int)(ball.y - scaledBallRadius),
+                       (int)(scaledBallRadius * 2), (int)(scaledBallRadius * 2));
+        }
+
+        // Draw power-ups (create snapshot to avoid ConcurrentModificationException)
+        java.util.List<CirclePowerUp> powerUpsSnapshot = new ArrayList<>(circlePowerUps);
+        for (CirclePowerUp powerUp : powerUpsSnapshot) {
+            drawPowerUp(g, powerUp);
+        }
+
+        // Draw UI
+        drawCircleModeUI(g);
+
+        // Draw pause overlay if paused
+        if (circleModePaused) {
+            drawCircleModePauseOverlay(g);
+        }
+
+        // Draw death explosion animation if active (render on top of everything)
+        if (circleModeDeathAnimationActive) {
+            drawDeathExplosion(g);
+        }
+    }
+
+    // Draw health text for center circle (top-left corner, text only)
+    private void drawCircleHealthBar(Graphics2D g) {
+        double healthPercent = circleHealth / circleMaxHealth;
+
+        // Choose color based on health
+        Color healthColor;
+        if (healthPercent > 0.6) {
+            healthColor = new Color(100, 255, 100);
+        } else if (healthPercent > 0.3) {
+            healthColor = new Color(255, 200, 100);
+        } else {
+            healthColor = new Color(255, 100, 100);
+        }
+
+        // Draw text in top-left corner
+        float fontSize = (float)(24 * Math.min(scaleX, scaleY));
+        g.setFont(primaryFont.deriveFont(Font.BOLD, fontSize));
+        String healthText = "HP: " + (int)circleHealth + " / " + (int)circleMaxHealth;
+        FontMetrics fm = g.getFontMetrics();
+
+        // Position in top-left with padding
+        int textX = 20;
+        int textY = 40;
+
+        // Draw health text with outline for visibility
+        g.setColor(Color.BLACK);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 || dy != 0) {
+                    g.drawString(healthText, textX + dx, textY + dy);
+                }
+            }
+        }
+
+        g.setColor(healthColor);
+        g.drawString(healthText, textX, textY);
+
+        // Draw balls deflected counter below health
+        String deflectedText = "Palle respinte: " + circleScore;
+        int deflectedY = textY + fm.getHeight() + 5;
+
+        // Draw deflected text with outline
+        g.setColor(Color.BLACK);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 || dy != 0) {
+                    g.drawString(deflectedText, textX + dx, deflectedY + dy);
+                }
+            }
+        }
+
+        // Draw deflected counter in cyan/blue color
+        g.setColor(new Color(100, 200, 255));
+        g.drawString(deflectedText, textX, deflectedY);
+    }
+
+    // Draw combo counter for Circle Mode (in basso a sinistra con effetti come combo normale)
+    private void drawCircleCombo(Graphics2D g) {
+        // Calculate dynamic size with scale and pulse effects
+        float baseSize = (float)(28 * Math.min(scaleX, scaleY));
+        float dynamicSize = baseSize * circleComboScale * circleComboPulse;
+
+        g.setFont(primaryFont.deriveFont(Font.BOLD, dynamicSize));
+        FontMetrics comboFm = g.getFontMetrics();
+
+        String comboText = "COMBO";
+        String numberText = String.valueOf(circleComboCount);
+
+        // Position in basso a sinistra
+        int comboX = (int)(25 * scaleX);
+        int comboY = BOARD_HEIGHT - (int)(100 * scaleY);
+
+        // Calculate text dimensions for centering
+        int comboWidth = comboFm.stringWidth(comboText);
+        int numberWidth = comboFm.stringWidth(numberText);
+        int maxWidth = Math.max(comboWidth, numberWidth);
+
+        // Draw shadow with enhanced offset for bigger text
+        int shadowOffset = 2;
+        int enhancedShadowOffset = Math.max(2, (int)(shadowOffset * circleComboScale));
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(numberText, comboX + enhancedShadowOffset, comboY + enhancedShadowOffset);
+        g.drawString(comboText, comboX + enhancedShadowOffset, comboY + (int)dynamicSize + enhancedShadowOffset);
+
+        // Draw combo number with extra emphasis (now on top)
+        if (circleComboMilestoneHit) {
+            // Milestone effect - extra glow and scale
+            float milestoneScale = 1.0f + (float)Math.sin(circleComboMilestoneTimer * 0.3) * 0.3f;
+            Font milestoneFont = primaryFont.deriveFont(Font.BOLD, dynamicSize * milestoneScale);
+            g.setFont(milestoneFont);
+
+            // Rainbow effect for milestones
+            float hue = (System.currentTimeMillis() * 0.01f) % 1.0f;
+            Color rainbowColor = Color.getHSBColor(hue, 1.0f, 1.0f);
+            g.setColor(rainbowColor);
+        } else {
+            g.setColor(circleComboColor);
+        }
+
+        g.drawString(numberText, comboX, comboY);
+
+        // Draw main combo text with dynamic color (now on bottom)
+        g.setFont(primaryFont.deriveFont(Font.BOLD, dynamicSize));
+        g.setColor(circleComboColor);
+        g.drawString(comboText, comboX, comboY + (int)dynamicSize);
+
+        // Draw milestone celebration text
+        if (circleComboMilestoneHit && circleComboCount % 10 == 0) {
+            String milestoneText = "";
+            if (circleComboCount >= 50) milestoneText = "LEGENDARY!";
+            else if (circleComboCount >= 20) milestoneText = "AMAZING!";
+            else if (circleComboCount >= 10) milestoneText = "GREAT!";
+
+            if (!milestoneText.isEmpty()) {
+                float milestoneSize = baseSize * 0.6f;
+                g.setFont(primaryFont.deriveFont(Font.BOLD, milestoneSize));
+                FontMetrics milestoneFm = g.getFontMetrics();
+
+                int milestoneX = comboX;
+                int milestoneY = comboY + (int)dynamicSize + milestoneFm.getHeight();
+
+                // Pulsing milestone text
+                float alpha = (float)Math.abs(Math.sin(circleComboMilestoneTimer * 0.15));
+                g.setColor(new Color(circleComboColor.getRed(), circleComboColor.getGreen(),
+                                     circleComboColor.getBlue(), (int)(255 * alpha)));
+                g.drawString(milestoneText, milestoneX, milestoneY);
+            }
+        }
+    }
+
+    // Draw central circle with health-based visual effects
+    private void drawCentralCircleWithEffects(Graphics2D g, double scaledRadius) {
+        double healthPercent = circleHealth / circleMaxHealth;
+
+        // Calculate color based on health - transitions from dark blue to white
+        int baseR = 40;
+        int baseG = 40;
+        int baseB = 60;
+
+        // As health decreases, color becomes whiter
+        int r = (int)(baseR + (255 - baseR) * (1 - healthPercent));
+        int g_val = (int)(baseG + (255 - baseG) * (1 - healthPercent));
+        int b = (int)(baseB + (255 - baseB) * (1 - healthPercent));
+
+        // Main circle
+        g.setColor(new Color(r, g_val, b, 200));
+        g.fillOval((int)(circleCenterX - scaledRadius), (int)(circleCenterY - scaledRadius),
+                   (int)(scaledRadius * 2), (int)(scaledRadius * 2));
+
+        // Damage effects - pulsating rings when health is low
+        if (healthPercent < 0.5) {
+            long currentTime = System.currentTimeMillis();
+            double pulseSpeed = 3.0 - (healthPercent * 4); // Faster pulse as health decreases
+            double pulse = Math.sin((currentTime / 200.0) * pulseSpeed) * 0.5 + 0.5;
+
+            // Outer warning ring
+            int ringAlpha = (int)(150 * (1 - healthPercent) * pulse);
+            g.setColor(new Color(255, 100, 100, ringAlpha));
+            g.setStroke(new BasicStroke((float)(5 * Math.min(scaleX, scaleY))));
+
+            double ringOffset = 10 * (1 - healthPercent) * pulse;
+            g.drawOval(
+                (int)(circleCenterX - scaledRadius - ringOffset),
+                (int)(circleCenterY - scaledRadius - ringOffset),
+                (int)(scaledRadius * 2 + ringOffset * 2),
+                (int)(scaledRadius * 2 + ringOffset * 2)
+            );
+
+            // Inner cracks/distortion effect when very low health
+            if (healthPercent < 0.25) {
+                g.setColor(new Color(255, 255, 255, (int)(100 * pulse)));
+                int numCracks = 8;
+                for (int i = 0; i < numCracks; i++) {
+                    double angle = (Math.PI * 2 * i / numCracks) + (currentTime / 1000.0);
+                    double crackLength = scaledRadius * 0.7 * (1 - healthPercent);
+                    int x1 = (int)(circleCenterX + Math.cos(angle) * scaledRadius * 0.3);
+                    int y1 = (int)(circleCenterY + Math.sin(angle) * scaledRadius * 0.3);
+                    int x2 = (int)(circleCenterX + Math.cos(angle) * (scaledRadius * 0.3 + crackLength));
+                    int y2 = (int)(circleCenterY + Math.sin(angle) * (scaledRadius * 0.3 + crackLength));
+                    g.setStroke(new BasicStroke((float)(2 * Math.min(scaleX, scaleY))));
+                    g.drawLine(x1, y1, x2, y2);
+                }
+            }
+        }
+    }
+
+    // Start death animation
+    private void startDeathAnimation() {
+        circleModeDeathAnimationActive = true;
+        deathAnimationStartTime = System.currentTimeMillis();
+        explosionRadius = 0;
+        System.out.println("DEBUG: Death animation started");
+    }
+
+    // Update death animation
+    private void updateDeathAnimation() {
+        if (!circleModeDeathAnimationActive) return;
+
+        long elapsed = System.currentTimeMillis() - deathAnimationStartTime;
+        double animationDuration = 2000.0; // 2 seconds
+
+        // Keep updating explosion radius during animation
+        double progress = Math.min(1.0, elapsed / animationDuration);
+        double maxRadius = Math.max(BOARD_WIDTH, BOARD_HEIGHT) * 1.5;
+        explosionRadius = maxRadius * Math.pow(progress, 0.7); // Exponential growth
+
+        // Animation stays at final frame (white screen with black "GAME OVER")
+        // User can press ESC or ENTER to return to menu
+    }
+
+    // Draw death explosion animation
+    private void drawDeathExplosion(Graphics2D g) {
+        if (!circleModeDeathAnimationActive) return;
+
+        long elapsed = System.currentTimeMillis() - deathAnimationStartTime;
+        double animationDuration = 2000.0;
+        double progress = Math.min(1.0, elapsed / animationDuration);
+
+        // If animation is complete, show final game over screen (white background, black text)
+        if (progress >= 1.0) {
+            // Final game over screen - white background
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+            // Black GAME OVER text centered, positioned lower
+            float titleSize = (float)(120 * Math.min(scaleX, scaleY));
+            g.setFont(primaryFont.deriveFont(Font.BOLD, titleSize));
+            String gameOverText = "GAME OVER";
+            FontMetrics titleFm = g.getFontMetrics();
+            int textX = (BOARD_WIDTH - titleFm.stringWidth(gameOverText)) / 2;
+            int textY = (int)(BOARD_HEIGHT * 0.4); // Positioned at 40% from top (lower than center)
+
+            g.setColor(Color.BLACK);
+            g.drawString(gameOverText, textX, textY);
+
+            // Score (balls deflected) below GAME OVER
+            float scoreSize = (float)(48 * Math.min(scaleX, scaleY));
+            g.setFont(primaryFont.deriveFont(Font.BOLD, scoreSize));
+            String scoreText = getText("CIRCLE_MODE_BALLS_DEFLECTED_LABEL") + " " + circleScore;
+            FontMetrics scoreFm = g.getFontMetrics();
+            int scoreX = (BOARD_WIDTH - scoreFm.stringWidth(scoreText)) / 2;
+            int scoreY = textY + (int)(100 * scaleY);
+
+            g.setColor(new Color(60, 60, 60));
+            g.drawString(scoreText, scoreX, scoreY);
+
+            // Instructions to exit (small text below)
+            float instructionSize = (float)(20 * Math.min(scaleX, scaleY));
+            g.setFont(primaryFont.deriveFont(Font.PLAIN, instructionSize));
+            String instructionText = "ESC - Menu";
+            FontMetrics instructionFm = g.getFontMetrics();
+            int instructionX = (BOARD_WIDTH - instructionFm.stringWidth(instructionText)) / 2;
+            int instructionY = scoreY + (int)(80 * scaleY);
+
+            g.setColor(new Color(100, 100, 100));
+            g.drawString(instructionText, instructionX, instructionY);
+            return;
+        }
+
+        // Draw expanding white explosion rings during animation
+        int numRings = 5;
+        for (int i = 0; i < numRings; i++) {
+            double ringProgress = progress - (i * 0.1);
+            if (ringProgress > 0 && ringProgress < 1.0) {
+                double ringRadius = explosionRadius * ringProgress;
+                int alpha = (int)(255 * (1 - ringProgress));
+                g.setColor(new Color(255, 255, 255, alpha));
+                g.fillOval(
+                    (int)(circleCenterX - ringRadius),
+                    (int)(circleCenterY - ringRadius),
+                    (int)(ringRadius * 2),
+                    (int)(ringRadius * 2)
+                );
+            }
+        }
+
+        // When explosion covers screen, show GAME OVER text in black
+        if (progress > 0.3) {
+            // White screen
+            int whiteAlpha = (int)(255 * Math.min(1.0, (progress - 0.3) / 0.3));
+            g.setColor(new Color(255, 255, 255, whiteAlpha));
+            g.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+            // Black GAME OVER text appears
+            if (progress > 0.5) {
+                float fadeIn = (float)Math.min(1.0, (progress - 0.5) / 0.3);
+                float titleSize = (float)(120 * Math.min(scaleX, scaleY));
+                g.setFont(primaryFont.deriveFont(Font.BOLD, titleSize));
+                String gameOverText = "GAME OVER";
+                FontMetrics fm = g.getFontMetrics();
+                int textX = (BOARD_WIDTH - fm.stringWidth(gameOverText)) / 2;
+                int textY = BOARD_HEIGHT / 2;
+
+                g.setColor(new Color(0, 0, 0, (int)(255 * fadeIn)));
+                g.drawString(gameOverText, textX, textY);
+            }
+        }
+    }
+
+    // Draw semicircular paddle pointing at mouse
+    private void drawCirclePaddle(Graphics2D g) {
+        double arcDegrees = circlePaddleArcDegrees;
+        // Apply smooth enlarge transition (1.0 = normal, 1.5 = fully enlarged)
+        double enlargeFactor = 1.0 + (0.5 * circlePaddleEnlargeProgress);
+        arcDegrees *= enlargeFactor;
+
+        // Calculate paddle orbit radius with scaling
+        double scaleFactor = Math.min(scaleX, scaleY);
+        double paddleOrbitRadius = (circleRadius + circlePaddleDistance) * scaleFactor;
+        double scaledThickness = circlePaddleThickness * scaleFactor;
+
+        // Get player 1 paddle theme image
+        BufferedImage paddleImg = null;
+        if (selectedPaddleTheme >= 0 && selectedPaddleTheme < bluePaddleThemeImages.size()) {
+            paddleImg = bluePaddleThemeImages.get(selectedPaddleTheme);
+        }
+
+        // Draw paddle with gradient sampled from theme image
+        double angleDeg = Math.toDegrees(-circlePaddleAngle);
+        double startAngleDeg = angleDeg - (arcDegrees / 2.0);
+        int arcX = (int)(circleCenterX - paddleOrbitRadius);
+        int arcY = (int)(circleCenterY - paddleOrbitRadius);
+        int arcSize = (int)(paddleOrbitRadius * 2);
+
+        // Use glow color for paddle
+        Color paddleGlowColor = generalSettings.getPaddleGlowColor(true);
+
+        // Draw glow effect under paddle (same as classic mode paddles)
+        g.setColor(new Color(paddleGlowColor.getRed(), paddleGlowColor.getGreen(), paddleGlowColor.getBlue(), 150));
+        g.setStroke(new BasicStroke((float)(scaledThickness * 2 + 8), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawArc(arcX, arcY, arcSize, arcSize, (int)startAngleDeg, (int)arcDegrees);
+
+        // Draw paddle with glow color
+        g.setColor(paddleGlowColor);
+        g.setStroke(new BasicStroke((float)(scaledThickness * 2), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawArc(arcX, arcY, arcSize, arcSize, (int)startAngleDeg, (int)arcDegrees);
+    }
+
+    // Draw power-up
+    private void drawPowerUp(Graphics2D g, CirclePowerUp powerUp) {
+        int x = (int)powerUp.x;
+        int y = (int)powerUp.y;
+        int r = (int)(powerUp.radius * Math.min(scaleX, scaleY));
+
+        // Color based on type (no symbols)
+        Color powerUpColor;
+        switch (powerUp.type) {
+            case 0: powerUpColor = new Color(100, 255, 100, 220); break; // Health - verde
+            case 1: powerUpColor = new Color(100, 150, 255, 220); break; // SlowMo - blu
+            case 2: powerUpColor = new Color(255, 255, 0, 220); break;   // PaddleEnlarge - giallo
+            case 3: powerUpColor = new Color(200, 100, 255, 220); break; // Shield - viola
+            default: powerUpColor = new Color(255, 255, 255, 220); break;
+        }
+
+        // Draw filled circle with color (no symbols, no border)
+        g.setColor(powerUpColor);
+        g.fillOval(x - r, y - r, r * 2, r * 2);
+    }
+
+    // Draw Circle Mode UI (score, time, power-ups status)
+    private void drawCircleModeUI(Graphics2D g) {
+        g.setFont(primaryFont.deriveFont(Font.BOLD, 24f));
+        g.setColor(Color.WHITE);
+
+        // Survival time (top right)
+        long seconds = circleSurvivalTime / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+        String timeText = String.format(getText("CIRCLE_MODE_TIME") + ": %02d:%02d", minutes, seconds);
+        FontMetrics fm = g.getFontMetrics();
+        int timeX = getWidth() - fm.stringWidth(timeText) - 20;
+        g.drawString(timeText, timeX, 40);
+
+        // Active power-ups (bottom left)
+        int powerUpY = getHeight() - 80;
+        g.setFont(primaryFont.deriveFont(Font.PLAIN, 16f));
+        if (circleSlowMoActive) {
+            g.setColor(new Color(100, 200, 255));
+            g.drawString(getText("CIRCLE_MODE_SLOWMO_ACTIVE"), 20, powerUpY);
+            powerUpY -= 25;
+        }
+        if (circlePaddleEnlargedActive) {
+            g.setColor(new Color(255, 200, 100));
+            g.drawString(getText("CIRCLE_MODE_PADDLE_ENLARGED"), 20, powerUpY);
+            powerUpY -= 25;
+        }
+        if (circleShieldActive) {
+            g.setColor(new Color(100, 255, 100));
+            g.drawString(getText("CIRCLE_MODE_SHIELD_ACTIVE"), 20, powerUpY);
+            powerUpY -= 25;
+        }
+
+        // Instructions (bottom right)
+        g.setColor(new Color(200, 200, 200));
+        g.setFont(primaryFont.deriveFont(Font.PLAIN, 14f));
+        String instruction = getText("CIRCLE_MODE_GAME_INSTRUCTION");
+        fm = g.getFontMetrics();
+        int instrX = getWidth() - fm.stringWidth(instruction) - 20;
+        g.drawString(instruction, instrX, getHeight() - 20);
+    }
+
+    // Handle mouse movement in Circle Mode
+    private void handleCircleModeMenuMouseMove(MouseEvent e) {
+        // Get mouse position in screen coordinates
+        double mouseX = e.getX();
+        double mouseY = e.getY();
+
+        // Check if mouse is over MODALITA trapezoid
+        boolean modalitaWasHovered = modalitaTrapezoidHovered;
+        modalitaTrapezoidHovered = isInsideModalitaTrapezoid((int)mouseX, (int)mouseY);
+        if (modalitaTrapezoidHovered != modalitaWasHovered) {
+            repaint();
+        }
+
+        // Check if mouse is over ADVANCEMENT trapezoid
+        boolean advancementWasHovered = advancementTrapezoidHovered;
+        advancementTrapezoidHovered = isInsideAdvancementTrapezoid((int)mouseX, (int)mouseY);
+        if (advancementTrapezoidHovered != advancementWasHovered) {
+            repaint();
+        }
+
+        // Calculate center position (same as in menu drawing)
+        int centerX = BOARD_WIDTH / 2;
+        int centerY = BOARD_HEIGHT / 2;
+
+        double dx = mouseX - centerX;
+        double dy = mouseY - centerY;
+
+        // Update paddle angle to follow mouse
+        circlePaddleAngle = Math.atan2(dy, dx);
+
+        // Check if mouse is over START button (using top trapezoid width)
+        int paraHeight = (int)(120 * scaleY);
+        int paraY = BOARD_HEIGHT - paraHeight;
+        int topWidth = (int)(600 * scaleX);
+        int paraCenterX = BOARD_WIDTH / 2;
+
+        float startTextSize = (float)(paraHeight * 0.7);
+        Font startFont = primaryFont.deriveFont(Font.BOLD, startTextSize);
+        FontMetrics startFm = getFontMetrics(startFont);
+        String startText = "START";
+        int textHeight = startFm.getHeight();
+        int textY = paraY + (paraHeight + startFm.getAscent() - startFm.getDescent()) / 2;
+
+        // Text spans 85% of top trapezoid width
+        int availableWidth = (int)(topWidth * 0.85);
+        int textStartX = paraCenterX - availableWidth / 2;
+        int textEndX = paraCenterX + availableWidth / 2;
+
+        // Check if mouse is inside START text bounds (with some padding)
+        int padding = (int)(20 * Math.min(scaleX, scaleY));
+        boolean wasHovered = circleModeStartButtonHovered;
+        circleModeStartButtonHovered = (mouseX >= textStartX - padding && mouseX <= textEndX + padding &&
+                                        mouseY >= textY - textHeight + padding && mouseY <= textY + padding);
+
+        // Repaint if hover state changed
+        if (wasHovered != circleModeStartButtonHovered) {
+            repaint();
+        } else {
+            repaint(); // Still repaint for paddle movement
+        }
+    }
+
+    private void handleCircleModeMouseMove(MouseEvent e) {
+        // Get mouse position in screen coordinates
+        // DON'T divide by scale - mouse coordinates are already in screen space
+        // and circleCenterX/Y are also in screen space (BOARD_WIDTH/HEIGHT)
+        double mouseX = e.getX();
+        double mouseY = e.getY();
+
+        double dx = mouseX - circleCenterX;
+        double dy = mouseY - circleCenterY;
+
+        // Update paddle angle to follow mouse
+        circlePaddleAngle = Math.atan2(dy, dx);
+    }
+
+    // Update paddle angle using global mouse position (works even when mouse leaves window)
+    private void updateCirclePaddleAngleFromGlobalMouse() {
+        try {
+            // Get global mouse position using MouseInfo (works outside window)
+            java.awt.PointerInfo pointerInfo = java.awt.MouseInfo.getPointerInfo();
+            if (pointerInfo == null) return;
+
+            Point mouseLocationOnScreen = pointerInfo.getLocation();
+
+            // Get component location on screen
+            Point componentLocationOnScreen = getLocationOnScreen();
+
+            // Convert global coordinates to component-relative coordinates
+            double mouseX = mouseLocationOnScreen.x - componentLocationOnScreen.x;
+            double mouseY = mouseLocationOnScreen.y - componentLocationOnScreen.y;
+
+            // Calculate angle from center to mouse
+            double dx = mouseX - circleCenterX;
+            double dy = mouseY - circleCenterY;
+
+            // Update paddle angle to follow mouse
+            circlePaddleAngle = Math.atan2(dy, dx);
+        } catch (Exception e) {
+            // Ignore errors (component not showing, etc.)
+        }
+    }
+
+    // Draw pause overlay for Circle Mode
+    private void drawCircleModePauseOverlay(Graphics2D g) {
+        // Semi-transparent dark overlay
+        g.setColor(new Color(0, 0, 0, 180));
+        g.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+        // "PAUSA" text
+        g.setColor(Color.WHITE);
+        g.setFont(primaryFont.deriveFont(Font.BOLD, (float)(72f * Math.min(scaleX, scaleY))));
+        String pauseText = "PAUSA";
+        FontMetrics fm = g.getFontMetrics();
+        int textX = (BOARD_WIDTH - fm.stringWidth(pauseText)) / 2;
+        int textY = BOARD_HEIGHT / 2 - 50;
+        g.drawString(pauseText, textX, textY);
+
+        // Instructions
+        g.setFont(primaryFont.deriveFont(Font.PLAIN, (float)(24f * Math.min(scaleX, scaleY))));
+        String instruction1 = "SPAZIO - Riprendi";
+        String instruction2 = "ESC - Esci al menu";
+        fm = g.getFontMetrics();
+
+        // First instruction
+        textX = (BOARD_WIDTH - fm.stringWidth(instruction1)) / 2;
+        textY = BOARD_HEIGHT / 2 + 50;
+        g.drawString(instruction1, textX, textY);
+
+        // Second instruction
+        textX = (BOARD_WIDTH - fm.stringWidth(instruction2)) / 2;
+        textY = BOARD_HEIGHT / 2 + 85;
+        g.drawString(instruction2, textX, textY);
+    }
+
+    // Component listener to prevent window movement during pause
+    private java.awt.event.ComponentAdapter pauseWindowComponentListener = null;
+
+    // Add listener to prevent window movement during pause
+    private void addPauseWindowListener(JFrame frame) {
+        if (pauseWindowComponentListener != null) {
+            return; // Already added
+        }
+
+        pauseWindowComponentListener = new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentMoved(java.awt.event.ComponentEvent e) {
+                // Force window back to saved position during pause
+                if (circleModePaused && pauseWindowLocation != null) {
+                    SwingUtilities.invokeLater(() -> {
+                        frame.setLocation(pauseWindowLocation);
+                    });
+                }
+            }
+        };
+
+        frame.addComponentListener(pauseWindowComponentListener);
+    }
+
+    // Remove pause window listener
+    private void removePauseWindowListener(JFrame frame) {
+        if (pauseWindowComponentListener != null) {
+            frame.removeComponentListener(pauseWindowComponentListener);
+            pauseWindowComponentListener = null;
+        }
+    }
+
+    // Handle keyboard input in Circle Mode
+    // Handle Circle Mode Menu input
+    private void handleCircleModeMenuInput(KeyEvent e) {
+        int keyCode = e.getKeyCode();
+
+        switch (keyCode) {
+            case KeyEvent.VK_ENTER:
+                // Start Circle Mode
+                startCircleMode();
+                break;
+            case KeyEvent.VK_ESCAPE:
+                // Return to game mode selection
+                circleMenuBalls.clear(); // Clear menu balls when exiting
+                stateBeforeModeSelection = currentState; // Save current state (CIRCLE_MODE_MENU)
+                setState(GameState.GAME_MODE_SELECTION);
+                break;
+        }
+        repaint();
+    }
+
+    // Handle Circle Mode Menu mouse click
+    private void handleCircleModeMenuMouseClick(MouseEvent e) {
+        int mouseX = e.getX();
+        int mouseY = e.getY();
+
+        // Check for MODALITA trapezoid click
+        if (isInsideModalitaTrapezoid(mouseX, mouseY)) {
+            // Start expansion transition
+            isModalitaTrapezoidExpanding = true;
+            modalitaExpansionProgress = 0.0;
+            circleMenuBalls.clear(); // Clear menu balls when exiting
+            repaint();
+            return;
+        }
+
+        // Check for ADVANCEMENT trapezoid click
+        if (isInsideAdvancementTrapezoid(mouseX, mouseY)) {
+            // TODO: Implement advancement functionality
+            advancementTrapezoidClicked = true;
+            repaint();
+            return;
+        }
+
+        // Circle Mode now starts only by holding the central ball
+        // No click events on START text
+    }
+
+    // Handle Game Mode Selection mouse click
+    private void handleGameModeSelectionMouseClick(MouseEvent e) {
+        int mouseX = e.getX();
+        int mouseY = e.getY();
+
+        // Don't process clicks during transition
+        if (isModeTransitionActive) {
+            return;
+        }
+
+        // Calculate arrow positions (same as in drawGameModeSelector)
+        int selectorY = (int)(BOARD_HEIGHT - 100 * scaleY);
+        int centerX = BOARD_WIDTH / 2;
+        int arrowSize = (int)(30 * Math.min(scaleX, scaleY));
+        int arrowSpacing = (int)(200 * scaleX);
+        int arrowCenterY = selectorY - arrowSize/3;
+
+        // Left arrow bounds
+        int leftArrowX = centerX - arrowSpacing;
+        int leftArrowMinX = leftArrowX - arrowSize/2;
+        int leftArrowMaxX = leftArrowX + arrowSize;
+        int leftArrowMinY = arrowCenterY - arrowSize/2 - arrowSize/4;
+        int leftArrowMaxY = arrowCenterY + arrowSize/2 + arrowSize/4;
+
+        // Right arrow bounds
+        int rightArrowX = centerX + arrowSpacing;
+        int rightArrowMinX = rightArrowX - arrowSize;
+        int rightArrowMaxX = rightArrowX + arrowSize/2;
+        int rightArrowMinY = arrowCenterY - arrowSize/2 - arrowSize/4;
+        int rightArrowMaxY = arrowCenterY + arrowSize/2 + arrowSize/4;
+
+        // Check if clicked on left arrow
+        if (mouseX >= leftArrowMinX && mouseX <= leftArrowMaxX &&
+            mouseY >= leftArrowMinY && mouseY <= leftArrowMaxY) {
+            // Go to previous mode
+            transitionFromMode = selectedGameMode;
+            transitionToMode = (selectedGameMode - 1 + gameModes.length) % gameModes.length;
+            startModeTransition();
+            selectedGameMode = transitionToMode;
+            repaint();
+            return;
+        }
+
+        // Check if clicked on right arrow
+        if (mouseX >= rightArrowMinX && mouseX <= rightArrowMaxX &&
+            mouseY >= rightArrowMinY && mouseY <= rightArrowMaxY) {
+            // Go to next mode
+            transitionFromMode = selectedGameMode;
+            transitionToMode = (selectedGameMode + 1) % gameModes.length;
+            startModeTransition();
+            selectedGameMode = transitionToMode;
+            repaint();
+            return;
+        }
+
+        // Check if clicked on preview area (entire screen except arrows area)
+        // Clicking on preview confirms selection and starts the game
+        int arrowAreaMinY = selectorY - arrowSize - 20;
+        if (mouseY < arrowAreaMinY) {
+            // Clicked on preview - start game with selected mode
+            startGameWithMode(selectedGameMode);
+        }
+    }
+
+    private void handleCircleModeInput(KeyEvent e) {
+        int keyCode = e.getKeyCode();
+
+        switch (keyCode) {
+            case KeyEvent.VK_ESCAPE:
+                // Check if death animation is active and completed
+                if (circleModeDeathAnimationActive) {
+                    long elapsed = System.currentTimeMillis() - deathAnimationStartTime;
+                    if (elapsed >= 2000) { // Animation complete (2 seconds)
+                        // Exit from game over screen to Circle Mode menu
+                        cleanupCircleMode();
+                        circleModeDeathAnimationActive = false;
+                        setState(GameState.CIRCLE_MODE_MENU);
+                        System.out.println("DEBUG: Exiting from Circle Mode game over to menu");
+                    }
+                } else if (circleModePaused) {
+                    // ESC during pause - cleanup and return to Circle Mode menu
+                    Window window = SwingUtilities.getWindowAncestor(this);
+                    if (window instanceof JFrame) {
+                        JFrame frame = (JFrame) window;
+                        removePauseWindowListener(frame);
+                    }
+
+                    // Clean up and reset game state, then return to menu
+                    cleanupCircleMode();
+                    setState(GameState.CIRCLE_MODE_MENU);
+                    System.out.println("DEBUG: Exiting Circle Mode from pause to Circle Mode menu (game reset)");
+                } else {
+                    // ESC during play - pause
+                    pauseCircleMode();
+                }
+                break;
+
+            case KeyEvent.VK_SPACE:
+                if (circleModePaused) {
+                    // SPACE during pause - resume
+                    resumeCircleMode();
+                } else if (!circleModeDeathAnimationActive) {
+                    // SPACE during play - pause (but NOT during game over)
+                    pauseCircleMode();
+                }
+                break;
+        }
+    }
+
+    // Pause Circle Mode
+    private void pauseCircleMode() {
+        circleModePaused = true;
+        circleModePauseStartTime = System.currentTimeMillis();
+
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame) {
+            JFrame frame = (JFrame) window;
+            pauseWindowLocation = frame.getLocation(); // Save current position
+
+            frame.dispose();
+            frame.setUndecorated(false);
+            frame.setResizable(false); // Prevent resizing
+            frame.setVisible(true);
+            frame.setLocation(pauseWindowLocation); // Restore position
+
+            // Add listener to prevent window movement
+            addPauseWindowListener(frame);
+
+            System.out.println("DEBUG: Circle Mode PAUSED - decorations shown, move/resize blocked");
+        }
+    }
+
+    // Resume Circle Mode
+    private void resumeCircleMode() {
+        circleModePaused = false;
+
+        // Adjust start time to account for pause duration
+        long pauseDuration = System.currentTimeMillis() - circleModePauseStartTime;
+        circleModeStartTime += pauseDuration;
+        lastBallSpawnTime += pauseDuration;
+        lastPowerUpSpawnTime += pauseDuration;
+
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame) {
+            JFrame frame = (JFrame) window;
+
+            // Remove pause window listener
+            removePauseWindowListener(frame);
+
+            frame.dispose();
+            frame.setUndecorated(true);
+            frame.setResizable(true); // Re-enable resizing (for expansion)
+            frame.setVisible(true);
+
+            pauseWindowLocation = null;
+            System.out.println("DEBUG: Circle Mode RESUMED - decorations hidden");
         }
     }
 

@@ -19,6 +19,9 @@ import static context.GameContext.selectedPaddleTheme;
 import static context.GameContext.selectedRightPaddleTheme;
 import static context.LanguageContext.currentLanguageCode;
 import static context.SettingsContext.*;
+import static context.SettingsContext.circleMaxCombo;
+import static context.SettingsContext.circleMaxScore;
+import static context.SettingsContext.wasInCircleMode;
 
 
 public class GeneralSettings {
@@ -128,6 +131,13 @@ public class GeneralSettings {
                 // Actually load the language content and update localized arrays
                 languageSettings.loadLanguage(currentLanguageCode);
                 updateLocalizedArrays();
+
+                // Load Circle Mode statistics
+                circleMaxCombo = Integer.parseInt(properties.getProperty("circle.max.combo", "0"));
+                circleMaxScore = Integer.parseInt(properties.getProperty("circle.max.score", "0"));
+
+                // Load if user was in Circle Mode when they closed the game
+                wasInCircleMode = Boolean.parseBoolean(properties.getProperty("was.in.circle.mode", "false"));
 
                 // Validate selectedBackground index
                 if (selectedBackground < 0 || selectedBackground >= backgroundImages.size()) {
