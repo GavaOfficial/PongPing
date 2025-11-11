@@ -84,11 +84,11 @@
         document.getElementById("loading").style.display = "none";
 
         // Run the PongPing JAR in web mode
-        // Note: All files must be served via HTTP server
-        // The /app/ prefix refers to the web server root
+        // The /app/ prefix maps to the GitHub Pages root
+        // For project pages, use /app/PongPing/PongGame.jar
         // Web mode is automatically enabled in src-web/Main.java
         console.log("=== Starting PongPing ===");
-        const exitCode = await cheerpjRunJar("/app/PongGame.jar");
+        const exitCode = await cheerpjRunJar("/app/PongPing/PongGame.jar");
 
         console.log("Game exited with code:", exitCode);
     </script>
