@@ -3,6 +3,8 @@
 
 # Java JAR files
 *.jar
+# Exception: Allow web version JAR in root
+!PongGame.jar
 
 # Package Files
 *.war
