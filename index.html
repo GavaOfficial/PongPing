@@ -86,9 +86,9 @@
         // Run the PongPing JAR in web mode
         // Note: All files must be served via HTTP server
         // The /app/ prefix refers to the web server root
-        // Pass --web-mode flag to disable desktop-only features
-        console.log("=== Starting PongPing with --web-mode flag ===");
-        const exitCode = await cheerpjRunJar("/app/dist/PongGame.jar", "--web-mode");
+        // Web mode is automatically enabled in src-web/Main.java
+        console.log("=== Starting PongPing ===");
+        const exitCode = await cheerpjRunJar("/app/PongGame.jar");
 
         console.log("Game exited with code:", exitCode);
     </script>
