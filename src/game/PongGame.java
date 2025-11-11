@@ -2,6 +2,7 @@ package game;
 
 import context.AnimationContext;
 import context.ContextLoader;
+import context.WebModeContext;
 
 import javax.swing.*;
 import javax.sound.sampled.*;
@@ -3224,6 +3225,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     
     private void drawMenuBall(Graphics2D g) {
+        // Web mode: Disable menu ball rendering to reduce lag
+        if (WebModeContext.isWebMode()) {
+            return;
+        }
+
         // Draw menu ball with glow effect
         int glowSize = (int)(10 * Math.min(scaleX, scaleY));
         
@@ -4313,8 +4319,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Reset transform
         g.setTransform(originalTransform);
 
-        // Draw bouncing ball (same style as menu ball) - ONLY if not transitioning
-        if (!isModeTransitionActive) {
+        // Draw bouncing ball (same style as menu ball) - ONLY if not transitioning and not in web mode
+        if (!isModeTransitionActive && !WebModeContext.isWebMode()) {
             int glowSize = (int)(10 * Math.min(scaleX, scaleY));
 
             // Outer glow
@@ -4548,24 +4554,26 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Draw paddles with gradient effect and rounded corners - stessi colori del menu
         int cornerRadius = Math.max(4, PADDLE_WIDTH / 4); // Corner radius based on paddle width
-        
-        // Draw dynamic paddle glow effects
-        if (leftPaddleGlow > 0) {
-            int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
-            int alpha = (int)(leftPaddleGlow * 150);
-            g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
-            g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2, 
-                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize, 
-                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
-        }
-        
-        if (rightPaddleGlow > 0) {
-            int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
-            int alpha = (int)(rightPaddleGlow * 150);
-            g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
-            g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
-                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
-                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+
+        // Draw dynamic paddle glow effects (disabled in web mode for performance)
+        if (!WebModeContext.isWebMode()) {
+            if (leftPaddleGlow > 0) {
+                int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
+                int alpha = (int)(leftPaddleGlow * 150);
+                g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
+                g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2,
+                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+            }
+
+            if (rightPaddleGlow > 0) {
+                int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
+                int alpha = (int)(rightPaddleGlow * 150);
+                g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
+                g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
+                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+            }
         }
         
         // Left paddle with rounded corners - use selected theme
@@ -4683,24 +4691,26 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Draw paddles with gradient effect and rounded corners - stessi colori del menu
         int cornerRadius = Math.max(4, PADDLE_WIDTH / 4);
-        
-        // Draw dynamic paddle glow effects
-        if (leftPaddleGlow > 0) {
-            int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
-            int alpha = (int)(leftPaddleGlow * 150);
-            g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
-            g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2, 
-                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize, 
-                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
-        }
-        
-        if (rightPaddleGlow > 0) {
-            int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
-            int alpha = (int)(rightPaddleGlow * 150);
-            g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
-            g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
-                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
-                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+
+        // Draw dynamic paddle glow effects (disabled in web mode for performance)
+        if (!WebModeContext.isWebMode()) {
+            if (leftPaddleGlow > 0) {
+                int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
+                int alpha = (int)(leftPaddleGlow * 150);
+                g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
+                g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2,
+                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+            }
+
+            if (rightPaddleGlow > 0) {
+                int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
+                int alpha = (int)(rightPaddleGlow * 150);
+                g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
+                g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
+                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+            }
         }
         
         // Left paddle with rounded corners - use selected theme
@@ -5190,22 +5200,22 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 updatePauseTransition();
                 return; // Don't process other game logic during pause transition
             }
-            
+
             // Check if this is a resume transition
             if (isTransitioningFromPause) {
                 updateResumeTransition();
                 return; // Don't process other game logic during resume transition
             }
-            
+
             // Check if this is a rank-to-home transition
             if (isRankToHomeTransition) {
                 updateRankToHomeTransition();
                 return; // Don't process other game logic during rank-to-home transition
             }
-            
+
             // Handle normal menu/game transitions
             transitionProgress += 0.02; // Adjust speed as needed
-            
+
             if (transitionProgress >= 1.0) {
                 transitionProgress = 1.0;
                 isTransitioning = false;
@@ -5213,38 +5223,38 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             }
             return;
         }
-        
+
         // Handle home to themes transition
         if (isHomeToThemesTransition) {
             updateHomeToThemesTransition();
             return;
         }
-        
+
         // Handle home to paddle transition
         if (isHomeToPaddleTransition) {
             updateHomeToPaddleTransition();
             return;
         }
-        
+
         // Handle home to settings transition
         if (isHomeToSettingsTransition) {
             updateHomeToSettingsTransition();
             return;
         }
-        
+
         // Handle settings to home transition
         if (isSettingsToHomeTransition) {
             updateSettingsToHomeTransition();
             return;
         }
-        
-        
+
+
         // Handle themes to home transition (inverse)
         if (isThemesToHomeTransition) {
             updateThemesToHomeTransition();
             return;
         }
-        
+
         // Handle paddle to home transition (inverse)
         if (isPaddleToHomeTransition) {
             updatePaddleToHomeTransition();
@@ -5260,14 +5270,18 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Update menu ball animation
         if (currentState == GameState.MENU) {
             updateMenuBall();
-            updateParticles(); // Aggiorna particelle di sfondo nel menu
+            if (!WebModeContext.isWebMode()) {
+                updateParticles(); // Aggiorna particelle di sfondo nel menu (disabled in web mode)
+            }
             return;
         }
-        
+
         // Update first access carousel and particles
         if (currentState == GameState.FIRST_ACCESS) {
             updateCarousel();
-            updateParticles(); // Aggiorna particelle di sfondo
+            if (!WebModeContext.isWebMode()) {
+                updateParticles(); // Aggiorna particelle di sfondo (disabled in web mode)
+            }
             return;
         }
 
@@ -5286,82 +5300,117 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 isTransitioningToDemo = false;
             }
         }
-        
+
         // Update reverse transition from demo to settings
         if (currentState == GameState.SETTINGS && isTransitioningFromDemo) {
-            demoTransitionProgress -= 0.03; // Reverse transition speed
-            if (demoTransitionProgress <= 0.0) {
+            // Skip transition in web mode
+            if (WebModeContext.isWebMode()) {
                 demoTransitionProgress = 0.0;
                 isTransitioningFromDemo = false;
+            } else {
+                demoTransitionProgress -= 0.03; // Reverse transition speed
+                if (demoTransitionProgress <= 0.0) {
+                    demoTransitionProgress = 0.0;
+                    isTransitioningFromDemo = false;
+                }
             }
         }
         
         // Update transition from demo to menu
         if (isTransitioningDemoToMenu) {
-            demoToMenuProgress += 0.02; // Slower transition for smoother effect
-            if (demoToMenuProgress >= 1.0) {
+            // Skip transition in web mode
+            if (WebModeContext.isWebMode()) {
                 demoToMenuProgress = 1.0;
                 isTransitioningDemoToMenu = false;
                 currentState = GameState.MENU;
                 isDemoMode = false;
-                
+
                 // Initialize menu ball for smooth transition
                 menuBallX = BOARD_WIDTH / 2 - menuBallSize / 2;
                 menuBallY = BOARD_HEIGHT / 2 - menuBallSize / 2;
                 double initialSpeed = 4.5 * Math.min(scaleX, scaleY);
                 menuBallVX = (Math.random() > 0.5) ? initialSpeed : -initialSpeed;
                 menuBallVY = initialSpeed;
+            } else {
+                demoToMenuProgress += 0.02; // Slower transition for smoother effect
+                if (demoToMenuProgress >= 1.0) {
+                    demoToMenuProgress = 1.0;
+                    isTransitioningDemoToMenu = false;
+                    currentState = GameState.MENU;
+                    isDemoMode = false;
+
+                    // Initialize menu ball for smooth transition
+                    menuBallX = BOARD_WIDTH / 2 - menuBallSize / 2;
+                    menuBallY = BOARD_HEIGHT / 2 - menuBallSize / 2;
+                    double initialSpeed = 4.5 * Math.min(scaleX, scaleY);
+                    menuBallVX = (Math.random() > 0.5) ? initialSpeed : -initialSpeed;
+                    menuBallVY = initialSpeed;
+                }
             }
         }
         
         // Update rank screen animation
         if (showRankScreen) {
-            // Phase 1: Paddle transition from game position to rank position
-            if (!rankPaddleTransitionComplete) {
-                rankPaddleProgress += 0.025; // Velocità transizione paddle
-                if (rankPaddleProgress >= 1.0) {
-                    rankPaddleProgress = 1.0;
-                    rankPaddleTransitionComplete = true;
-                    rankTextTransitionStarted = true;
-                }
-            }
-            
-            // Phase 2: Text enters from right (only after paddle transition is complete)
-            if (rankTextTransitionStarted && rankPaddleTransitionComplete) {
-                rankTextProgress += 0.035; // Velocità entrata testo
-                if (rankTextProgress >= 1.0) {
-                    rankTextProgress = 1.0;
-                }
-            }
-            
-            // Phase 3: Scrolling text drops from top (after paddle transition is complete)
-            if (rankPaddleTransitionComplete && !scrollingTextStarted) {
+            // Skip animations in web mode for better performance
+            if (WebModeContext.isWebMode()) {
+                rankPaddleProgress = 1.0;
+                rankPaddleTransitionComplete = true;
+                rankTextTransitionStarted = true;
+                rankTextProgress = 1.0;
                 scrollingTextStarted = true;
-            }
-            
-            if (scrollingTextStarted) {
-                if (!scrollingTextEntryComplete) {
-                    // Drop animation from top
-                    scrollingTextDropProgress += 0.04; // Velocità caduta dall'alto
-                    if (scrollingTextDropProgress >= 1.0) {
-                        scrollingTextDropProgress = 1.0;
-                        scrollingTextEntryComplete = true;
+                scrollingTextDropProgress = 1.0;
+                scrollingTextEntryComplete = true;
+            } else {
+                // Phase 1: Paddle transition from game position to rank position
+                if (!rankPaddleTransitionComplete) {
+                    rankPaddleProgress += 0.025; // Velocità transizione paddle
+                    if (rankPaddleProgress >= 1.0) {
+                        rankPaddleProgress = 1.0;
+                        rankPaddleTransitionComplete = true;
+                        rankTextTransitionStarted = true;
                     }
                 }
-                // No more complex animations - just show difficulty text normally
+
+                // Phase 2: Text enters from right (only after paddle transition is complete)
+                if (rankTextTransitionStarted && rankPaddleTransitionComplete) {
+                    rankTextProgress += 0.035; // Velocità entrata testo
+                    if (rankTextProgress >= 1.0) {
+                        rankTextProgress = 1.0;
+                    }
+                }
+
+                // Phase 3: Scrolling text drops from top (after paddle transition is complete)
+                if (rankPaddleTransitionComplete && !scrollingTextStarted) {
+                    scrollingTextStarted = true;
+                }
+
+                if (scrollingTextStarted) {
+                    if (!scrollingTextEntryComplete) {
+                        // Drop animation from top
+                        scrollingTextDropProgress += 0.04; // Velocità caduta dall'alto
+                        if (scrollingTextDropProgress >= 1.0) {
+                            scrollingTextDropProgress = 1.0;
+                            scrollingTextEntryComplete = true;
+                        }
+                    }
+                    // No more complex animations - just show difficulty text normally
+                }
             }
         }
         
         // Update checkerboard animation for settings background
         if (currentState == GameState.SETTINGS) {
-            // Calculate dynamic speed based on current settings values
-            double baseSpeed = calculateBackgroundSpeedFromSetting();
-            checkerboardOffset += baseSpeed; // Remove scale factor for consistent speed
-            
-            // Scale tile size and reset point based on window dimensions
-            double scaledTileSize = 40.0 * Math.min(scaleX, scaleY);
-            if (checkerboardOffset >= scaledTileSize) {
-                checkerboardOffset = 0.0;
+            // Disable checkerboard animation in web mode for performance
+            if (!WebModeContext.isWebMode()) {
+                // Calculate dynamic speed based on current settings values
+                double baseSpeed = calculateBackgroundSpeedFromSetting();
+                checkerboardOffset += baseSpeed; // Remove scale factor for consistent speed
+
+                // Scale tile size and reset point based on window dimensions
+                double scaledTileSize = 40.0 * Math.min(scaleX, scaleY);
+                if (checkerboardOffset >= scaledTileSize) {
+                    checkerboardOffset = 0.0;
+                }
             }
             
             // Update paddle width animations for settings
@@ -5640,7 +5689,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         updateParticles();
         updateScreenShake();
         updateBallTrail();
-        updatePaddleGlow();
+        if (!WebModeContext.isWebMode()) {
+            updatePaddleGlow(); // Disabled in web mode for performance
+        }
         updateComboEffects();
         updateRightComboEffects();
     }
@@ -5672,6 +5723,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     private void updateMenuBall() {
+        // Web mode: Disable menu ball animation to reduce lag
+        if (WebModeContext.isWebMode()) {
+            return;
+        }
+
         // Move menu ball
         menuBallX += menuBallVX;
         menuBallY += menuBallVY;
@@ -6013,31 +6069,32 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         paddleExitProgress = 0.0;
         themesPanelProgress = 0.0;
     }
-    
+
     private void startHomeToPaddleTransition(boolean isLeftPaddle) {
         isHomeToPaddleTransition = true;
         homeToPaddleProgress = 0.0;
         paddleTextFadeProgress = 1.0;
         paddlePanelProgress = 0.0;
         isLeftPaddleTransition = isLeftPaddle;
-        
+
         // Center the paddle vertically on screen
         previewPaddleY = (BOARD_HEIGHT - PADDLE_HEIGHT) / 2;
     }
-    
+
     private void startHomeToSettingsTransition() {
         System.out.println("DEBUG: Starting Home to Settings transition!");
+
         isHomeToSettingsTransition = true;
         homeToSettingsProgress = 0.0;
         paddleTranslationProgress = 0.0;
         columnsTranslationProgress = 0.0;
         checkerboardAppearProgress = 0.0;
         checkerboardAnimationProgress = 0.0;
-        
+
         // Reset paddle selection state to ensure clean transition
         leftPaddleSelected = false;
         rightPaddleSelected = false;
-        
+
         // Initialize settings state for proper paddle expansion during transition
         inCategoryColumn = true; // Start in category column (left paddle expanded)
         selectedCategory = 0;
@@ -6048,16 +6105,17 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     private void startSettingsToHomeTransition() {
         System.out.println("DEBUG: Starting Settings to Home transition!");
+
         isSettingsToHomeTransition = true;
         settingsToHomeProgress = 0.0;
         settingsPaddleTranslationProgress = 0.0;
         settingsColumnsTranslationProgress = 0.0;
         settingsCheckerboardDisappearProgress = 0.0;
         settingsCheckerboardAnimationProgress = 0.0;
-        
+
         // Keep current settings state - we're transitioning FROM settings
         // No need to reset selection states, we're leaving them
-        
+
         // Keep current paddle expansion state and animate it back to 0
         // leftPaddleWidthProgress will animate from current value to 0.0
         // rightPaddleWidthProgress will animate from current value to 0.0
@@ -6135,14 +6193,17 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         if (homeToPaddleProgress >= 1.0) {
             homeToPaddleProgress = 1.0;
             isHomeToPaddleTransition = false;
-            
+
+            // Lazy load all paddle themes if in web mode
+            ContextLoader.ensureAllPaddleThemesLoaded();
+
             // Set final state based on which paddle was selected
             if (isLeftPaddleTransition) {
                 currentState = GameState.PADDLE_SELECTION;
             } else {
                 currentState = GameState.RIGHT_PADDLE_SELECTION;
             }
-            
+
             // Reset transition variables
             paddleTextFadeProgress = 1.0;
             paddlePanelProgress = 0.0;
@@ -8598,20 +8659,26 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     private void createParticles(int x, int y, Color color, int count) {
+        // Skip ball particles during game in web mode for better performance
+        if (WebModeContext.isWebMode() &&
+            (currentState == GameState.PLAYING || currentState == GameState.SINGLE_PLAYER)) {
+            return;
+        }
+
         // Limit total active particles to prevent lag
         if (particles.size() >= MAX_ACTIVE_PARTICLES) {
             return; // Skip creating new particles if we're at the limit
         }
-        
+
         // Only create as many particles as we have room for
         int actualCount = Math.min(count, MAX_ACTIVE_PARTICLES - particles.size());
-        
+
         for (int i = 0; i < actualCount; i++) {
             double angle = random.nextDouble() * 2 * Math.PI;
             double speed = random.nextDouble() * 4 + 1;
             double vx = Math.cos(angle) * speed;
             double vy = Math.sin(angle) * speed;
-            
+
             // Use object pool instead of creating new particles
             Particle particle = getParticleFromPool();
             particle.reset(x, y, vx, vy, 30 + random.nextInt(20), color);
@@ -8689,30 +8756,40 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     // Ball trail system
     private void updateBallTrail() {
+        // Skip ball trail in web mode for better performance
+        if (WebModeContext.isWebMode()) {
+            return;
+        }
+
         // Add current ball position to trail
         ballTrailPoints.add(new Point2D.Double(ballX + BALL_SIZE/2, ballY + BALL_SIZE/2));
-        
+
         // Remove old trail points
         while (ballTrailPoints.size() > MAX_TRAIL_LENGTH) {
             ballTrailPoints.remove(0);
         }
     }
-    
+
     private void drawBallTrail(Graphics2D g) {
+        // Skip ball trail in web mode for better performance
+        if (WebModeContext.isWebMode()) {
+            return;
+        }
+
         if (ballTrailPoints.size() < 2) return;
-        
+
         // Draw trail segments with fading alpha
         for (int i = 1; i < ballTrailPoints.size(); i++) {
             Point2D prev = ballTrailPoints.get(i - 1);
             Point2D curr = ballTrailPoints.get(i);
-            
+
             // Skip if any point is null
             if (prev == null || curr == null) continue;
-            
+
             // Calculate alpha based on position in trail (newer = more opaque)
             float alpha = (float)i / ballTrailPoints.size() * 0.6f;
             int trailSize = (int)(BALL_SIZE * 0.7 * ((float)i / ballTrailPoints.size()));
-            
+
             g.setColor(new Color(1.0f, 1.0f, 1.0f, alpha));
             g.fillOval((int)curr.getX() - trailSize/2, (int)curr.getY() - trailSize/2, trailSize, trailSize);
         }
@@ -10279,6 +10356,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 break;
             case KeyEvent.VK_ENTER:
                 selectedBackground = selectedBackgroundOption; // Apply selection
+                ContextLoader.ensureBackgroundLoaded(selectedBackground); // Lazy load if needed
                 loadTextColorsForTheme(); // Reload text colors for new theme
                 saveSettingsToFile(); // Save the new background selection
                 saveBackgroundTheme(); // Save theme to separate file
@@ -10870,11 +10948,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         isRankToHomeTransition = true;
         rankToHomeProgress = 0.0;
         setState(GameState.TRANSITIONING);
-        
+
         // Reset ball position to prevent it from showing in transition
         ballX = BOARD_WIDTH / 2 - BALL_SIZE / 2;
         ballY = BOARD_HEIGHT / 2 - BALL_SIZE / 2;
-        
+
         // Keep rank screen data during transition for animation
         // Will be reset when transition completes
     }
@@ -10902,10 +10980,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void startPaddleToHomeTransition() {
         isPaddleToHomeTransition = true;
         paddleToHomeProgress = 0.0;
-        
+
         // Determine which paddle we're transitioning from based on current state
         isLeftPaddleTransition = (currentState == GameState.PADDLE_SELECTION);
-        
+
         // Reset ball position to prevent it from showing in transition
         ballX = BOARD_WIDTH / 2 - BALL_SIZE / 2;
         ballY = BOARD_HEIGHT / 2 - BALL_SIZE / 2;
@@ -12376,8 +12454,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Check for space key area (background selection)
         int spaceInstructY = (int)(BOARD_HEIGHT - 50 * scaleY);
         boolean clickedOnSpaceArea = (mouseY >= spaceInstructY - 20 && mouseY <= spaceInstructY + 20);
-        
+
         if (clickedOnSpaceArea) {
+            // Lazy load all backgrounds if in web mode
+            ContextLoader.ensureAllBackgroundsLoaded();
+
             setState(GameState.BACKGROUND_SELECTION);
             selectedBackgroundOption = selectedBackground;
             repaint();
@@ -12976,9 +13057,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Check which thumbnail was clicked
         int currentX = thumbStartX;
         for (int i = 0; i < backgroundNames.size(); i++) {
-            if (mouseX >= currentX && mouseX <= currentX + thumbWidth && 
+            if (mouseX >= currentX && mouseX <= currentX + thumbWidth &&
                 mouseY >= thumbY && mouseY <= thumbY + thumbHeight) {
                 selectedBackground = i;
+                ContextLoader.ensureBackgroundLoaded(selectedBackground); // Lazy load if needed
                 loadTextColorsForTheme();
                 saveSettingsToFile();
                 saveBackgroundTheme();
@@ -17075,30 +17157,39 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             JFrame frame = (JFrame) window;
             originalWindowSize = frame.getSize(); // Save current size for restoration
             screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            windowExpansionProgress = 0.0;
 
-            // Remove window decorations (hide minimize/maximize/close buttons)
-            frame.dispose();
-            frame.setUndecorated(true);
-            frame.setVisible(true);
+            // Web mode: Skip window expansion animation, already in fullscreen
+            if (WebModeContext.isWebMode()) {
+                System.out.println("[WEB] Circle Mode - Skipping window expansion (already fullscreen)");
+                windowExpansionProgress = 1.0; // Already at 100%
+                circleModeFullscreenActive = true;
+            } else {
+                // Desktop mode: Normal window expansion animation
+                windowExpansionProgress = 0.0;
 
-            // Start with base dimensions (800x600)
-            int startWidth = BASE_WIDTH;
-            int startHeight = BASE_HEIGHT;
-            currentWindowWidth = startWidth;
-            currentWindowHeight = startHeight;
-            targetWindowWidth = startWidth;
-            targetWindowHeight = startHeight;
+                // Remove window decorations (hide minimize/maximize/close buttons)
+                frame.dispose();
+                frame.setUndecorated(true);
+                frame.setVisible(true);
 
-            // Resize to base size
-            frame.setSize(startWidth, startHeight);
-            frame.setLocationRelativeTo(null); // Center window
+                // Start with base dimensions (800x600)
+                int startWidth = BASE_WIDTH;
+                int startHeight = BASE_HEIGHT;
+                currentWindowWidth = startWidth;
+                currentWindowHeight = startHeight;
+                targetWindowWidth = startWidth;
+                targetWindowHeight = startHeight;
 
-            System.out.println("DEBUG: Window will expand from " + startWidth + "x" + startHeight +
-                             " to " + screenSize.width + "x" + screenSize.height);
+                // Resize to base size
+                frame.setSize(startWidth, startHeight);
+                frame.setLocationRelativeTo(null); // Center window
 
-            // Start smooth expansion timer (60 FPS)
-            startWindowExpansionTimer();
+                System.out.println("DEBUG: Window will expand from " + startWidth + "x" + startHeight +
+                                 " to " + screenSize.width + "x" + screenSize.height);
+
+                // Start smooth expansion timer (60 FPS)
+                startWindowExpansionTimer();
+            }
         }
 
         // Initialize circle mode state
@@ -17977,6 +18068,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
 
     // Update target window size based on game progression
     private void expandWindowProgressively(double timeInSeconds) {
+        // Web mode: Skip window expansion (already fullscreen)
+        if (WebModeContext.isWebMode()) {
+            return;
+        }
+
         if (screenSize == null) {
             return;
         }
@@ -18067,6 +18163,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         if (windowExpansionTimer != null) {
             windowExpansionTimer.stop();
             windowExpansionTimer = null;
+        }
+
+        // Web mode: Skip window restoration (stay in fullscreen)
+        if (WebModeContext.isWebMode()) {
+            System.out.println("[WEB] Circle Mode cleanup - Staying in fullscreen");
+            return;
         }
 
         // Exit fullscreen if active

@@ -17,14 +17,21 @@ public class GameContext {
     public static int selectedBackground = 0; // Default background
     public static ArrayList<String> backgroundNames = new ArrayList<>(); // Dynamic background names
     public static ArrayList<Image> backgroundImages = new ArrayList<>(); // Loaded background images
+    public static ArrayList<String> backgroundFilenames = new ArrayList<>(); // Original filenames for lazy loading
     public static int selectedBackgroundOption = 0; // Currently selected in background menu
+
+    // Lazy loading flags (web mode optimization)
+    public static boolean allBackgroundsLoaded = false; // Track if all backgrounds are loaded
+    public static boolean allPaddleThemesLoaded = false; // Track if all paddle themes are loaded
 
     // Paddle selection variables
     // Separate paddle themes for blue (left) and red (right) paddles
     public static ArrayList<String> bluePaddleThemeNames = new ArrayList<>(); // Blue paddle themes
     public static ArrayList<BufferedImage> bluePaddleThemeImages = new ArrayList<>(); // Blue paddle images
+    public static ArrayList<String> bluePaddleThemeFilenames = new ArrayList<>(); // Original filenames for lazy loading
     public static ArrayList<String> redPaddleThemeNames = new ArrayList<>(); // Red paddle themes
     public static ArrayList<BufferedImage> redPaddleThemeImages = new ArrayList<>(); // Red paddle images
+    public static ArrayList<String> redPaddleThemeFilenames = new ArrayList<>(); // Original filenames for lazy loading
 
     // Legacy arrays for compatibility (will use blue themes for now)
     public static ArrayList<String> paddleThemeNames = new ArrayList<>(); // Available paddle themes

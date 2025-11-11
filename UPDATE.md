@@ -1,6 +1,61 @@
 # PongPing - Update History
 
-## Version 1.0.0 (Current) - Circle Mode & Achievement System
+## Version 1.1.0 (Current) - Web Version & GitHub Pages Deployment
+
+### 🌐 Web Version with CheerpJ 4.2
+- **GitHub Pages Deployment** - Play directly in your browser without installation
+  - Automatic deployment with GitHub Actions on push to main branch
+  - Accessible from any device with a modern browser
+  - No installation required - instant play
+
+- **Web-Specific Optimizations**
+  - Theme loading completely disabled (too heavy for web)
+  - Only default theme available for optimal performance
+  - Background particles disabled in menus (MENU and FIRST_ACCESS states)
+  - Paddle glow effects disabled during gameplay
+  - Checkerboard animation disabled in settings page
+  - All transitions kept active for smooth experience
+  - Game mode selection page fully functional with animations
+
+- **Dual Build System**
+  - Separate builds for desktop (full-featured) and web (optimized) versions
+  - Scripts `build.bat`/`build.sh` for desktop version with all features
+  - Scripts `build-web.bat`/`build-web.sh` for optimized web version with Java 11
+  - Automatic resource management via index.list for CheerpJ
+
+### 🔧 Technical Implementation
+- **WebModeContext Detection System**
+  - Automatic detection via `System.getProperty("pongping.webmode")`
+  - Conditional disabling of heavy features
+  - Shared codebase between desktop and web versions
+
+- **Build Pipeline Improvements**
+  - Separate GitHub Actions workflows: build.yml, release.yml, build-and-deploy.yml
+  - Java 11 compilation for CheerpJ compatibility
+  - Automatic index.list file generation for directory listing
+  - Concurrency control for GitHub Pages deployment
+  - Configurable artifact retention (90 days for web, 30 for desktop)
+
+### 📦 Deployment Infrastructure
+- **GitHub Pages Integration**
+  - Automatic deployment only on push to main branch
+  - Preview builds for develop branch (without deployment)
+  - Public URL accessible: https://gavaofficial.github.io/PongPing
+  - Global CDN for fast loading worldwide
+
+### 🎮 Feature Parity
+- **All game modes fully functional**
+  - Circle Mode fully playable
+  - Classic Mode (Single Player and Two Players)
+  - Achievement system and progression
+  - Automatic saving with localStorage
+
+- **Web Version Limitations**
+  - Only default graphical theme (for performance)
+  - Some visual effects reduced (particles, glow)
+  - Potentially reduced audio quality
+
+## Version 1.0.0 - Circle Mode & Achievement System
 
 ### 🎮 Circle Mode - Complete New Game Mode
 - **Revolutionary circular gameplay** - Defend the center circle from balls coming from all directions

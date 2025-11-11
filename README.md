@@ -2,6 +2,18 @@
 
 Un gioco Pong moderno scritto in Java con modalità innovative e sistema di achievement.
 
+## 🎮 Gioca Online
+
+**[▶️ Gioca Ora nel Browser](https://gavaofficial.github.io/PongPing)** - Nessuna installazione richiesta!
+
+La versione web è ottimizzata per le prestazioni del browser e include tutte le modalità di gioco:
+- Circle Mode con sistema combo e power-ups
+- Classic Mode single/multiplayer
+- Sistema achievement e progressione completo
+- Supporto multilingua
+
+> **Nota**: La versione web utilizza solo il tema grafico default per prestazioni ottimali. Per l'esperienza completa con tutti i temi e gli effetti visivi, scarica la versione desktop.
+
 ## Caratteristiche
 
 ### Modalità di Gioco

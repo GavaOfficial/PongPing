@@ -1,0 +1,274 @@
+name: Build and Deploy Web Version (CheerpJ)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Prevent concurrent deployments to GitHub Pages
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-web:
+    name: Build Web Version with CheerpJ
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Java 11 (required by CheerpJ)
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+
+    - name: Verify Java Version
+      run: |
+        echo "Java version for CheerpJ compilation:"
+        java -version
+        javac -version
+
+    - name: Clean Previous Build
+      run: |
+        echo "[1/5] Cleaning previous build..."
+        rm -rf build
+        rm -f dist/PongGame.jar
+        mkdir -p build
+        mkdir -p dist
+        echo "Done."
+
+    - name: Compile Java Sources (Web Version)
+      run: |
+        echo "[2/5] Compiling Java sources with Java 11 target (WEB VERSION)..."
+
+        # Compile all files from src/ EXCEPT Main.java
+        find src -name "*.java" ! -name "Main.java" > sources.txt
+        javac -source 11 -target 11 -d build @sources.txt
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Compilation of src/ files failed!"
+            rm sources.txt
+            exit 1
+        fi
+        rm sources.txt
+
+        # Compile Main.java from src-web/ (web-specific version)
+        echo "Compiling WEB version of Main.java from src-web/..."
+        javac -source 11 -target 11 -d build -cp build src-web/Main.java
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Compilation of src-web/Main.java failed!"
+            exit 1
+        fi
+
+        echo "Compilation completed successfully!"
+
+    - name: Generate index.list Files for CheerpJ
+      run: |
+        echo "[3/5] Generating index.list files for CheerpJ directory listing..."
+
+        # Generate index.list for temi/GameBack
+        if [ -d "temi/GameBack" ]; then
+          ls temi/GameBack | grep -E '\.(png|jpg|jpeg|gif|txt)$' > temi/GameBack/index.list || true
+          echo "✓ Generated temi/GameBack/index.list ($(wc -l < temi/GameBack/index.list) files)"
+        fi
+
+        # Generate index.list for each paddle theme directory
+        for theme_dir in temi/Padle/*; do
+          if [ -d "$theme_dir" ]; then
+            ls "$theme_dir" | grep -E '\.(png|jpg|jpeg|gif|txt)$' > "$theme_dir/index.list" || true
+            echo "✓ Generated $theme_dir/index.list ($(wc -l < $theme_dir/index.list) files)"
+          fi
+        done
+
+        # Generate index.list for font directories if needed
+        for font_dir in font/*; do
+          if [ -d "$font_dir" ]; then
+            ls "$font_dir" | grep -E '\.(ttf|otf|woff|woff2)$' > "$font_dir/index.list" 2>/dev/null || true
+          fi
+        done
+
+        echo "All index.list files generated successfully!"
+
+    - name: Copy Resources to Build Directory
+      run: |
+        echo "[4/5] Copying resources (with index.list files)..."
+        cp -r font build/
+        cp -r temi build/
+        cp -r lingue build/
+        cp icon.png build/
+        if [ -d "music" ]; then
+            cp -r music build/
+        fi
+        echo "Resources copied successfully!"
+
+    - name: Create Executable JAR
+      run: |
+        echo "[5/5] Creating executable JAR..."
+        cd build
+        jar cfe ../dist/PongGame.jar Main $(find . -name "*.class") font temi lingue icon.png
+        if [ -d "music" ]; then
+            jar uf ../dist/PongGame.jar music
+        fi
+        cd ..
+        echo "JAR created successfully with embedded index.list files!"
+
+    - name: Verify Build Artifacts
+      run: |
+        echo "Checking build output..."
+        if [ ! -f "dist/PongGame.jar" ]; then
+          echo "ERROR: JAR file not created!"
+          exit 1
+        fi
+
+        if [ ! -f "index.html" ]; then
+          echo "ERROR: index.html not found!"
+          exit 1
+        fi
+
+        echo "Build artifacts verified successfully!"
+        echo "JAR size: $(du -h dist/PongGame.jar | cut -f1)"
+
+        # List JAR contents
+        echo ""
+        echo "JAR contents:"
+        jar tf dist/PongGame.jar | head -20
+        echo "..."
+
+    - name: Test JAR Validity
+      run: |
+        echo "Testing JAR file integrity..."
+        jar tf dist/PongGame.jar > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✓ JAR file is valid"
+        else
+          echo "✗ JAR file is corrupted"
+          exit 1
+        fi
+
+        # Check for Main class
+        if jar tf dist/PongGame.jar | grep -q "Main.class"; then
+          echo "✓ Main.class found in JAR"
+        else
+          echo "✗ Main.class not found in JAR"
+          exit 1
+        fi
+
+        # Check for WebModeContext
+        if jar tf dist/PongGame.jar | grep -q "context/WebModeContext.class"; then
+          echo "✓ WebModeContext.class found in JAR"
+        else
+          echo "✗ WebModeContext.class not found in JAR"
+          exit 1
+        fi
+
+    - name: Prepare Web Deployment Package
+      run: |
+        echo "Preparing web deployment package..."
+        mkdir -p web-deploy
+
+        # Copy essential files
+        cp dist/PongGame.jar web-deploy/
+        cp index.html web-deploy/
+
+        # Copy resources (needed for /app/ virtual filesystem)
+        cp -r font web-deploy/
+        cp -r temi web-deploy/
+        cp -r lingue web-deploy/
+        cp icon.png web-deploy/
+
+        # Copy music if exists
+        if [ -d "music" ] && [ "$(ls -A music/)" ]; then
+          cp -r music web-deploy/
+        fi
+
+        echo "Web deployment package prepared!"
+        echo "Package contents:"
+        ls -lah web-deploy/
+
+    - name: Upload Web Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PongPing-Web-CheerpJ
+        path: web-deploy/
+        if-no-files-found: error
+        compression-level: 6
+        retention-days: 90
+
+    - name: Create Build Summary
+      run: |
+        echo "## 🎮 PongPing Web Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Build Successful!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Java Version | 11 (CheerpJ compatible) ✓ |" >> $GITHUB_STEP_SUMMARY
+        echo "| JAR Compilation | Success ✓ |" >> $GITHUB_STEP_SUMMARY
+        echo "| WebMode Context | Included ✓ |" >> $GITHUB_STEP_SUMMARY
+        echo "| Resources | Copied ✓ |" >> $GITHUB_STEP_SUMMARY
+        echo "| CheerpJ Loader | index.html ready ✓ |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Artifact Details" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **JAR Size:** $(du -h dist/PongGame.jar | cut -f1)" >> $GITHUB_STEP_SUMMARY
+        echo "- **CheerpJ Version:** 4.2" >> $GITHUB_STEP_SUMMARY
+        echo "- **Target:** Java 11" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Testing Locally" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo '# Download and extract artifact' >> $GITHUB_STEP_SUMMARY
+        echo 'npx http-server -p 8000' >> $GITHUB_STEP_SUMMARY
+        echo '# Open http://localhost:8000/index.html' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build-web
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Download Web Build Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: PongPing-Web-CheerpJ
+        path: web-deploy
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload Pages Artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: web-deploy
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+    - name: Create Deployment Summary
+      run: |
+        echo "## 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🎮 **Play PongPing Web Version:**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "The game is now live and accessible via CheerpJ!" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PongPing - Play in Browser</title>
+
+    <!-- CheerpJ 4.2 Loader -->
+    <script src="https://cjrtnc.leaningtech.com/4.2/loader.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #000;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 1.5em;
+            color: white;
+            background: #000;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Caricamento PongPing...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        console.log("=== CheerpJ Initializing ===");
+
+        // Initialize CheerpJ with Java 11 support
+        await cheerpjInit({
+            version: 11
+        });
+
+        console.log("✓ CheerpJ initialized with Java 11");
+
+        // Create display for Java GUI
+        cheerpjCreateDisplay(-1, -1, document.getElementById("container"));
+
+        console.log("✓ Display created");
+
+        // Hide loading message
+        document.getElementById("loading").style.display = "none";
+
+        // Run the PongPing JAR in web mode
+        // Note: All files must be served via HTTP server
+        // The /app/ prefix refers to the web server root
+        // Pass --web-mode flag to disable desktop-only features
+        console.log("=== Starting PongPing with --web-mode flag ===");
+        const exitCode = await cheerpjRunJar("/app/dist/PongGame.jar", "--web-mode");
+
+        console.log("Game exited with code:", exitCode);
+    </script>
+</body>
+</html>
