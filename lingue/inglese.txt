@@ -77,6 +77,71 @@ GAME_AI=AI
 
 # Motivational pause messages - Complete translations
 
+# Losing badly messages
+MSG_DEVASTATION_1=The massacre continues...
+MSG_DEVASTATION_2=This isn't a game, it's a lesson!
+MSG_DEVASTATION_3=The AI is publicly humiliating you!
+MSG_DEVASTATION_4=You're breaking negative records!
+MSG_DEVASTATION_5=The paddle seems decorative at this point
+MSG_DEVASTATION_6=The AI is thinking about something else while beating you
+MSG_DEVASTATION_7=Not even 3-year-olds do this badly!
+MSG_DEVASTATION_8=You're breaking all records... of defeat!
+
+# Terrible performance messages
+MSG_DESTRUCTION_1=You need a miracle here!
+MSG_DESTRUCTION_2=The AI has already beaten you mentally!
+MSG_DESTRUCTION_3=Every point is suffering!
+MSG_DESTRUCTION_4=The comeback is mathematically difficult!
+MSG_DESTRUCTION_5=You're just collecting humiliations!
+MSG_DESTRUCTION_6=The AI doesn't even struggle to beat you!
+MSG_DESTRUCTION_7=Every AI shot is a goal!
+MSG_DESTRUCTION_8=Is the paddle just for decoration?
+MSG_DESTRUCTION_9=The AI doesn't even break a sweat!
+MSG_DESTRUCTION_10=Try lowering the difficulty...
+
+# Very poor performance messages
+MSG_TERRIBLE_1=A consolation point...
+MSG_TERRIBLE_2=At least you didn't get zero!
+MSG_TERRIBLE_3=Did you earn that point?
+MSG_TERRIBLE_4=Did the AI gift you that point?
+MSG_TERRIBLE_5=Performance to forget!
+MSG_TERRIBLE_6=One lucky point doesn't change anything
+MSG_TERRIBLE_7=Was the AI perhaps distracted?
+
+# Very bad performance messages
+MSG_VERY_BAD_1=Only a few points? You can do better!
+MSG_VERY_BAD_2=The AI is easily dominating you!
+MSG_VERY_BAD_3=You need to wake up your reflexes!
+MSG_VERY_BAD_4=Concentration is completely absent!
+MSG_VERY_BAD_5=You're reacting too late!
+MSG_VERY_BAD_6=Your reflexes are asleep!
+MSG_VERY_BAD_7=Focus more on the ball!
+MSG_VERY_BAD_8=You're losing every duel!
+MSG_VERY_BAD_9=The AI always anticipates you!
+
+# Way behind messages
+MSG_CATASTROPHIC_1=Comeback impossible at this point!
+MSG_CATASTROPHIC_2=The AI has completely outclassed you!
+MSG_CATASTROPHIC_3=This is a demonstration of superiority!
+MSG_CATASTROPHIC_4=You've been overwhelmed by the AI's superiority!
+MSG_CATASTROPHIC_5=There's no match, only domination!
+MSG_CATASTROPHIC_6=This is total domination!
+MSG_CATASTROPHIC_7=You've been completely outclassed!
+MSG_CATASTROPHIC_8=The class difference is evident!
+MSG_CATASTROPHIC_9=The AI is playing in another league!
+
+# Way behind messages (continued)
+MSG_WAY_BEHIND_1=Focus more!
+MSG_WAY_BEHIND_2=The situation is critical!
+MSG_WAY_BEHIND_3=You need to find a solution quickly!
+MSG_WAY_BEHIND_4=The AI is cornering you!
+MSG_WAY_BEHIND_5=React before it's too late!
+MSG_WAY_BEHIND_6=The comeback gets harder!
+MSG_WAY_BEHIND_7=Every lost point weighs more!
+MSG_WAY_BEHIND_8=You need to change strategy!
+MSG_WAY_BEHIND_9=The AI is dominating you mentally!
+MSG_WAY_BEHIND_10=Regain your lost concentration!
+
 # Perfect domination messages
 MSG_PERFECT_1=Perfect! You're unstoppable!
 MSG_PERFECT_2=The AI doesn't know how to stop you!
@@ -198,6 +263,57 @@ MSG_INSPIRATIONAL_18=Every expert was once a beginner!
 MSG_INSPIRATIONAL_19=The road to success is always under construction!
 MSG_INSPIRATIONAL_20=It's never too late to be what you could have been!
 
+# Domination on EASY messages
+MSG_EASY_DOM_1=Too easy for you!
+MSG_EASY_DOM_2=Increase difficulty to have fun!
+MSG_EASY_DOM_3=You're ready for a greater challenge!
+MSG_EASY_DOM_4=EASY difficulty brilliantly surpassed!
+MSG_EASY_DOM_5=Time to raise the bar!
+
+# Domination on NORMAL messages
+MSG_NORMAL_DOM_1=NORMAL is too simple for you!
+MSG_NORMAL_DOM_2=Level passed!
+MSG_NORMAL_DOM_3=You've surpassed the NORMAL level!
+MSG_NORMAL_DOM_4=NORMAL AI is below your level!
+MSG_NORMAL_DOM_5=Challenge yourself with HARD!
+MSG_NORMAL_DOM_6=Time for a more serious challenge!
+
+# Good on DIFFICULT messages
+MSG_DIFFICULT_GOOD_1=Well done! DIFFICULT is tough but you're doing it!
+MSG_DIFFICULT_GOOD_2=You're holding your own against advanced AI!
+MSG_DIFFICULT_GOOD_3=DIFFICULT but not for you!
+MSG_DIFFICULT_GOOD_4=You're beating the advanced AI!
+MSG_DIFFICULT_GOOD_5=Talent and training pay off!
+MSG_DIFFICULT_GOOD_6=The DIFFICULT AI respects you!
+
+# Good on EXPERT messages
+MSG_EXPERT_GOOD_1=Incredible! You're beating the EXPERT!
+MSG_EXPERT_GOOD_2=The EXPERT AI is surprised!
+MSG_EXPERT_GOOD_3=Professional performance!
+MSG_EXPERT_GOOD_4=The EXPERT AI doesn't know how to stop you!
+MSG_EXPERT_GOOD_5=You've become a master!
+MSG_EXPERT_GOOD_6=EXPERT level under control!
+MSG_EXPERT_GOOD_7=Legendary performance!
+
+# Points against IMPOSSIBLE messages
+MSG_IMPOSSIBLE_1=IMPOSSIBLE? Not for you!
+MSG_IMPOSSIBLE_2=You've done the unthinkable!
+MSG_IMPOSSIBLE_3=The IMPOSSIBLE AI is under pressure!
+MSG_IMPOSSIBLE_4=Sports miracle in progress!
+MSG_IMPOSSIBLE_5=You're making history!
+MSG_IMPOSSIBLE_6=The IMPOSSIBLE AI is in shock!
+MSG_IMPOSSIBLE_7=You've made the impossible possible!
+MSG_IMPOSSIBLE_8=Legend in action!
+MSG_IMPOSSIBLE_9=The IMPOSSIBLE meets its master!
+
+# Losing against EASY messages
+MSG_EASY_FAIL_1=Losing against EASY? Really?
+MSG_EASY_FAIL_2=Is EASY AI too much for you?
+MSG_EASY_FAIL_3=Even EASY is too much for you?
+MSG_EASY_FAIL_4=Maybe a tutorial would be better?
+MSG_EASY_FAIL_5=EASY AI is merciless!
+MSG_EASY_FAIL_6=Incredible but true... losing in EASY!
+
 # First Access
 FIRST_ACCESS_TITLE=PONG PING
 FIRST_ACCESS_SUBTITLE=The classic game reimagined
@@ -284,9 +400,277 @@ CIRCLE_MODE_100_COMBO_FRENZY=🔥 100 COMBO FRENZY! 🔥
 CIRCLE_MODE_BALLS_DEFLECTED_LABEL=BALLS DEFLECTED:
 CIRCLE_MODE_MODALITA=MODE
 CIRCLE_MODE_ADVANCEMENT=ADVANCEMENT
+CIRCLE_MODE_SETTINGS=SETTINGS
 CIRCLE_MODE_HOLD_INSTRUCTION=Hold down on the central ball to start
 CIRCLE_MODE_GAME_INSTRUCTION=Move the mouse to control the paddle - ESC to exit
 
 # Game Mode Selection
 GAME_MODE_CLASSIC=CLASSIC
 GAME_MODE_CIRCLE=CIRCLE
+
+# Advancement System
+ADV_TITLE=ADVANCEMENT
+ADV_LEVEL=Level
+ADV_RANK=Rank
+ADV_XP=XP
+ADV_NEXT_LEVEL=Next Level
+ADV_PROGRESS=Progress
+ADV_ACHIEVEMENTS=Achievements
+ADV_UNLOCKS=Unlocks
+ADV_STATISTICS=Statistics
+ADV_DAILY_BONUS=Daily Bonus
+ADV_LOGIN_STREAK=Consecutive days
+ADV_NEXT_BONUS=Next bonus
+ADV_CONSECUTIVE_DAYS=Consecutive Days
+ADV_EQUIPPED_TITLE=Equipped Title
+ADV_EQUIPPED_BADGE=Equipped Badge
+ADV_NEXT_UNLOCKS=Next Unlocks
+ADV_UNLOCK_PLACEHOLDER=Mystery reward
+ADV_UNLOCKED=Unlocked
+ADV_LOCKED=Locked
+ADV_EQUIP=Equip
+ADV_EQUIPPED=Equipped
+ADV_ACH_PROGRESS=Achievement Progress
+ADV_PADDLE_THEMES=Paddle Themes
+ADV_TITLES=Titles
+ADV_BADGES=Badges
+ADV_NO_UNLOCKS=None unlocked yet
+ADV_EQUIP_INSTRUCTION=Click an item to equip it
+
+# Ranks
+RANK_PRINCIPIANTE=BEGINNER
+RANK_INTERMEDIO=INTERMEDIATE
+RANK_AVANZATO=ADVANCED
+RANK_ESPERTO=EXPERT
+RANK_MAESTRO=MASTER
+
+# Achievement Categories
+ACH_CAT_ALL=All
+ACH_CAT_FIRST_TIME=First Time
+ACH_CAT_CIRCLE_MODE=Circle Mode
+ACH_CAT_CLASSIC_MODE=Classic Mode
+ACH_CAT_MASTERY=Mastery
+ACH_CAT_SPECIAL=Special
+
+# Achievement Tiers
+ACH_TIER_BRONZE=Bronze
+ACH_TIER_SILVER=Silver
+ACH_TIER_GOLD=Gold
+ACH_TIER_PLATINUM=Platinum
+
+# Achievements - First Time
+ACH_FIRST_GAME=First Game
+ACH_FIRST_GAME_DESC=Play your first game
+ACH_FIRST_WIN_CLASSIC=First Classic Victory
+ACH_FIRST_WIN_CLASSIC_DESC=Win your first game in Classic Mode
+ACH_FIRST_CIRCLE=Welcome to Circle Mode
+ACH_FIRST_CIRCLE_DESC=Play your first Circle Mode game
+ACH_10_GAMES=Veteran
+ACH_10_GAMES_DESC=Play 10 games total
+ACH_50_GAMES=Skilled Player
+ACH_50_GAMES_DESC=Play 50 games total
+ACH_100_GAMES=Centuria
+ACH_100_GAMES_DESC=Play 100 games total
+ACH_250_GAMES=Quarter Millennium
+ACH_250_GAMES_DESC=Play 250 games total
+ACH_500_GAMES=Half Millennium
+ACH_500_GAMES_DESC=Play 500 games total
+ACH_PLAYTIME_30MIN=First Step
+ACH_PLAYTIME_30MIN_DESC=Play for 30 minutes total
+ACH_PLAYTIME_1HOUR=One Hour of Play
+ACH_PLAYTIME_1HOUR_DESC=Play for 1 hour total
+ACH_PLAYTIME_5HOURS=Five Hours
+ACH_PLAYTIME_5HOURS_DESC=Play for 5 hours total
+ACH_PLAYTIME_10HOURS=Dedicated
+ACH_PLAYTIME_10HOURS_DESC=Play for 10 hours total
+ACH_LOGIN_3DAYS=Three Days
+ACH_LOGIN_3DAYS_DESC=Log in for 3 consecutive days
+ACH_LOGIN_7DAYS=Perfect Week
+ACH_LOGIN_7DAYS_DESC=Log in for 7 consecutive days
+ACH_LOGIN_30DAYS=Dedicated Month
+ACH_LOGIN_30DAYS_DESC=Log in for 30 consecutive days
+
+# Achievements - Circle Mode
+ACH_CIRCLE_PROTECT_10=Basic Protection
+ACH_CIRCLE_PROTECT_10_DESC=Protect 10 balls in Circle Mode
+ACH_CIRCLE_PROTECT_30=Initial Defender
+ACH_CIRCLE_PROTECT_30_DESC=Protect 30 balls in Circle Mode
+ACH_CIRCLE_PROTECT_50=Circle Guardian
+ACH_CIRCLE_PROTECT_50_DESC=Protect 50 balls in Circle Mode
+ACH_CIRCLE_PROTECT_100=Century Protection
+ACH_CIRCLE_PROTECT_100_DESC=Protect 100 balls in Circle Mode
+ACH_CIRCLE_PROTECT_250=Expert Defender
+ACH_CIRCLE_PROTECT_250_DESC=Protect 250 balls in Circle Mode
+ACH_CIRCLE_PROTECT_500=Impenetrable Barrier
+ACH_CIRCLE_PROTECT_500_DESC=Protect 500 balls in Circle Mode
+ACH_CIRCLE_PROTECT_1000=Millennial Guardian
+ACH_CIRCLE_PROTECT_1000_DESC=Protect 1000 balls in Circle Mode
+ACH_CIRCLE_PROTECT_2500=Circle Legend
+ACH_CIRCLE_PROTECT_2500_DESC=Protect 2500 balls in Circle Mode
+ACH_CIRCLE_COMBO_25=Circle Combo Basic
+ACH_CIRCLE_COMBO_25_DESC=Reach a 25 combo in Circle Mode
+ACH_CIRCLE_COMBO_50=Circle Combo Medium
+ACH_CIRCLE_COMBO_50_DESC=Reach a 50 combo in Circle Mode
+ACH_CIRCLE_COMBO_100=Circle Combo Century
+ACH_CIRCLE_COMBO_100_DESC=Reach a 100 combo in Circle Mode
+ACH_CIRCLE_COMBO_150=Circle Combo Advanced
+ACH_CIRCLE_COMBO_150_DESC=Reach a 150 combo in Circle Mode
+ACH_CIRCLE_COMBO_200=Circle Combo Master
+ACH_CIRCLE_COMBO_200_DESC=Reach a 200 combo in Circle Mode
+ACH_CIRCLE_COMBO_300=Circle Combo Legendary
+ACH_CIRCLE_COMBO_300_DESC=Reach a 300 combo in Circle Mode
+ACH_CIRCLE_COMBO_500=Circle Combo Impossible
+ACH_CIRCLE_COMBO_500_DESC=Reach a 500 combo in Circle Mode
+ACH_CIRCLE_SURVIVE_30S=Basic Survival
+ACH_CIRCLE_SURVIVE_30S_DESC=Survive 30 seconds in Circle Mode
+ACH_CIRCLE_SURVIVE_1MIN=First Minute
+ACH_CIRCLE_SURVIVE_1MIN_DESC=Survive 1 minute in Circle Mode
+ACH_CIRCLE_SURVIVE_2MIN=Two Minutes
+ACH_CIRCLE_SURVIVE_2MIN_DESC=Survive 2 minutes in Circle Mode
+ACH_CIRCLE_SURVIVE_5MIN=Survivor
+ACH_CIRCLE_SURVIVE_5MIN_DESC=Survive 5 minutes in Circle Mode
+ACH_CIRCLE_SURVIVE_10MIN=Unstoppable
+ACH_CIRCLE_SURVIVE_10MIN_DESC=Survive 10 minutes in Circle Mode
+ACH_CIRCLE_SCORE_1K=One Thousand Circle
+ACH_CIRCLE_SCORE_1K_DESC=Reach 1000 points in Circle Mode
+ACH_CIRCLE_SCORE_5K=Five Thousand Circle
+ACH_CIRCLE_SCORE_5K_DESC=Reach 5000 points in Circle Mode
+ACH_CIRCLE_SCORE_10K=Ten Thousand Circle
+ACH_CIRCLE_SCORE_10K_DESC=Reach 10000 points in Circle Mode
+ACH_CIRCLE_SCORE_25K=Twenty-Five Thousand Circle
+ACH_CIRCLE_SCORE_25K_DESC=Reach 25000 points in Circle Mode
+ACH_CIRCLE_SCORE_50K=Fifty Thousand Circle
+ACH_CIRCLE_SCORE_50K_DESC=Reach 50000 points in Circle Mode
+ACH_CIRCLE_NO_DAMAGE=Untouchable Circle
+ACH_CIRCLE_NO_DAMAGE_DESC=Complete Circle Mode without losing health
+ACH_CIRCLE_10_GAMES=Ten Circle Games
+ACH_CIRCLE_10_GAMES_DESC=Play 10 games in Circle Mode
+ACH_CIRCLE_50_GAMES=Fifty Circle Games
+ACH_CIRCLE_50_GAMES_DESC=Play 50 games in Circle Mode
+
+# Achievements - Classic Mode
+ACH_CLASSIC_5_WINS=Five Victories
+ACH_CLASSIC_5_WINS_DESC=Win 5 games in Classic Mode
+ACH_CLASSIC_10_WINS=Ten Victories
+ACH_CLASSIC_10_WINS_DESC=Win 10 games in Classic Mode
+ACH_CLASSIC_25_WINS=Twenty-Five Victories
+ACH_CLASSIC_25_WINS_DESC=Win 25 games in Classic Mode
+ACH_CLASSIC_50_WINS=Fifty Victories
+ACH_CLASSIC_50_WINS_DESC=Win 50 games in Classic Mode
+ACH_CLASSIC_100_WINS=One Hundred Victories
+ACH_CLASSIC_100_WINS_DESC=Win 100 games in Classic Mode
+ACH_BEAT_EASY=Easy Victory
+ACH_BEAT_EASY_DESC=Win against Easy AI
+ACH_BEAT_NORMAL=Normal Victory
+ACH_BEAT_NORMAL_DESC=Win against Normal AI
+ACH_BEAT_HARD=Challenge Overcome
+ACH_BEAT_HARD_DESC=Win against Hard AI
+ACH_BEAT_EXPERT=Expert Beaten
+ACH_BEAT_EXPERT_DESC=Win against Expert AI
+ACH_BEAT_IMPOSSIBLE=The Impossible is Nothing
+ACH_BEAT_IMPOSSIBLE_DESC=Win against Impossible AI
+ACH_CLASSIC_STREAK_3=Streak of 3
+ACH_CLASSIC_STREAK_3_DESC=Win 3 games in a row in Classic Mode
+ACH_CLASSIC_STREAK_5=Streak of 5
+ACH_CLASSIC_STREAK_5_DESC=Win 5 games in a row in Classic Mode
+ACH_CLASSIC_STREAK_10=Streak of 10
+ACH_CLASSIC_STREAK_10_DESC=Win 10 games in a row in Classic Mode
+ACH_CLASSIC_STREAK_20=Unbeatable Streak
+ACH_CLASSIC_STREAK_20_DESC=Win 20 games in a row in Classic Mode
+ACH_CLASSIC_COMBO_5=Classic Combo Basic
+ACH_CLASSIC_COMBO_5_DESC=Reach a 5 combo in Classic Mode
+ACH_CLASSIC_COMBO_10=Classic Combo Medium
+ACH_CLASSIC_COMBO_10_DESC=Reach a 10 combo in Classic Mode
+ACH_CLASSIC_COMBO_25=Classic Combo Advanced
+ACH_CLASSIC_COMBO_25_DESC=Reach a 25 combo in Classic Mode
+ACH_CLASSIC_COMBO_50=Classic Combo Legendary
+ACH_CLASSIC_COMBO_50_DESC=Reach a 50 combo in Classic Mode
+ACH_CLASSIC_SCORE_5=Five Points Classic
+ACH_CLASSIC_SCORE_5_DESC=Reach 5 points in a Classic game
+ACH_CLASSIC_SCORE_10=Ten Points Classic
+ACH_CLASSIC_SCORE_10_DESC=Reach 10 points in a Classic game
+ACH_CLASSIC_SCORE_20=Twenty Points Classic
+ACH_CLASSIC_SCORE_20_DESC=Reach 20 points in a Classic game
+ACH_CLASSIC_PERFECT=Perfect Victory
+ACH_CLASSIC_PERFECT_DESC=Win 11-0 in Classic Mode
+ACH_CLASSIC_10_GAMES=Ten Classic Games
+ACH_CLASSIC_10_GAMES_DESC=Play 10 games in Classic Mode
+ACH_CLASSIC_50_GAMES=Fifty Classic Games
+ACH_CLASSIC_50_GAMES_DESC=Play 50 games in Classic Mode
+ACH_CLASSIC_100_GAMES=One Hundred Classic Games
+ACH_CLASSIC_100_GAMES_DESC=Play 100 games in Classic Mode
+
+# Achievements - Mastery
+ACH_MASTER_ALL_AI=AI Master
+ACH_MASTER_ALL_AI_DESC=Win against all AI difficulty levels
+ACH_DEFLECT_5000=Five Thousand Deflections
+ACH_DEFLECT_5000_DESC=Deflect 5000 balls total
+ACH_DEFLECT_10000=Ten Thousand Deflections
+ACH_DEFLECT_10000_DESC=Deflect 10000 balls total
+ACH_COMPLETIONIST=Completionist
+ACH_COMPLETIONIST_DESC=Unlock all other achievements
+ACH_LEVEL_25=Level 25
+ACH_LEVEL_25_DESC=Reach level 25
+ACH_LEVEL_50=Max Level
+ACH_LEVEL_50_DESC=Reach max level 50
+
+# Achievements - Special
+ACH_NIGHT_OWL=Night Owl
+ACH_NIGHT_OWL_DESC=Play between midnight and 4 AM
+ACH_DEDICATED=Dedicated Player
+ACH_DEDICATED_DESC=Play for 5 consecutive days
+ACH_LUCKY_NUMBER=Lucky Number
+ACH_LUCKY_NUMBER_DESC=Get exactly 777 points
+
+# Statistics Labels
+STAT_GENERAL=General Statistics
+STAT_RECORDS=Records
+STAT_TOTAL_GAMES=Total Games
+STAT_TOTAL_WINS=Total Wins
+STAT_TOTAL_LOSSES=Total Losses
+STAT_PLAY_TIME=Play Time
+STAT_MINUTES=minutes
+STAT_MAX_COMBO=Max Combo
+STAT_MAX_BALLS=Max Balls Deflected
+STAT_MAX_DEFLECT=Max Balls Deflected
+STAT_HIGH_SCORE=High Score
+STAT_LONGEST_STREAK=Longest Win Streak
+STAT_CLASSIC_MODE=Classic Mode
+STAT_CLASSIC_GAMES=Classic Games
+STAT_CLASSIC_WINS=Classic Wins
+STAT_CIRCLE_MODE=Circle Mode
+STAT_CIRCLE_GAMES=Circle Mode Games
+STAT_CIRCLE_BEST=Circle Mode Best
+STAT_GAMES=Games
+STAT_WINS=Wins
+STAT_BEST_SCORE=Best Score
+STAT_TOTAL_DEFLECTS=Total Balls Deflected
+STAT_WIN_RATE=Win Rate
+STAT_RECENT_ACH=Recent Achievements
+STAT_RECENT_LEVELS=Recent Levels
+
+# UI General
+ESC_TO_RETURN=Press ESC to return
+
+# Paddle Themes (placeholder - add actual theme names as needed)
+THEME_DEFAULT=Default Theme
+THEME_FIRE=Fire Theme
+THEME_ICE=Ice Theme
+THEME_RAINBOW=Rainbow Theme
+
+# Titles (placeholder - add actual titles as needed)
+TITLE_BEGINNER=Beginner
+TITLE_WARRIOR=Warrior
+TITLE_MASTER=Master
+TITLE_LEGEND=Legend
+
+# Badges (placeholder - add actual badges as needed)
+BADGE_FIRST_WIN=First Victory
+BADGE_COMBO_KING=Combo King
+BADGE_SURVIVOR=Survivor
+BADGE_CHAMPION=Champion
+
+# Notification System
+ACHIEVEMENT_UNLOCKED=Achievement Unlocked!
+LEVEL_UP=LEVEL UP!
+LEVEL_UP_MESSAGE=You reached level

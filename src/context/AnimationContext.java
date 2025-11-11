@@ -7,6 +7,7 @@ import game.PongGame;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static context.GameContext.BOARD_HEIGHT;
 
@@ -24,8 +25,8 @@ public class AnimationContext {
     // Animation variables for difficulty effects
     public static double difficultyAnimationTime = 0.0;
 
-    // Visual effects
-    public static ArrayList<Particle> particles = new ArrayList<>();
+    // Visual effects (thread-safe list to avoid ConcurrentModificationException)
+    public static CopyOnWriteArrayList<Particle> particles = new CopyOnWriteArrayList<>();
     public static Color ballTrail = new Color(255, 255, 255, 100);
 
     // Menu animation variables

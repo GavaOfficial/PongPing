@@ -32,15 +32,20 @@ public class PlayerProgress implements Serializable {
     private long totalPlayTimeMillis = 0;
 
     // Statistics - Records
-    private int maxComboReached = 0;
+    private int maxComboReached = 0; // Global max combo (deprecated, use mode-specific ones)
     private int maxBallsDeflected = 0;
     private int highestScore = 0;
+    private int totalBallsDeflected = 0;
+    private int longestWinStreak = 0;
+    private int currentWinStreak = 0;
 
     // Statistics - Per Mode
     private int classicGamesPlayed = 0;
     private int classicWins = 0;
+    private int classicMaxCombo = 0; // Max combo reached in Classic Mode
     private int circleGamesPlayed = 0;
     private int circleBestScore = 0;
+    private int circleMaxCombo = 0; // Max combo reached in Circle Mode
 
     // Recent progress tracking
     private List<String> recentAchievements = new ArrayList<>();
@@ -103,11 +108,14 @@ public class PlayerProgress implements Serializable {
         if (currentLevel >= MAX_LEVEL) return false;
 
         currentXP += xp;
-        int xpNeeded = getXPForNextLevel();
+        boolean leveledUp = false;
 
-        if (currentXP >= xpNeeded) {
-            currentLevel++;
+        // Handle multiple level ups if XP is very high
+        while (currentLevel < MAX_LEVEL && currentXP >= getXPForNextLevel()) {
+            int xpNeeded = getXPForNextLevel();
             currentXP -= xpNeeded;
+            currentLevel++;
+            leveledUp = true;
 
             // Track recent level
             recentLevels.add(0, currentLevel);
@@ -115,10 +123,19 @@ public class PlayerProgress implements Serializable {
                 recentLevels.remove(recentLevels.size() - 1);
             }
 
-            return true; // Leveled up!
+            System.out.println("Level up! Now level " + currentLevel + ", remaining XP: " + currentXP);
         }
 
-        return false;
+        // Cap XP at max needed for next level to prevent overflow
+        if (currentLevel < MAX_LEVEL) {
+            int maxXP = getXPForNextLevel();
+            if (currentXP > maxXP) {
+                System.out.println("WARNING: Capping XP from " + currentXP + " to " + maxXP);
+                currentXP = maxXP - 1; // Keep it just under to avoid instant level up
+            }
+        }
+
+        return leveledUp;
     }
 
     /**
@@ -164,8 +181,9 @@ public class PlayerProgress implements Serializable {
         lastLoginDate = System.currentTimeMillis();
         todayLoginBonusClaimed = true;
 
-        // Bonus XP: 50 base + 10 per consecutive day (max 200)
-        int bonusXP = Math.min(50 + (consecutiveDaysLogged * 10), 200);
+        // Bonus XP: 30 base + 5 per consecutive day (max 80) - BALANCED
+        // Day 1: 35 XP, Day 5: 55 XP, Day 10+: 80 XP (capped)
+        int bonusXP = Math.min(30 + (consecutiveDaysLogged * 5), 80);
         return bonusXP;
     }
 
@@ -196,10 +214,15 @@ public class PlayerProgress implements Serializable {
     public int getMaxComboReached() { return maxComboReached; }
     public int getMaxBallsDeflected() { return maxBallsDeflected; }
     public int getHighestScore() { return highestScore; }
+    public int getTotalBallsDeflected() { return totalBallsDeflected; }
+    public int getLongestWinStreak() { return longestWinStreak; }
+    public int getCurrentWinStreak() { return currentWinStreak; }
     public int getClassicGamesPlayed() { return classicGamesPlayed; }
     public int getClassicWins() { return classicWins; }
+    public int getClassicMaxCombo() { return classicMaxCombo; }
     public int getCircleGamesPlayed() { return circleGamesPlayed; }
     public int getCircleBestScore() { return circleBestScore; }
+    public int getCircleMaxCombo() { return circleMaxCombo; }
     public List<String> getRecentAchievements() { return new ArrayList<>(recentAchievements); }
     public List<Integer> getRecentLevels() { return new ArrayList<>(recentLevels); }
     public int getConsecutiveDaysLogged() { return consecutiveDaysLogged; }
@@ -221,8 +244,16 @@ public class PlayerProgress implements Serializable {
         if (score > highestScore) highestScore = score;
     }
 
-    public void updateMaxCombo(int combo) {
+    public void updateMaxCombo(int combo, boolean isCircleMode) {
+        // Update global max (kept for backwards compatibility)
         if (combo > maxComboReached) maxComboReached = combo;
+
+        // Update mode-specific max
+        if (isCircleMode) {
+            if (combo > circleMaxCombo) circleMaxCombo = combo;
+        } else {
+            if (combo > classicMaxCombo) classicMaxCombo = combo;
+        }
     }
 
     public void updateMaxBallsDeflected(int balls) {
@@ -231,6 +262,21 @@ public class PlayerProgress implements Serializable {
 
     public void addPlayTime(long millis) {
         totalPlayTimeMillis += millis;
+    }
+
+    public void addBallsDeflected(int count) {
+        totalBallsDeflected += count;
+    }
+
+    public void updateWinStreak(boolean won) {
+        if (won) {
+            currentWinStreak++;
+            if (currentWinStreak > longestWinStreak) {
+                longestWinStreak = currentWinStreak;
+            }
+        } else {
+            currentWinStreak = 0;
+        }
     }
 
     /**
@@ -247,7 +293,52 @@ public class PlayerProgress implements Serializable {
      */
     public static PlayerProgress load(String filepath) throws IOException, ClassNotFoundException {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filepath))) {
-            return (PlayerProgress) ois.readObject();
+            PlayerProgress progress = (PlayerProgress) ois.readObject();
+            progress.validateAndFixData(); // Fix any corrupted data
+            return progress;
         }
+    }
+
+    /**
+     * Validate and fix corrupted data (e.g., from bugs or save file issues)
+     */
+    private void validateAndFixData() {
+        System.out.println("Validating player data...");
+        System.out.println("Current Level: " + currentLevel + ", Current XP: " + currentXP);
+
+        // Fix level if it's out of bounds
+        if (currentLevel < 1) {
+            System.out.println("WARNING: Level was " + currentLevel + ", resetting to 1");
+            currentLevel = 1;
+        }
+        if (currentLevel > MAX_LEVEL) {
+            System.out.println("WARNING: Level was " + currentLevel + ", capping to " + MAX_LEVEL);
+            currentLevel = MAX_LEVEL;
+        }
+
+        // Fix XP: if it's extremely high, level up properly
+        if (currentLevel < MAX_LEVEL) {
+            int maxReasonableXP = getXPForNextLevel() * 2; // Allow some overflow but not crazy amounts
+
+            if (currentXP > maxReasonableXP) {
+                System.out.println("WARNING: XP is corrupted (" + currentXP + "), fixing...");
+
+                // Try to level up as much as possible
+                while (currentLevel < MAX_LEVEL && currentXP >= getXPForNextLevel()) {
+                    int xpNeeded = getXPForNextLevel();
+                    currentXP -= xpNeeded;
+                    currentLevel++;
+                    System.out.println("  Auto-leveling up to " + currentLevel);
+                }
+
+                // If still too high, cap it
+                if (currentXP > getXPForNextLevel()) {
+                    System.out.println("  Still too high, capping XP to " + (getXPForNextLevel() - 1));
+                    currentXP = Math.max(0, getXPForNextLevel() - 1);
+                }
+            }
+        }
+
+        System.out.println("Validation complete. Level: " + currentLevel + ", XP: " + currentXP);
     }
 }

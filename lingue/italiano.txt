@@ -398,9 +398,277 @@ CIRCLE_MODE_100_COMBO_FRENZY=🔥 FRENZY 100 COMBO! 🔥
 CIRCLE_MODE_BALLS_DEFLECTED_LABEL=PALLE RESPINTE:
 CIRCLE_MODE_MODALITA=MODALITA
 CIRCLE_MODE_ADVANCEMENT=AVANZAMENTO
+CIRCLE_MODE_SETTINGS=IMPOSTAZIONI
 CIRCLE_MODE_HOLD_INSTRUCTION=Tieni premuto sulla palla centrale per iniziare
 CIRCLE_MODE_GAME_INSTRUCTION=Muovi il mouse per controllare il paddle - ESC per uscire
 
 # Game Mode Selection
 GAME_MODE_CLASSIC=CLASSICO
 GAME_MODE_CIRCLE=CIRCLE
+
+# Advancement System
+ADV_TITLE=AVANZAMENTO
+ADV_LEVEL=Livello
+ADV_RANK=Rank
+ADV_XP=XP
+ADV_NEXT_LEVEL=Prossimo Livello
+ADV_PROGRESS=Progressione
+ADV_ACHIEVEMENTS=Achievement
+ADV_UNLOCKS=Sblocchi
+ADV_STATISTICS=Statistiche
+ADV_DAILY_BONUS=Bonus Giornaliero
+ADV_LOGIN_STREAK=Giorni consecutivi
+ADV_NEXT_BONUS=Prossimo bonus
+ADV_CONSECUTIVE_DAYS=Giorni Consecutivi
+ADV_EQUIPPED_TITLE=Titolo Equipaggiato
+ADV_EQUIPPED_BADGE=Badge Equipaggiato
+ADV_NEXT_UNLOCKS=Prossimi Sblocchi
+ADV_UNLOCK_PLACEHOLDER=Ricompensa misteriosa
+ADV_UNLOCKED=Sbloccato
+ADV_LOCKED=Bloccato
+ADV_EQUIP=Equipaggia
+ADV_EQUIPPED=Equipaggiato
+ADV_ACH_PROGRESS=Progresso Achievement
+ADV_PADDLE_THEMES=Temi Paddle
+ADV_TITLES=Titoli
+ADV_BADGES=Badge
+ADV_NO_UNLOCKS=Nessuno sbloccato ancora
+ADV_EQUIP_INSTRUCTION=Clicca su un elemento per equipaggiarlo
+
+# Ranks
+RANK_PRINCIPIANTE=PRINCIPIANTE
+RANK_INTERMEDIO=INTERMEDIO
+RANK_AVANZATO=AVANZATO
+RANK_ESPERTO=ESPERTO
+RANK_MAESTRO=MAESTRO
+
+# Achievement Categories
+ACH_CAT_ALL=Tutti
+ACH_CAT_FIRST_TIME=Prime Volte
+ACH_CAT_CIRCLE_MODE=Modalità Circle
+ACH_CAT_CLASSIC_MODE=Modalità Classica
+ACH_CAT_MASTERY=Maestria
+ACH_CAT_SPECIAL=Speciali
+
+# Achievement Tiers
+ACH_TIER_BRONZE=Bronzo
+ACH_TIER_SILVER=Argento
+ACH_TIER_GOLD=Oro
+ACH_TIER_PLATINUM=Platino
+
+# Achievements - First Time (Prime Volte)
+ACH_FIRST_GAME=Prima Partita
+ACH_FIRST_GAME_DESC=Gioca la tua prima partita
+ACH_FIRST_WIN_CLASSIC=Prima Vittoria Classica
+ACH_FIRST_WIN_CLASSIC_DESC=Vinci la tua prima partita in Modalità Classica
+ACH_FIRST_CIRCLE=Benvenuto in Circle Mode
+ACH_FIRST_CIRCLE_DESC=Gioca la tua prima partita in Circle Mode
+ACH_10_GAMES=Veterano
+ACH_10_GAMES_DESC=Gioca 10 partite in totale
+ACH_50_GAMES=Giocatore Esperto
+ACH_50_GAMES_DESC=Gioca 50 partite in totale
+ACH_100_GAMES=Centuria
+ACH_100_GAMES_DESC=Gioca 100 partite in totale
+ACH_250_GAMES=Quarto di Millennio
+ACH_250_GAMES_DESC=Gioca 250 partite in totale
+ACH_500_GAMES=Mezzo Millennio
+ACH_500_GAMES_DESC=Gioca 500 partite in totale
+ACH_PLAYTIME_30MIN=Primo Passo
+ACH_PLAYTIME_30MIN_DESC=Gioca per 30 minuti in totale
+ACH_PLAYTIME_1HOUR=Un'Ora di Gioco
+ACH_PLAYTIME_1HOUR_DESC=Gioca per 1 ora in totale
+ACH_PLAYTIME_5HOURS=Cinque Ore
+ACH_PLAYTIME_5HOURS_DESC=Gioca per 5 ore in totale
+ACH_PLAYTIME_10HOURS=Dedicato
+ACH_PLAYTIME_10HOURS_DESC=Gioca per 10 ore in totale
+ACH_LOGIN_3DAYS=Tre Giorni
+ACH_LOGIN_3DAYS_DESC=Accedi al gioco per 3 giorni consecutivi
+ACH_LOGIN_7DAYS=Settimana Perfetta
+ACH_LOGIN_7DAYS_DESC=Accedi al gioco per 7 giorni consecutivi
+ACH_LOGIN_30DAYS=Mese Dedito
+ACH_LOGIN_30DAYS_DESC=Accedi al gioco per 30 giorni consecutivi
+
+# Achievements - Circle Mode (Modalità Circle)
+ACH_CIRCLE_PROTECT_10=Protezione Base
+ACH_CIRCLE_PROTECT_10_DESC=Proteggi 10 palle in Circle Mode
+ACH_CIRCLE_PROTECT_30=Difensore Iniziale
+ACH_CIRCLE_PROTECT_30_DESC=Proteggi 30 palle in Circle Mode
+ACH_CIRCLE_PROTECT_50=Guardiano del Cerchio
+ACH_CIRCLE_PROTECT_50_DESC=Proteggi 50 palle in Circle Mode
+ACH_CIRCLE_PROTECT_100=Protezione Centenaria
+ACH_CIRCLE_PROTECT_100_DESC=Proteggi 100 palle in Circle Mode
+ACH_CIRCLE_PROTECT_250=Difensore Esperto
+ACH_CIRCLE_PROTECT_250_DESC=Proteggi 250 palle in Circle Mode
+ACH_CIRCLE_PROTECT_500=Barriera Impenetrabile
+ACH_CIRCLE_PROTECT_500_DESC=Proteggi 500 palle in Circle Mode
+ACH_CIRCLE_PROTECT_1000=Guardiano Millenario
+ACH_CIRCLE_PROTECT_1000_DESC=Proteggi 1000 palle in Circle Mode
+ACH_CIRCLE_PROTECT_2500=Leggenda del Cerchio
+ACH_CIRCLE_PROTECT_2500_DESC=Proteggi 2500 palle in Circle Mode
+ACH_CIRCLE_COMBO_25=Combo Circle Base
+ACH_CIRCLE_COMBO_25_DESC=Raggiungi un combo di 25 in Circle Mode
+ACH_CIRCLE_COMBO_50=Combo Circle Medio
+ACH_CIRCLE_COMBO_50_DESC=Raggiungi un combo di 50 in Circle Mode
+ACH_CIRCLE_COMBO_100=Combo Circle Centenario
+ACH_CIRCLE_COMBO_100_DESC=Raggiungi un combo di 100 in Circle Mode
+ACH_CIRCLE_COMBO_150=Combo Circle Avanzato
+ACH_CIRCLE_COMBO_150_DESC=Raggiungi un combo di 150 in Circle Mode
+ACH_CIRCLE_COMBO_200=Combo Circle Maestro
+ACH_CIRCLE_COMBO_200_DESC=Raggiungi un combo di 200 in Circle Mode
+ACH_CIRCLE_COMBO_300=Combo Circle Leggendario
+ACH_CIRCLE_COMBO_300_DESC=Raggiungi un combo di 300 in Circle Mode
+ACH_CIRCLE_COMBO_500=Combo Circle Impossibile
+ACH_CIRCLE_COMBO_500_DESC=Raggiungi un combo di 500 in Circle Mode
+ACH_CIRCLE_SURVIVE_30S=Sopravvivenza Base
+ACH_CIRCLE_SURVIVE_30S_DESC=Sopravvivi 30 secondi in Circle Mode
+ACH_CIRCLE_SURVIVE_1MIN=Primo Minuto
+ACH_CIRCLE_SURVIVE_1MIN_DESC=Sopravvivi 1 minuto in Circle Mode
+ACH_CIRCLE_SURVIVE_2MIN=Due Minuti
+ACH_CIRCLE_SURVIVE_2MIN_DESC=Sopravvivi 2 minuti in Circle Mode
+ACH_CIRCLE_SURVIVE_5MIN=Sopravvissuto
+ACH_CIRCLE_SURVIVE_5MIN_DESC=Sopravvivi 5 minuti in Circle Mode
+ACH_CIRCLE_SURVIVE_10MIN=Inarrestabile
+ACH_CIRCLE_SURVIVE_10MIN_DESC=Sopravvivi 10 minuti in Circle Mode
+ACH_CIRCLE_SCORE_1K=Mille Punti Circle
+ACH_CIRCLE_SCORE_1K_DESC=Raggiungi 1000 punti in Circle Mode
+ACH_CIRCLE_SCORE_5K=Cinquemila Punti Circle
+ACH_CIRCLE_SCORE_5K_DESC=Raggiungi 5000 punti in Circle Mode
+ACH_CIRCLE_SCORE_10K=Diecimila Punti Circle
+ACH_CIRCLE_SCORE_10K_DESC=Raggiungi 10000 punti in Circle Mode
+ACH_CIRCLE_SCORE_25K=Venticinquemila Punti Circle
+ACH_CIRCLE_SCORE_25K_DESC=Raggiungi 25000 punti in Circle Mode
+ACH_CIRCLE_SCORE_50K=Cinquantamila Punti Circle
+ACH_CIRCLE_SCORE_50K_DESC=Raggiungi 50000 punti in Circle Mode
+ACH_CIRCLE_NO_DAMAGE=Intoccabile Circle
+ACH_CIRCLE_NO_DAMAGE_DESC=Completa Circle Mode senza perdere vita
+ACH_CIRCLE_10_GAMES=Dieci Partite Circle
+ACH_CIRCLE_10_GAMES_DESC=Gioca 10 partite in Circle Mode
+ACH_CIRCLE_50_GAMES=Cinquanta Partite Circle
+ACH_CIRCLE_50_GAMES_DESC=Gioca 50 partite in Circle Mode
+
+# Achievements - Classic Mode (Modalità Classica)
+ACH_CLASSIC_5_WINS=Cinque Vittorie
+ACH_CLASSIC_5_WINS_DESC=Vinci 5 partite in Modalità Classica
+ACH_CLASSIC_10_WINS=Dieci Vittorie
+ACH_CLASSIC_10_WINS_DESC=Vinci 10 partite in Modalità Classica
+ACH_CLASSIC_25_WINS=Venticinque Vittorie
+ACH_CLASSIC_25_WINS_DESC=Vinci 25 partite in Modalità Classica
+ACH_CLASSIC_50_WINS=Cinquanta Vittorie
+ACH_CLASSIC_50_WINS_DESC=Vinci 50 partite in Modalità Classica
+ACH_CLASSIC_100_WINS=Cento Vittorie
+ACH_CLASSIC_100_WINS_DESC=Vinci 100 partite in Modalità Classica
+ACH_BEAT_EASY=Vittoria Facile
+ACH_BEAT_EASY_DESC=Vinci contro l'IA Facile
+ACH_BEAT_NORMAL=Vittoria Normale
+ACH_BEAT_NORMAL_DESC=Vinci contro l'IA Normale
+ACH_BEAT_HARD=Sfida Superata
+ACH_BEAT_HARD_DESC=Vinci contro l'IA Difficile
+ACH_BEAT_EXPERT=Esperto Battuto
+ACH_BEAT_EXPERT_DESC=Vinci contro l'IA Esperto
+ACH_BEAT_IMPOSSIBLE=L'Impossibile è Nulla
+ACH_BEAT_IMPOSSIBLE_DESC=Vinci contro l'IA Impossibile
+ACH_CLASSIC_STREAK_3=Serie di 3
+ACH_CLASSIC_STREAK_3_DESC=Vinci 3 partite consecutive in Modalità Classica
+ACH_CLASSIC_STREAK_5=Serie di 5
+ACH_CLASSIC_STREAK_5_DESC=Vinci 5 partite consecutive in Modalità Classica
+ACH_CLASSIC_STREAK_10=Serie di 10
+ACH_CLASSIC_STREAK_10_DESC=Vinci 10 partite consecutive in Modalità Classica
+ACH_CLASSIC_STREAK_20=Serie Imbattibile
+ACH_CLASSIC_STREAK_20_DESC=Vinci 20 partite consecutive in Modalità Classica
+ACH_CLASSIC_COMBO_5=Combo Classico Base
+ACH_CLASSIC_COMBO_5_DESC=Raggiungi un combo di 5 in Modalità Classica
+ACH_CLASSIC_COMBO_10=Combo Classico Medio
+ACH_CLASSIC_COMBO_10_DESC=Raggiungi un combo di 10 in Modalità Classica
+ACH_CLASSIC_COMBO_25=Combo Classico Avanzato
+ACH_CLASSIC_COMBO_25_DESC=Raggiungi un combo di 25 in Modalità Classica
+ACH_CLASSIC_COMBO_50=Combo Classico Leggendario
+ACH_CLASSIC_COMBO_50_DESC=Raggiungi un combo di 50 in Modalità Classica
+ACH_CLASSIC_SCORE_5=Cinque Punti Classico
+ACH_CLASSIC_SCORE_5_DESC=Raggiungi 5 punti in una partita Classica
+ACH_CLASSIC_SCORE_10=Dieci Punti Classico
+ACH_CLASSIC_SCORE_10_DESC=Raggiungi 10 punti in una partita Classica
+ACH_CLASSIC_SCORE_20=Venti Punti Classico
+ACH_CLASSIC_SCORE_20_DESC=Raggiungi 20 punti in una partita Classica
+ACH_CLASSIC_PERFECT=Vittoria Perfetta
+ACH_CLASSIC_PERFECT_DESC=Vinci 11-0 in Modalità Classica
+ACH_CLASSIC_10_GAMES=Dieci Partite Classiche
+ACH_CLASSIC_10_GAMES_DESC=Gioca 10 partite in Modalità Classica
+ACH_CLASSIC_50_GAMES=Cinquanta Partite Classiche
+ACH_CLASSIC_50_GAMES_DESC=Gioca 50 partite in Modalità Classica
+ACH_CLASSIC_100_GAMES=Cento Partite Classiche
+ACH_CLASSIC_100_GAMES_DESC=Gioca 100 partite in Modalità Classica
+
+# Achievements - Mastery (Maestria)
+ACH_MASTER_ALL_AI=Padrone dell'IA
+ACH_MASTER_ALL_AI_DESC=Vinci contro tutti i livelli di difficoltà IA
+ACH_DEFLECT_5000=Cinquemila Respinte
+ACH_DEFLECT_5000_DESC=Respingi 5000 palle in totale
+ACH_DEFLECT_10000=Diecimila Respinte
+ACH_DEFLECT_10000_DESC=Respingi 10000 palle in totale
+ACH_COMPLETIONIST=Completista
+ACH_COMPLETIONIST_DESC=Sblocca tutti gli altri achievement
+ACH_LEVEL_25=Livello 25
+ACH_LEVEL_25_DESC=Raggiungi il livello 25
+ACH_LEVEL_50=Livello Massimo
+ACH_LEVEL_50_DESC=Raggiungi il livello massimo 50
+
+# Achievements - Special (Speciali)
+ACH_NIGHT_OWL=Nottambulo
+ACH_NIGHT_OWL_DESC=Gioca tra mezzanotte e le 4 del mattino
+ACH_DEDICATED=Giocatore Dedicato
+ACH_DEDICATED_DESC=Gioca per 5 giorni consecutivi
+ACH_LUCKY_NUMBER=Numero Fortunato
+ACH_LUCKY_NUMBER_DESC=Ottieni esattamente 777 punti
+
+# Statistics Labels
+STAT_GENERAL=Statistiche Generali
+STAT_RECORDS=Record
+STAT_TOTAL_GAMES=Partite Totali
+STAT_TOTAL_WINS=Vittorie Totali
+STAT_TOTAL_LOSSES=Sconfitte Totali
+STAT_PLAY_TIME=Tempo di Gioco
+STAT_MINUTES=minuti
+STAT_MAX_COMBO=Combo Massimo
+STAT_MAX_BALLS=Palle Respinte Max
+STAT_MAX_DEFLECT=Palle Respinte Max
+STAT_HIGH_SCORE=Punteggio Record
+STAT_LONGEST_STREAK=Serie di Vittorie Massima
+STAT_CLASSIC_MODE=Modalità Classica
+STAT_CLASSIC_GAMES=Partite Classiche
+STAT_CLASSIC_WINS=Vittorie Classiche
+STAT_CIRCLE_MODE=Modalità Circle
+STAT_CIRCLE_GAMES=Partite Circle Mode
+STAT_CIRCLE_BEST=Record Circle Mode
+STAT_GAMES=Partite
+STAT_WINS=Vittorie
+STAT_BEST_SCORE=Miglior Punteggio
+STAT_TOTAL_DEFLECTS=Palle Respinte Totali
+STAT_WIN_RATE=Tasso di Vittoria
+STAT_RECENT_ACH=Achievement Recenti
+STAT_RECENT_LEVELS=Livelli Recenti
+
+# UI General
+ESC_TO_RETURN=Premi ESC per tornare
+
+# Paddle Themes (placeholder - add actual theme names as needed)
+THEME_DEFAULT=Tema Predefinito
+THEME_FIRE=Tema Fuoco
+THEME_ICE=Tema Ghiaccio
+THEME_RAINBOW=Tema Arcobaleno
+
+# Titles (placeholder - add actual titles as needed)
+TITLE_BEGINNER=Principiante
+TITLE_WARRIOR=Guerriero
+TITLE_MASTER=Maestro
+TITLE_LEGEND=Leggenda
+
+# Badges (placeholder - add actual badges as needed)
+BADGE_FIRST_WIN=Prima Vittoria
+BADGE_COMBO_KING=Re dei Combo
+BADGE_SURVIVOR=Sopravvissuto
+BADGE_CHAMPION=Campione
+
+# Notification System
+ACHIEVEMENT_UNLOCKED=Achievement Sbloccato!
+LEVEL_UP=AUMENTO DI LIVELLO!
+LEVEL_UP_MESSAGE=Hai raggiunto il livello

@@ -5,10 +5,11 @@ package advancement;
  */
 public class Achievement {
     public enum Category {
-        FIRST_TIME,      // Prime Volte
-        COMBO_MASTER,    // Combo Master
-        SURVIVAL,        // Sopravvivenza
-        AI_MASTERY       // Padronanza IA
+        FIRST_TIME,      // Prime Volte - First achievements
+        CIRCLE_MODE,     // Circle Mode - Specific to Circle Mode
+        CLASSIC_MODE,    // Classic Mode - Specific to Classic/PongPing Mode
+        MASTERY,         // Maestria - Advanced mastery achievements
+        SPECIAL          // Speciali - Special/Secret achievements
     }
 
     public enum Tier {

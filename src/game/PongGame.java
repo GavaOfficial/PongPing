@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.Random;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Collection;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
@@ -47,8 +48,14 @@ import static context.HistoryContext.*;
 import static context.RankContext.*;
 import static context.AIContext.*;
 
+import advancement.*;
+
 
 public class PongGame extends JPanel implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
+
+    // Player progression system
+    protected PlayerProgress playerProgress;
+    private static final String PROGRESS_FILE = "data/player_progress.dat";
 
     // Game loop constants
     private static final int LOGIC_FPS = 60;
@@ -360,6 +367,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     // Circle Mode balls system
     private java.util.List<CircleBall> circleBalls = new ArrayList<>();
     private long lastBallSpawnTime = 0;
+    private int lastSpawnEdge = -1; // Track last spawn edge to avoid opposite simultaneous spawns
+    private double lastSpawnSpeed = 0; // Track last spawn speed
     private long ballSpawnInterval = 2000; // milliseconds between spawns (decreases over time)
     private int maxSimultaneousBalls = 3; // Maximum balls on screen (increases over time)
 
@@ -417,6 +426,134 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     // Advancement trapezoid state (right side)
     private boolean advancementTrapezoidClicked = false; // Track if trapezoid is clicked
     private boolean advancementTrapezoidHovered = false; // Track if trapezoid is hovered
+
+    // Settings trapezoid state (right side, above advancement)
+    private boolean settingsTrapezoidClicked = false; // Track if settings trapezoid is clicked
+    private boolean settingsTrapezoidHovered = false; // Track if settings trapezoid is hovered
+
+    // Advancement UI state
+    private int advancementSelectedTab = 0; // 0=Progress, 1=Achievements, 2=Unlocks, 3=Stats
+    private int advancementAchievementFilter = 0; // 0=All, 1=Unlocked, 2=Locked, 3-6=By Tier
+    private int advancementAchievementCategoryFilter = -1; // -1=All, 0-3=Categories
+    private String selectedTitleForEquip = ""; // Title being equipped
+    private String selectedBadgeForEquip = ""; // Badge being equipped
+
+    // Detail selection system
+    private boolean advancementDetailMode = false; // True when navigating inside a category
+    private int advancementSelectedItem = 0; // Index of selected item within current tab
+
+    // Advancement scrolling state
+    private int[] advancementScrollOffset = new int[4]; // Scroll offset for each tab (0=Progress, 1=Achievements, 2=Unlocks, 3=Stats)
+    private int[] advancementMaxScroll = new int[4]; // Max scroll for each tab
+
+    // Advancement boot intro (Linux style)
+    private boolean advancementIntroSeenThisSession = false; // NOT saved - resets on app restart
+    private boolean advancementBootIntroActive = false;
+    private long advancementBootIntroStartTime = 0;
+    private int advancementBootCurrentLine = 0;
+    private String[] advancementBootMessages = {
+        "[    0.000000] Initializing Avanzamenti Intelligence System...",
+        "[    0.125000] Loading player profile... OK",
+        "[    0.250000] Verifying player data integrity... OK",
+        "[    0.375000] Mounting achievement filesystem... OK",
+        "[    0.500000] Starting advancement service... OK",
+        "[    0.625000] Loading statistics database... OK",
+        "[    0.750000] Initializing rank system... OK",
+        "[    0.875000] Checking cosmetic unlocks... OK",
+        "[    1.000000] Calculating XP progression... OK",
+        "[    1.125000] Verifying daily login bonus... OK",
+        "[    1.250000] Loading Circle Mode records... OK",
+        "[    1.375000] Loading Classic Mode records... OK",
+        "[    1.500000] System check complete.",
+        "[    1.625000] Welcome, Player.",
+        "",
+        "avanzamenti.java initialized successfully.",
+        "",
+        "Press any key to continue..."
+    };
+
+    // Notification system
+    private List<GameNotification> activeNotifications = new ArrayList<>();
+
+    /**
+     * Represents a game notification (achievement, level up, etc.)
+     */
+    private static class GameNotification {
+        enum Type {
+            ACHIEVEMENT,
+            LEVEL_UP,
+            XP_GAIN
+        }
+
+        Type type;
+        String title;
+        String message;
+        int xpReward;
+        Achievement.Tier tier; // For achievement color
+        long startTime;
+        long duration; // milliseconds
+        float slideProgress; // 0.0 to 1.0 for slide in animation
+        float slideOutProgress; // 0.0 to 1.0 for slide out animation
+        boolean started; // True when notification actually starts being shown
+
+        GameNotification(Type type, String title, String message, int xpReward, Achievement.Tier tier, long duration) {
+            this.type = type;
+            this.title = title;
+            this.message = message;
+            this.xpReward = xpReward;
+            this.tier = tier;
+            this.startTime = 0; // Will be set when notification starts
+            this.duration = duration;
+            this.slideProgress = 0.0f;
+            this.slideOutProgress = 0.0f;
+            this.started = false;
+        }
+
+        void start() {
+            if (!started) {
+                started = true;
+                startTime = System.currentTimeMillis();
+            }
+        }
+
+        boolean isExpired() {
+            if (!started) return false;
+            return System.currentTimeMillis() - startTime > duration;
+        }
+
+        boolean isExiting() {
+            if (!started) return false;
+            long elapsed = System.currentTimeMillis() - startTime;
+            return elapsed > duration - 500; // Start exit animation 500ms before expiring
+        }
+
+        void updateSlideIn() {
+            if (slideProgress < 1.0f) {
+                slideProgress += 0.08f; // Smooth slide in
+                if (slideProgress > 1.0f) slideProgress = 1.0f;
+            }
+        }
+
+        void updateSlideOut() {
+            if (slideOutProgress < 1.0f) {
+                slideOutProgress += 0.06f; // Smooth slide out
+                if (slideOutProgress > 1.0f) slideOutProgress = 1.0f;
+            }
+        }
+
+        float getAlpha() {
+            if (!started) return 1.0f;
+            long elapsed = System.currentTimeMillis() - startTime;
+            if (elapsed < 300) {
+                // Fade in
+                return elapsed / 300f;
+            } else if (elapsed > duration - 500) {
+                // Fade out
+                return (duration - elapsed) / 500f;
+            }
+            return 1.0f;
+        }
+    }
 
     // Circle Mode death animation
     private boolean circleModeDeathAnimationActive = false;
@@ -576,6 +713,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private double transitionStartX = 0;
     private double transitionStartY = 0;
     private GameState stateBeforeModeSelection = GameState.MENU; // Remember state before entering mode selection
+    private GameState stateBeforeAdvancement = GameState.MENU; // Remember state before entering advancement screen
+    private GameState stateBeforeSettings = GameState.MENU; // Remember state before entering settings
 
     // Game mode selection hover state
     private boolean leftArrowHovered = false;
@@ -637,7 +776,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         loadTextColorsForTheme(); // Load text colors for current theme
         initializeMouseCursors(); // Initialize cursor visibility system
         updateDimensions();
-        
+
+        // Load player progression system
+        loadPlayerProgress();
+
         // Always start with INTRO screen
         currentState = GameState.INTRO;
         introStartTime = System.currentTimeMillis();
@@ -1315,9 +1457,15 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                     drawCircleModePauseOverlay(g2d);
                 }
                 break;
+            case ADVANCEMENT:
+                drawAdvancement(g2d);
+                break;
         }
+
+        // Draw notifications as overlay (always on top)
+        drawNotifications(g2d);
     }
-    
+
     private void drawSettingsBackground(Graphics2D g) {
         // Draw the selected background theme behind the checkerboard
         if (selectedBackground >= 0 && selectedBackground < backgroundImages.size()) {
@@ -3209,10 +3357,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void drawPauseTransition(Graphics2D g) {
         // Draw game background
         drawGameBackground(g);
-        
-        // Draw particles
-        ArrayList<Particle> particlesCopy = new ArrayList<>(particles);
-        for (Particle p : particlesCopy) {
+
+        // Draw particles (thread-safe iteration)
+        for (Particle p : particles) {
             p.draw(g);
         }
         
@@ -4388,9 +4535,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         drawGameBackground(g);
         
         // Draw particles next (behind game elements but on top of background)
-        // Use copy to avoid ConcurrentModificationException
-        ArrayList<Particle> particlesCopy = new ArrayList<>(particles);
-        for (Particle p : particlesCopy) {
+        // Thread-safe iteration (CopyOnWriteArrayList)
+        for (Particle p : particles) {
             p.draw(g);
         }
         
@@ -4522,15 +4668,15 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void drawGameForPause(Graphics2D g) {
         // Draw game background without center line
         drawGameBackgroundForPause(g);
-        
+
         // Draw particles next (behind game elements but on top of background)
-        ArrayList<Particle> particlesCopy = new ArrayList<>(particles);
-        for (Particle p : particlesCopy) {
+        // Thread-safe iteration (CopyOnWriteArrayList)
+        for (Particle p : particles) {
             p.draw(g);
         }
-        
+
         g.setColor(Color.WHITE);
-        
+
         // Calculate scaled paddle positions
         int leftPaddleX = (int)(20 * scaleX);
         int rightPaddleX = BOARD_WIDTH - leftPaddleX - PADDLE_WIDTH;
@@ -9221,7 +9367,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             
             // Save game history entry
             saveGameResult();
-            
+
+            // Award XP and update player progress
+            awardClassicModeXP();
+
             setState(GameState.GAME_OVER);
         } else if (score2 >= WINNING_SCORE) {
             winner = currentState == GameState.SINGLE_PLAYER ? "COMPUTER" : "PLAYER 2";
@@ -9256,11 +9405,14 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             
             // Save game history entry
             saveGameResult();
-            
+
+            // Award XP and update player progress
+            awardClassicModeXP();
+
             setState(GameState.GAME_OVER);
         }
     }
-    
+
     public void resetBall() {
         ballX = BOARD_WIDTH / 2 - BALL_SIZE / 2;
         ballY = BOARD_HEIGHT / 2 - BALL_SIZE / 2;
@@ -9422,6 +9574,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     // Renamed move() to updateGameLogic() for clarity
     private void updateGameLogic() {
         move(); // Keep existing logic for now
+        updateNotifications(); // Update and remove expired notifications
     }
     
     @Override
@@ -9437,8 +9590,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         if (isAnyTransitionActive()) {
             return;
         }
-        
-        // Debug key removed
+
+        // Test notification shortcut: Ctrl+Shift+Alt+N (complex combination)
+        if (e.isControlDown() && e.isShiftDown() && e.isAltDown() && e.getKeyCode() == KeyEvent.VK_N) {
+            testNotifications();
+            return;
+        }
 
         switch (currentState) {
             case INTRO:
@@ -9492,6 +9649,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 break;
             case CIRCLE_MODE:
                 handleCircleModeInput(e);
+                break;
+            case ADVANCEMENT:
+                handleAdvancementInput(e);
                 break;
         }
     }
@@ -9731,8 +9891,11 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                         if (isPaused) {
                             // Return to pause menu if we came from a game
                             setState(GameState.PAUSED);
+                        } else if (stateBeforeSettings == GameState.CIRCLE_MODE_MENU) {
+                            // Return to Circle Mode Menu without transition (just change state)
+                            setState(GameState.CIRCLE_MODE_MENU);
                         } else {
-                            // Exit to main menu with animated transition (inverse of home→settings)
+                            // Exit to classic menu with animated transition (inverse of home→settings)
                             startSettingsToHomeTransition();
                             // Reset ball position to prevent it from showing in menu
                             ballX = BOARD_WIDTH / 2 - BALL_SIZE / 2;
@@ -10936,6 +11099,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                         handleCircleModeMenuMouseClick(e);
                     } else if (currentState == GameState.GAME_MODE_SELECTION) {
                         handleGameModeSelectionMouseClick(e);
+                    } else if (currentState == GameState.ADVANCEMENT) {
+                        handleAdvancementMouseClick(e);
                     }
                 });
             }
@@ -10979,7 +11144,18 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // === SCROLL LEGACY PER ALTRE SCHERMATE ===
         // Mantiene compatibilità con resto del gioco
-        if (currentState != GameState.PADDLE_SELECTION && currentState != GameState.RIGHT_PADDLE_SELECTION) {
+        if (currentState == GameState.ADVANCEMENT) {
+            // Scroll per pagina ADVANCEMENT
+            int scrollAmount = e.getWheelRotation() * (int)(80 * scaleY); // 80px per notch
+            advancementScrollOffset[advancementSelectedTab] += scrollAmount;
+
+            // Clamp scroll offset
+            advancementScrollOffset[advancementSelectedTab] = Math.max(0,
+                Math.min(advancementMaxScroll[advancementSelectedTab],
+                        advancementScrollOffset[advancementSelectedTab]));
+
+            repaint();
+        } else if (currentState != GameState.PADDLE_SELECTION && currentState != GameState.RIGHT_PADDLE_SELECTION) {
             // Scroll classico per altre schermate che potrebbero averlo
             // (placeholder per future implementazioni)
         }
@@ -12132,8 +12308,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
 
         // Check for ADVANCEMENT trapezoid click
         if (isInsideAdvancementTrapezoid(mouseX, mouseY)) {
-            // TODO: Implement advancement functionality
-            advancementTrapezoidClicked = true;
+            stateBeforeAdvancement = currentState; // Save current state before entering advancement
+            setState(GameState.ADVANCEMENT);
+            advancementTrapezoidClicked = false; // Reset click state
             repaint();
             return;
         }
@@ -12601,7 +12778,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     private void handleSettingsMouseClick(MouseEvent e) {
         System.out.println("DEBUG: Click on " + currentHoverState + " (cat: " + hoveredCategory + ", setting: " + hoveredSetting + ")");
-        
+
         // Handle click based on current hover state
         switch (currentHoverState) {
             case CATEGORY:
@@ -12613,7 +12790,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                     repaint();
                 }
                 break;
-                
+
             case SETTING:
                 // Click on setting modifies its value
                 if (hoveredSetting != -1 && isLeftMouseButton(e)) {
@@ -12622,13 +12799,99 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                     handleSettingsValueChange(true); // Increase value
                 }
                 break;
-                
+
             case NONE:
                 // No action for NONE state
                 break;
         }
     }
-    
+
+    private void handleAdvancementMouseClick(MouseEvent e) {
+        int mouseX = e.getX();
+        int mouseY = e.getY();
+
+        // Tab coordinates
+        int tabStartY = (int)(45 * scaleY);
+        int tabWidth = (int)(220 * scaleX);
+        int tabHeight = (int)(28 * scaleY);
+        int tabStartX = (int)(20 * scaleX);
+        int tabSpacing = (int)(6 * scaleY);
+
+        // Check if clicking on a tab
+        for (int i = 0; i < 4; i++) {
+            int tabY = tabStartY + i * (tabHeight + tabSpacing);
+
+            // Check if mouse is within tab bounds (full width)
+            if (mouseY >= tabY - (int)(4 * scaleY) && mouseY <= tabY + tabHeight - (int)(4 * scaleY)) {
+                // Clicked on tab i
+                if (advancementDetailMode) {
+                    // Exit detail mode when changing tabs
+                    advancementDetailMode = false;
+                    advancementSelectedItem = 0;
+                }
+                advancementSelectedTab = i;
+                repaint();
+                return;
+            }
+        }
+
+        // Check if clicking on achievement (only in tab 1 = achievements)
+        if (advancementSelectedTab == 1) {
+            // Calculate content area - MUST match drawAdvancementScreen coordinates exactly
+            int separatorY = tabStartY + 4 * (tabHeight + tabSpacing) + (int)(15 * scaleY);
+            int contentX = (int)(15 * scaleX);
+            int contentY = separatorY + (int)(25 * scaleY);
+            int contentWidth = BOARD_WIDTH - (int)(30 * scaleX);
+            int contentHeight = BOARD_HEIGHT - contentY - (int)(50 * scaleY);
+
+            int lineNumWidth = (int)(50 * scaleX);
+            int lineHeight = (int)(16 * scaleY);
+
+            // Calculate list width (55% if in detail mode, full otherwise)
+            int listWidth = advancementDetailMode ? (int)(contentWidth * 0.55) : contentWidth;
+
+            // Check if click is in the achievement list area
+            if (mouseX >= contentX && mouseX <= contentX + listWidth &&
+                mouseY >= contentY && mouseY <= contentY + contentHeight) {
+
+                // Calculate which achievement was clicked
+                int codeX = contentX + lineNumWidth + (int)(10 * scaleX);
+                int startY = contentY + (int)(15 * scaleY) - advancementScrollOffset[1];
+
+                // Skip header line
+                startY += lineHeight;
+
+                // Check each achievement
+                Collection<Achievement> achievements = AchievementRegistry.getAllAchievements();
+                int itemIndex = 0;
+                int currentYCheck = startY; // Track Y position exactly as rendering does
+
+                for (Achievement ach : achievements) {
+                    // Check if mouse Y is on this achievement line (matching the highlight area)
+                    // The highlight is drawn from currentY - 12*scaleY with height lineHeight
+                    int highlightTop = currentYCheck - (int)(12 * scaleY);
+                    int highlightBottom = highlightTop + lineHeight;
+
+                    if (mouseY >= highlightTop && mouseY < highlightBottom) {
+                        if (!advancementDetailMode) {
+                            // Enter detail mode
+                            advancementDetailMode = true;
+                            advancementSelectedItem = itemIndex;
+                        } else {
+                            // Change selected item
+                            advancementSelectedItem = itemIndex;
+                        }
+                        autoScrollToSelectedItem();
+                        repaint();
+                        return;
+                    }
+                    currentYCheck += lineHeight; // Increment exactly as rendering does
+                    itemIndex++;
+                }
+            }
+        }
+    }
+
     private void handleSettingsValueChange(boolean increase) {
         String[] currentSettings = categorySettings[selectedCategory];
         String currentSetting = currentSettings[selectedCategorySetting];
@@ -13594,7 +13857,82 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             return false;
         }
     }
-    
+
+    /**
+     * Load player progression from file
+     */
+    private void loadPlayerProgress() {
+        try {
+            String userHome = System.getProperty("user.home");
+            String appDataPath;
+
+            String os = System.getProperty("os.name").toLowerCase();
+            if (os.contains("win")) {
+                appDataPath = System.getenv("APPDATA");
+                if (appDataPath == null) {
+                    appDataPath = userHome + "\\AppData\\Roaming";
+                }
+            } else if (os.contains("mac")) {
+                appDataPath = userHome + "/Library/Application Support";
+            } else {
+                appDataPath = userHome + "/.local/share";
+            }
+
+            java.io.File pongPingDir = new java.io.File(new java.io.File(appDataPath, "GavaTech"), "Pong-Ping");
+            java.io.File progressFile = new java.io.File(pongPingDir, "player_progress.dat");
+
+            if (progressFile.exists()) {
+                playerProgress = PlayerProgress.load(progressFile.getAbsolutePath());
+                System.out.println("Loaded player progress: Level " + playerProgress.getCurrentLevel());
+            } else {
+                playerProgress = new PlayerProgress();
+                System.out.println("Created new player progress");
+            }
+
+            // Check daily login bonus
+            int dailyBonus = playerProgress.checkDailyLogin();
+            if (dailyBonus > 0) {
+                boolean leveledUp = playerProgress.addXP(dailyBonus);
+                System.out.println("Daily login bonus: +" + dailyBonus + " XP" + (leveledUp ? " (LEVEL UP!)" : ""));
+                // TODO: Show notification
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading player progress: " + e.getMessage());
+            playerProgress = new PlayerProgress(); // Fallback to new progress
+        }
+    }
+
+    /**
+     * Save player progression to file
+     */
+    protected void savePlayerProgress() {
+        try {
+            String userHome = System.getProperty("user.home");
+            String appDataPath;
+
+            String os = System.getProperty("os.name").toLowerCase();
+            if (os.contains("win")) {
+                appDataPath = System.getenv("APPDATA");
+                if (appDataPath == null) {
+                    appDataPath = userHome + "\\AppData\\Roaming";
+                }
+            } else if (os.contains("mac")) {
+                appDataPath = userHome + "/Library/Application Support";
+            } else {
+                appDataPath = userHome + "/.local/share";
+            }
+
+            java.io.File pongPingDir = new java.io.File(new java.io.File(appDataPath, "GavaTech"), "Pong-Ping");
+            pongPingDir.mkdirs(); // Create directories if they don't exist
+
+            java.io.File progressFile = new java.io.File(pongPingDir, "player_progress.dat");
+            playerProgress.save(progressFile.getAbsolutePath());
+            System.out.println("Saved player progress");
+        } catch (Exception e) {
+            System.err.println("Error saving player progress: " + e.getMessage());
+        }
+    }
+
 
     
     private void saveBackgroundTheme() {
@@ -16942,8 +17280,25 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 frenzySpiralAngle += (Math.PI / 8) * spiralDirection; // Rotate 22.5 degrees per ball
             }
         } else {
-            // Normal mode: spawn single random balls
-            if (currentTime - lastBallSpawnTime > ballSpawnInterval && circleBalls.size() < maxSimultaneousBalls) {
+            // Normal mode: spawn balls based on time progression
+            // 0-3 min: 1 ball
+            // 3-5 min: 2 balls
+            // 5-10 min: 3 balls
+            // 10+ min: 5 balls
+            double timeInSeconds = circleSurvivalTime / 1000.0;
+            int maxBallsAllowed;
+
+            if (timeInSeconds < 180) {        // 0-3 minutes
+                maxBallsAllowed = 1;
+            } else if (timeInSeconds < 300) { // 3-5 minutes
+                maxBallsAllowed = 2;
+            } else if (timeInSeconds < 600) { // 5-10 minutes
+                maxBallsAllowed = 3;
+            } else {                          // 10+ minutes
+                maxBallsAllowed = 5;
+            }
+
+            if (currentTime - lastBallSpawnTime > ballSpawnInterval && circleBalls.size() < maxBallsAllowed) {
                 spawnCircleBall();
                 lastBallSpawnTime = currentTime;
             }
@@ -17091,7 +17446,38 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     // Spawn a new ball from a random edge
     private void spawnCircleBall() {
         // Choose random edge: 0=top, 1=right, 2=bottom, 3=left
+        // STRONG prevention of opposite spawns to avoid simultaneous arrivals
         int edge = random.nextInt(4);
+
+        // ALWAYS avoid opposite edge if last spawn was recent (within 3000ms)
+        // This makes simultaneous opposite arrivals EXTREMELY rare
+        long timeSinceLastSpawn = System.currentTimeMillis() - lastBallSpawnTime;
+        if (timeSinceLastSpawn < 3000 && lastSpawnEdge != -1) {
+            int oppositeEdge = (lastSpawnEdge + 2) % 4; // Opposite: top<->bottom, left<->right
+
+            // Try up to 5 times to avoid opposite edge (increased from 3)
+            int attempts = 0;
+            while (edge == oppositeEdge && attempts < 5) {
+                edge = random.nextInt(4);
+                attempts++;
+            }
+
+            // If STILL opposite after 5 attempts, ALWAYS force to adjacent edge
+            if (edge == oppositeEdge) {
+                edge = (lastSpawnEdge + 1) % 4; // Adjacent edge
+            }
+        }
+
+        // EXTRA CHECK: If there are balls close to center from opposite direction, avoid spawning opposite
+        if (lastSpawnEdge != -1) {
+            int oppositeEdge = (edge + 2) % 4;
+            boolean hasBallNearCenterFromOpposite = checkForBallsNearCenterFromEdge(oppositeEdge);
+            if (hasBallNearCenterFromOpposite) {
+                // Force to adjacent edge instead
+                edge = (edge + 1) % 4;
+            }
+        }
+
         double spawnX, spawnY;
 
         switch (edge) {
@@ -17118,14 +17504,21 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         double dy = circleCenterY - spawnY;
         double distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Normalize and apply speed - CAP at reasonable max to prevent tunneling
+        // Apply base speed that increases progressively over time (via circleBallSpeedMultiplier)
+        // All balls have similar speed at the same time, increasing together as game progresses
         double baseSpeed = 3.0 * circleBallSpeedMultiplier;
-        double maxSpeed = 8.0; // Cap to prevent balls passing through paddle
+
+        // Add LARGE speed variation (±50%) to prevent simultaneous arrivals
+        // HUGE variation to make simultaneous opposite arrivals EXTREMELY rare
+        double speedVariation = 0.5 + random.nextDouble() * 1.0; // Range: 0.5x to 1.5x
+        baseSpeed *= speedVariation;
+
+        double maxSpeed = 15.0; // High cap for late game speeds
         baseSpeed = Math.min(baseSpeed, maxSpeed);
         double vx = (dx / distance) * baseSpeed;
         double vy = (dy / distance) * baseSpeed;
 
-        // Add small random variation
+        // Add small angle variation for more natural movement
         double angleVariation = (random.nextDouble() - 0.5) * 0.3; // ±0.15 radians
         double cos = Math.cos(angleVariation);
         double sin = Math.sin(angleVariation);
@@ -17133,7 +17526,41 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         double vyNew = vx * sin + vy * cos;
 
         circleBalls.add(new CircleBall(spawnX, spawnY, vxNew, vyNew));
-        System.out.println("DEBUG: Spawned ball at (" + (int)spawnX + ", " + (int)spawnY + ") towards center with speed " + baseSpeed);
+
+        // Track last spawn for preventing opposite simultaneous arrivals
+        lastSpawnEdge = edge;
+        lastSpawnSpeed = baseSpeed;
+
+        System.out.println("DEBUG: Spawned ball at (" + (int)spawnX + ", " + (int)spawnY + ") from edge " + edge + " with speed " + String.format("%.2f", baseSpeed) + " (multiplier: " + String.format("%.2f", circleBallSpeedMultiplier) + "x)");
+    }
+
+    // Check if there are balls close to center coming from a specific edge direction
+    // This prevents spawning opposite balls when one is about to arrive
+    private boolean checkForBallsNearCenterFromEdge(int edge) {
+        double circleCenterX = BOARD_WIDTH / 2.0;
+        double circleCenterY = BOARD_HEIGHT / 2.0;
+        double checkRadius = 250.0; // Check balls within 250 pixels of center (increased range)
+
+        for (CircleBall ball : circleBalls) {
+            double distToCenter = Math.sqrt(Math.pow(ball.x - circleCenterX, 2) + Math.pow(ball.y - circleCenterY, 2));
+
+            // Is this ball close to center?
+            if (distToCenter < checkRadius) {
+                // Determine which edge this ball came from based on its position
+                int ballEdge = -1;
+                if (ball.y < BOARD_HEIGHT * 0.3) ballEdge = 0; // From top
+                else if (ball.x > BOARD_WIDTH * 0.7) ballEdge = 1; // From right
+                else if (ball.y > BOARD_HEIGHT * 0.7) ballEdge = 2; // From bottom
+                else if (ball.x < BOARD_WIDTH * 0.3) ballEdge = 3; // From left
+
+                // If ball came from the specified edge, return true
+                if (ballEdge == edge) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // Spawn a single ball in continuous spiral pattern - CIRCULAR spawn path
@@ -17165,8 +17592,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         double dy = circleCenterY - spawnY;
         double distance = Math.sqrt(dx * dx + dy * dy);
 
-        // All balls have the same speed
-        double speedMultiplier = 1.0; // Constant speed for all balls
+        // Add speed variation to prevent simultaneous arrivals (less variation than normal balls)
+        double speedMultiplier = 0.85 + random.nextDouble() * 0.3; // Range: 0.85x to 1.15x
 
         double baseSpeed = 4.0 * circleBallSpeedMultiplier * speedMultiplier;
         double maxSpeed = 8.0;
@@ -17476,21 +17903,23 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     private void updateCircleProgression() {
         double timeInSeconds = circleSurvivalTime / 1000.0;
 
-        // Increase damage over time - CONTINUA (ogni 60 secondi +3x danno, no limite)
-        circleDamageMultiplier = 1.0 + (timeInSeconds / 60.0) * 3.0;
-        circleDamageMultiplier = Math.min(10.0, circleDamageMultiplier); // Max 10x per evitare one-shot troppo estremo
+        // Increase damage over time - BILANCIATO (ogni 90 secondi +2x danno)
+        circleDamageMultiplier = 1.0 + (timeInSeconds / 90.0) * 2.0;
+        circleDamageMultiplier = Math.min(8.0, circleDamageMultiplier); // Max 8x per evitare one-shot troppo estremo
 
-        // Increase ball speed over time - CONTINUA (ogni 30 secondi +0.5x velocità)
+        // Increase ball speed over time - PROGRESSIVO RAPIDO (ogni 30 secondi +0.5x velocità)
+        // La velocità aumenta RAPIDAMENTE per rendere il gioco sempre più frenetico
         circleBallSpeedMultiplier = 1.0 + (timeInSeconds / 30.0) * 0.5;
-        circleBallSpeedMultiplier = Math.min(4.0, circleBallSpeedMultiplier); // Max 4x per evitare tunneling
+        circleBallSpeedMultiplier = Math.min(4.0, circleBallSpeedMultiplier); // Max 4.0x (molto veloce!)
 
-        // Decrease spawn interval - CONTINUA (diventa sempre più veloce)
-        ballSpawnInterval = (long)(2000 - (timeInSeconds / 30.0) * 1000);
-        ballSpawnInterval = Math.max(300, ballSpawnInterval); // Min 300ms (molto veloce)
+        // Decrease spawn interval - spawn più frequente nel tempo
+        ballSpawnInterval = (long)(2500 - (timeInSeconds / 40.0) * 1000);
+        ballSpawnInterval = Math.max(400, ballSpawnInterval); // Min 400ms
 
-        // Increase max simultaneous balls - CONTINUA (ogni 15 secondi +1 palla)
-        maxSimultaneousBalls = 3 + (int)(timeInSeconds / 15.0);
-        maxSimultaneousBalls = Math.min(15, maxSimultaneousBalls); // Max 15 palle simultanee
+        // Increase max simultaneous balls - ESTREMAMENTE LENTO (ogni 90 secondi +1 palla)
+        // Il numero di palle aumenta MOLTO GRADUALMENTE per dare tempo al giocatore
+        maxSimultaneousBalls = 3 + (int)(timeInSeconds / 90.0);
+        maxSimultaneousBalls = Math.min(9, maxSimultaneousBalls); // Max 9 palle simultanee
 
         // Paddle distance remains fixed (removed progressive increase)
 
@@ -17708,6 +18137,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Draw ADVANCEMENT trapezoid
         drawAdvancementTrapezoid(g);
 
+        // Draw SETTINGS trapezoid
+        drawSettingsTrapezoid(g);
+
         // Update center position to match game (BOARD_WIDTH/HEIGHT, not circleCenterX/Y)
         double tempCenterX = circleCenterX;
         double tempCenterY = circleCenterY;
@@ -17864,6 +18296,9 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Draw ADVANCEMENT trapezoid button
         drawAdvancementTrapezoid(g);
 
+        // Draw SETTINGS trapezoid button
+        drawSettingsTrapezoid(g);
+
         // Draw hold progress indicator on central ball - white ball that grows from center
         if (holdingCentralBall && holdProgress > 0) {
             double progressPercent = (double)holdProgress / HOLD_DURATION;
@@ -17939,6 +18374,38 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
 
         int smallBottomWidth = (int)(smallTopWidth * 0.6);
         int smallCenterX = BOARD_WIDTH - smallRightMargin - smallTopWidth/2; // Center from right
+
+        int[] xPoints = {
+            smallCenterX - smallTopWidth/2,                // Top-left
+            smallCenterX + smallTopWidth/2,                // Top-right
+            smallCenterX + smallBottomWidth/2,             // Bottom-right (narrower, symmetric)
+            smallCenterX - smallBottomWidth/2              // Bottom-left (narrower, symmetric)
+        };
+        int[] yPoints = {
+            smallParaY,                          // Top-left
+            smallParaY,                          // Top-right
+            smallParaY + smallParaHeight,        // Bottom-right
+            smallParaY + smallParaHeight         // Bottom-left
+        };
+
+        // Use Polygon.contains() to check if point is inside
+        Polygon trapezoid = new Polygon(xPoints, yPoints, 4);
+        return trapezoid.contains(mouseX, mouseY);
+    }
+
+    private boolean isInsideSettingsTrapezoid(int mouseX, int mouseY) {
+        int smallParaHeight = (int)(40 * scaleY);
+        int smallTopWidth = (int)(150 * scaleX);
+        int smallParaY = 0; // Attached to top edge (same as ADVANCEMENT)
+
+        // Position AFTER MODALITA button (which is 100px wide + 5px margin)
+        int modalitaWidth = (int)(100 * scaleX);
+        int modalitaMargin = (int)(5 * scaleX);
+        int gap = (int)(10 * scaleX); // Small gap between buttons
+        int startX = modalitaMargin + modalitaWidth + gap;
+
+        int smallBottomWidth = (int)(smallTopWidth * 0.6);
+        int smallCenterX = startX + smallTopWidth/2; // Position after MODALITA
 
         int[] xPoints = {
             smallCenterX - smallTopWidth/2,                // Top-left
@@ -18201,6 +18668,2749 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         g.drawString(advancementText, advancementX, advancementY);
     }
 
+    private void drawSettingsTrapezoid(Graphics2D g) {
+        // Starting dimensions - positioned AFTER MODALITA button
+        int startHeight = (int)(40 * scaleY);
+        int startTopWidth = (int)(150 * scaleX);
+
+        // Position AFTER MODALITA button (which is 100px wide + 5px margin)
+        int modalitaWidth = (int)(100 * scaleX);
+        int modalitaMargin = (int)(5 * scaleX);
+        int gap = (int)(10 * scaleX); // Small gap between buttons
+        int startX = modalitaMargin + modalitaWidth + gap;
+
+        int startBottomWidth = (int)(startTopWidth * 0.6);
+        int startCenterX = startX + startTopWidth/2; // Position after MODALITA
+        int startY = 0; // Top edge (same as ADVANCEMENT)
+
+        // Current dimensions
+        int currentHeight = startHeight;
+        int currentTopWidth = startTopWidth;
+        int currentBottomWidth = startBottomWidth;
+        int currentCenterX = startCenterX;
+
+        // Calculate trapezoid points
+        int[] xPoints = {
+            currentCenterX - currentTopWidth/2,      // Top-left
+            currentCenterX + currentTopWidth/2,      // Top-right
+            currentCenterX + currentBottomWidth/2,   // Bottom-right
+            currentCenterX - currentBottomWidth/2    // Bottom-left
+        };
+        int[] yPoints = {
+            startY,                         // Top-left
+            startY,                         // Top-right
+            startY + currentHeight,         // Bottom-right
+            startY + currentHeight          // Bottom-left
+        };
+
+        // Draw shadow
+        int shadowBlur = Math.min(10, (int)(10 * Math.min(scaleX, scaleY)));
+        int shadowOffsetX = (int)(5 * scaleX);
+        int shadowOffsetY = (int)(5 * scaleY);
+
+        for (int pass = 0; pass < 2; pass++) {
+            int blurSize = shadowBlur - (pass * 3);
+
+            for (int i = 0; i < blurSize; i += 2) {
+                double distance = i / (double)blurSize;
+                double gaussianFactor = Math.exp(-(distance * distance) / 0.3);
+                int alpha = (int)(60 * gaussianFactor / (pass + 1));
+
+                if (alpha < 5) continue;
+
+                g.setColor(new Color(0, 0, 0, alpha));
+
+                int[] shadowX = {
+                    xPoints[0] - i + shadowOffsetX,
+                    xPoints[1] + shadowOffsetX,
+                    xPoints[2] + shadowOffsetX,
+                    xPoints[3] - i/2 + shadowOffsetX
+                };
+                int[] shadowY = {
+                    yPoints[0] - i + shadowOffsetY,
+                    yPoints[1] - i + shadowOffsetY,
+                    yPoints[2] + shadowOffsetY,
+                    yPoints[3] + shadowOffsetY
+                };
+
+                g.fillPolygon(shadowX, shadowY, 4);
+            }
+        }
+
+        // Draw trapezoid background - change color based on click/hover state
+        if (settingsTrapezoidClicked) {
+            g.setColor(new Color(5, 5, 25, 230)); // Very dark blue when clicked
+        } else if (settingsTrapezoidHovered) {
+            g.setColor(new Color(15, 15, 40, 230)); // Slightly lighter when hovered
+        } else {
+            g.setColor(new Color(0, 0, 0, 230)); // Black by default
+        }
+        g.fillPolygon(xPoints, yPoints, 4);
+
+        // Draw pixel-style border
+        int pixelSize = (int)(2 * Math.min(scaleX, scaleY));
+        g.setColor(new Color(150, 150, 150));
+
+        Object oldAntialiasing = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+
+        drawPixelLine(g, xPoints[0], yPoints[0], xPoints[1], yPoints[1], pixelSize);
+        drawPixelLine(g, xPoints[1], yPoints[1], xPoints[2], yPoints[2], pixelSize);
+        drawPixelLine(g, xPoints[2], yPoints[2], xPoints[3], yPoints[3], pixelSize);
+        drawPixelLine(g, xPoints[3], yPoints[3], xPoints[0], yPoints[0], pixelSize);
+
+        if (oldAntialiasing != null) {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, oldAntialiasing);
+        }
+
+        // Draw "IMPOSTAZIONI" text
+        float settingsSize = (float)(12 * Math.min(scaleX, scaleY));
+        g.setFont(primaryFont.deriveFont(Font.BOLD, settingsSize));
+        String settingsText = getText("CIRCLE_MODE_SETTINGS");
+        FontMetrics settingsFm = g.getFontMetrics();
+
+        int settingsX = currentCenterX - settingsFm.stringWidth(settingsText)/2;
+        int settingsY = startY + currentHeight/2 + settingsFm.getAscent()/2;
+
+        // Draw shadow
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(settingsText, settingsX + 2, settingsY + 2);
+
+        // Draw text - change color based on click/hover state
+        if (settingsTrapezoidClicked) {
+            g.setColor(new Color(255, 255, 0)); // Yellow when clicked
+        } else if (settingsTrapezoidHovered) {
+            g.setColor(new Color(255, 255, 255)); // White when hovered
+        } else {
+            g.setColor(new Color(255, 255, 255)); // White by default
+        }
+        g.drawString(settingsText, settingsX, settingsY);
+    }
+
+    // Draw Advancement screen - FULL CODE EDITOR RETRO STYLE
+    private void drawAdvancement(Graphics2D g) {
+        // Check if we need to show boot intro
+        if (!advancementIntroSeenThisSession) {
+            if (!advancementBootIntroActive) {
+                // Start boot intro
+                advancementBootIntroActive = true;
+                advancementBootIntroStartTime = System.currentTimeMillis();
+                advancementBootCurrentLine = 0;
+            }
+            // Draw boot intro
+            drawAdvancementBootIntro(g);
+            return;
+        }
+
+        // Full screen terminal/editor - NO WINDOW!
+        int editorX = 0;
+        int editorY = 0;
+        int editorWidth = BOARD_WIDTH;
+        int editorHeight = BOARD_HEIGHT;
+
+        // Deep dark CRT background
+        g.setColor(new Color(8, 12, 18));
+        g.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+        // Vignette darkening effect - darker corners like old CRT monitors
+        for (int i = 0; i < 100; i++) {
+            float ratio = i / 100f;
+            int alpha = (int)(60 * (1 - ratio));
+            g.setColor(new Color(0, 0, 0, alpha));
+            g.drawRect((int)(i * scaleX * 2), (int)(i * scaleY * 2),
+                      editorWidth - (int)(i * scaleX * 4),
+                      editorHeight - (int)(i * scaleY * 4));
+        }
+
+        // Enhanced CRT scanline effect - more realistic with alternating intensity
+        for (int i = 0; i < editorHeight; i += 2) {
+            int alpha = (i % 4 == 0) ? 40 : 20;
+            g.setColor(new Color(0, 0, 0, alpha));
+            g.fillRect(0, i, editorWidth, 1);
+        }
+
+        // Subtle horizontal glow lines (simulating CRT beam)
+        long time = System.currentTimeMillis();
+        int glowLine1 = (int)((time / 50) % editorHeight);
+        int glowLine2 = (int)((time / 80) % editorHeight);
+
+        g.setColor(new Color(0, 255, 100, 15));
+        g.fillRect(0, glowLine1, editorWidth, 3);
+        g.setColor(new Color(0, 255, 100, 10));
+        g.fillRect(0, glowLine2, editorWidth, 2);
+
+        // No border - fullscreen terminal!
+        int termBorder = 0;
+
+        // Terminal header bar - darker, more authentic
+        g.setColor(new Color(5, 40, 25));
+        g.fillRect(0, 0, editorWidth, (int)(35 * scaleY));
+
+        // Header bar glow line
+        g.setColor(new Color(51, 255, 51, 100));
+        g.fillRect(0, (int)(34 * scaleY), editorWidth, 1);
+
+        // Enable antialiasing for text glow effect
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(14 * scaleY)));
+        String filename = "[ Avanzamenti.java ]";
+
+        // Text glow effect - draw text multiple times with decreasing alpha for phosphor glow
+        int filenameX = (int)(15 * scaleX);
+        int filenameY = (int)(23 * scaleY);
+
+        // Outer glow (blur simulation)
+        g.setColor(new Color(51, 255, 51, 30));
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                if (dx != 0 || dy != 0) {
+                    g.drawString(filename, filenameX + dx, filenameY + dy);
+                }
+            }
+        }
+        // Inner glow
+        g.setColor(new Color(51, 255, 51, 150));
+        g.drawString(filename, filenameX, filenameY);
+        // Main text - bright phosphor green
+        g.setColor(new Color(102, 255, 102));
+        g.drawString(filename, filenameX, filenameY);
+
+        // File info on right with glow
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(12 * scaleY)));
+        String fileInfo = "// Level: " + playerProgress.getCurrentLevel() + " | XP: " + playerProgress.getCurrentXP();
+        int fileInfoX = editorWidth - g.getFontMetrics().stringWidth(fileInfo) - (int)(15 * scaleX);
+        int fileInfoY = (int)(23 * scaleY);
+
+        // Glow for file info
+        g.setColor(new Color(51, 255, 51, 20));
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx != 0 || dy != 0) {
+                    g.drawString(fileInfo, fileInfoX + dx, fileInfoY + dy);
+                }
+            }
+        }
+        g.setColor(new Color(80, 200, 80));
+        g.drawString(fileInfo, fileInfoX, fileInfoY);
+
+        // Tab buttons as function calls in code
+        int tabStartY = (int)(45 * scaleY);
+        int tabWidth = (int)(220 * scaleX);
+        int tabHeight = (int)(28 * scaleY);
+        int tabStartX = (int)(20 * scaleX);
+        int tabSpacing = (int)(6 * scaleY);
+
+        // Draw tabs as code function calls with glow
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(15 * scaleY)));
+        String[] tabFunctions = {"viewProgress()", "listAchievements()", "showUnlocks()", "displayStats()"};
+        String[] tabComments = {
+            "// Player rank and XP",
+            "// " + playerProgress.getUnlockedAchievements().size() + "/" + AchievementRegistry.getTotalCount() + " unlocked",
+            "// Cosmetics & rewards",
+            "// Performance data"
+        };
+
+        for (int i = 0; i < tabFunctions.length; i++) {
+            int tabY = tabStartY + i * (tabHeight + tabSpacing);
+
+            // Background for selected line - glowing highlight
+            if (i == advancementSelectedTab) {
+                // Glow background
+                for (int glow = 0; glow < 8; glow++) {
+                    int alpha = 15 - glow * 2;
+                    g.setColor(new Color(0, 80, 40, alpha));
+                    g.fillRect(0, tabY - (int)(4 * scaleY) - glow, editorWidth, tabHeight + glow * 2);
+                }
+                // Main selection background
+                g.setColor(new Color(10, 60, 35));
+                g.fillRect(0, tabY - (int)(4 * scaleY), editorWidth, tabHeight);
+
+                // Selection indicator line (bright green)
+                g.setColor(new Color(51, 255, 51, 200));
+                g.fillRect((int)(5 * scaleX), tabY - (int)(3 * scaleY), (int)(3 * scaleX), tabHeight - 2);
+            }
+
+            int textX = tabStartX;
+            int textY = tabY + (int)(15 * scaleY);
+
+            // Function call - cyan with glow
+            String funcText = tabFunctions[i];
+            // Glow effect for function name
+            g.setColor(new Color(100, 200, 255, 40));
+            g.drawString(funcText, textX - 1, textY - 1);
+            g.drawString(funcText, textX + 1, textY + 1);
+            // Main function text
+            g.setColor(i == advancementSelectedTab ? new Color(150, 230, 255) : new Color(100, 200, 255));
+            g.drawString(funcText, textX, textY);
+
+            // Comment - gray/green tint
+            int commentX = textX + g.getFontMetrics().stringWidth(funcText) + (int)(20 * scaleX);
+            g.setColor(i == advancementSelectedTab ? new Color(100, 150, 100) : new Color(80, 100, 80));
+            g.drawString(tabComments[i], commentX, textY);
+        }
+
+        // Horizontal separator line with glow
+        int separatorY = tabStartY + 4 * (tabHeight + tabSpacing) + (int)(15 * scaleY);
+        g.setColor(new Color(51, 255, 51, 80));
+        g.fillRect(0, separatorY - 1, editorWidth, 1);
+        g.setColor(new Color(20, 80, 40));
+        g.fillRect(0, separatorY, editorWidth, 2);
+        g.setColor(new Color(51, 255, 51, 80));
+        g.fillRect(0, separatorY + 2, editorWidth, 1);
+
+        // Content area - fullscreen code output
+        int contentX = (int)(15 * scaleX);
+        int contentY = separatorY + (int)(25 * scaleY);
+        int contentWidth = editorWidth - (int)(30 * scaleX);
+        int contentHeight = editorHeight - contentY - (int)(50 * scaleY);
+
+        // Line numbers column background for content - darker
+        int lineNumWidth = (int)(50 * scaleX);
+        g.setColor(new Color(5, 10, 15));
+        g.fillRect(contentX, contentY, lineNumWidth, contentHeight);
+
+        // Separator between line numbers and code
+        g.setColor(new Color(20, 60, 30));
+        g.fillRect(contentX + lineNumWidth, contentY, 1, contentHeight);
+
+        // Draw content based on selected tab - all in code style with clipping
+        Shape oldClip = g.getClip();
+        g.setClip(contentX, contentY, contentWidth, contentHeight);
+
+        switch (advancementSelectedTab) {
+            case 0:
+                drawProgressTabCode(g, contentX, contentY - advancementScrollOffset[0], contentWidth, contentHeight, lineNumWidth);
+                break;
+            case 1:
+                // Pass scroll offset separately for achievements tab so detail panel doesn't scroll
+                drawAchievementsTabCode(g, contentX, contentY, contentWidth, contentHeight, lineNumWidth, advancementScrollOffset[1]);
+                break;
+            case 2:
+                drawUnlocksTabCode(g, contentX, contentY - advancementScrollOffset[2], contentWidth, contentHeight, lineNumWidth);
+                break;
+            case 3:
+                drawStatisticsTab(g, contentX, contentY - advancementScrollOffset[3], contentWidth, contentHeight);
+                break;
+        }
+
+        g.setClip(oldClip);
+
+        // Scrollbar area - between content and status bar
+        int scrollBarAreaY = contentY + contentHeight + (int)(5 * scaleY);
+        int scrollBarAreaHeight = (int)(20 * scaleY);
+
+        // Only draw scrollbar if there's content to scroll
+        if (advancementMaxScroll[advancementSelectedTab] > 0) {
+            // Scrollbar background
+            g.setColor(new Color(15, 30, 20));
+            g.fillRect((int)(50 * scaleX), scrollBarAreaY, editorWidth - (int)(100 * scaleX), scrollBarAreaHeight);
+
+            // Scrollbar track glow
+            g.setColor(new Color(51, 255, 51, 30));
+            g.drawRect((int)(50 * scaleX), scrollBarAreaY, editorWidth - (int)(100 * scaleX), scrollBarAreaHeight);
+
+            // Calculate scrollbar thumb position and size
+            float scrollRatio = (float)advancementScrollOffset[advancementSelectedTab] / advancementMaxScroll[advancementSelectedTab];
+            int scrollBarWidth = editorWidth - (int)(100 * scaleX);
+            int thumbWidth = Math.max((int)(80 * scaleX), scrollBarWidth / 4);
+            int thumbX = (int)(50 * scaleX) + (int)((scrollBarWidth - thumbWidth) * scrollRatio);
+
+            // Scrollbar thumb with glow
+            g.setColor(new Color(51, 255, 51, 60));
+            g.fillRect(thumbX - 2, scrollBarAreaY - 2, thumbWidth + 4, scrollBarAreaHeight + 4);
+            g.setColor(new Color(20, 100, 50));
+            g.fillRect(thumbX, scrollBarAreaY, thumbWidth, scrollBarAreaHeight);
+            g.setColor(new Color(51, 255, 51, 150));
+            g.drawRect(thumbX, scrollBarAreaY, thumbWidth, scrollBarAreaHeight);
+
+            // Scroll position text
+            g.setFont(new Font("Monospaced", Font.PLAIN, (int)(10 * scaleY)));
+            String scrollText = "// Scroll: " + (int)(scrollRatio * 100) + "%  [" + (char)0x25C4 + "/" + (char)0x25BA + ": Navigate | HOME/END: Jump]";
+            int scrollTextX = (int)(50 * scaleX);
+            int scrollTextY = scrollBarAreaY + scrollBarAreaHeight + (int)(15 * scaleY);
+            g.setColor(new Color(60, 120, 60));
+            g.drawString(scrollText, scrollTextX, scrollTextY);
+        }
+
+        // Bottom status bar - fullscreen
+        int statusBarY = editorHeight - (int)(32 * scaleY);
+        g.setColor(new Color(5, 40, 25));
+        g.fillRect(0, statusBarY, editorWidth, (int)(32 * scaleY));
+
+        // Status bar top glow line
+        g.setColor(new Color(51, 255, 51, 100));
+        g.fillRect(0, statusBarY, editorWidth, 1);
+
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(12 * scaleY)));
+        String statusText = currentLanguage.get("ESC_TO_RETURN") + " | " + tabFunctions[advancementSelectedTab];
+        int statusTextY = statusBarY + (int)(20 * scaleY);
+
+        // Glow effect for status text
+        g.setColor(new Color(51, 255, 51, 20));
+        g.drawString(statusText, (int)(16 * scaleX) - 1, statusTextY - 1);
+        g.drawString(statusText, (int)(16 * scaleX) + 1, statusTextY + 1);
+        g.setColor(new Color(80, 220, 80));
+        g.drawString(statusText, (int)(16 * scaleX), statusTextY);
+
+        // Blinking cursor in status bar with glow
+        if ((System.currentTimeMillis() / 500) % 2 == 0) {
+            int cursorX = editorWidth - (int)(25 * scaleX);
+            int cursorY = statusBarY + (int)(10 * scaleY);
+            // Cursor glow
+            g.setColor(new Color(51, 255, 51, 100));
+            g.fillRect(cursorX - 2, cursorY - 1, (int)(12 * scaleX), (int)(16 * scaleY));
+            // Main cursor
+            g.setColor(new Color(102, 255, 102));
+            g.fillRect(cursorX, cursorY, (int)(8 * scaleX), (int)(14 * scaleY));
+        }
+    }
+
+    // Draw Linux-style boot intro animation
+    private void drawAdvancementBootIntro(Graphics2D g) {
+        // Full black background like terminal
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+        // Calculate which lines to show based on time elapsed
+        long elapsedTime = System.currentTimeMillis() - advancementBootIntroStartTime;
+        int linesToShow = (int)(elapsedTime / 100); // Show one line every 100ms
+
+        // Draw boot messages
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(12 * scaleY)));
+        int lineHeight = (int)(18 * scaleY);
+        int startY = (int)(30 * scaleY);
+
+        for (int i = 0; i < Math.min(linesToShow, advancementBootMessages.length); i++) {
+            String message = advancementBootMessages[i];
+            int y = startY + i * lineHeight;
+
+            // Color based on message type
+            if (message.contains("OK")) {
+                // Green for OK messages
+                g.setColor(new Color(0, 255, 0));
+            } else if (message.contains("FAILED")) {
+                // Red for failed messages
+                g.setColor(new Color(255, 0, 0));
+            } else if (message.contains("Welcome") || message.contains("initialized successfully")) {
+                // Bright green for welcome messages
+                g.setColor(new Color(100, 255, 100));
+            } else if (message.contains("Press any key")) {
+                // Blinking cyan for prompt
+                if ((System.currentTimeMillis() / 500) % 2 == 0) {
+                    g.setColor(new Color(0, 255, 255));
+                } else {
+                    continue; // Skip drawing this frame
+                }
+            } else if (message.isEmpty()) {
+                // Empty line
+                continue;
+            } else {
+                // White for regular messages
+                g.setColor(new Color(200, 200, 200));
+            }
+
+            g.drawString(message, (int)(20 * scaleX), y);
+        }
+
+        // Blinking cursor after last line
+        if (linesToShow >= advancementBootMessages.length) {
+            int cursorY = startY + advancementBootMessages.length * lineHeight;
+            if ((System.currentTimeMillis() / 500) % 2 == 0) {
+                g.setColor(new Color(0, 255, 0));
+                g.fillRect((int)(20 * scaleX), cursorY - (int)(12 * scaleY), (int)(8 * scaleX), (int)(14 * scaleY));
+            }
+        }
+
+        // Auto-advance or wait for key if animation complete
+        if (linesToShow >= advancementBootMessages.length + 10) { // Wait extra time after all messages
+            // Animation complete - transition to main screen
+            advancementIntroSeenThisSession = true;
+            advancementBootIntroActive = false;
+            repaint();
+        }
+
+        // Keep animating
+        if (advancementBootIntroActive) {
+            repaint();
+        }
+    }
+
+    // Helper method to draw text with CRT phosphor glow effect
+    private void drawGlowText(Graphics2D g, String text, int x, int y, Color mainColor, boolean strongGlow) {
+        if (strongGlow) {
+            // Strong glow for bright elements
+            g.setColor(new Color(mainColor.getRed(), mainColor.getGreen(), mainColor.getBlue(), 30));
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    if (dx != 0 || dy != 0) {
+                        g.drawString(text, x + dx, y + dy);
+                    }
+                }
+            }
+        } else {
+            // Subtle glow for dimmer elements
+            g.setColor(new Color(mainColor.getRed(), mainColor.getGreen(), mainColor.getBlue(), 15));
+            g.drawString(text, x - 1, y);
+            g.drawString(text, x + 1, y);
+        }
+        // Main text
+        g.setColor(mainColor);
+        g.drawString(text, x, y);
+    }
+
+    // Draw Progress tab as CODE
+    private void drawProgressTabCode(Graphics2D g, int x, int y, int width, int height, int lineNumWidth) {
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(13 * scaleY)));
+        int lineHeight = (int)(18 * scaleY);
+        int currentLine = 1;
+        int currentY = y + (int)(15 * scaleY);
+        int codeX = x + lineNumWidth + (int)(10 * scaleX);
+
+        // Helper to draw code lines
+        final int baseCodeX = codeX;
+        class CodeLine {
+            void draw(int lineY, String lineNum, String keyword, String text, Color textColor) {
+                g.setColor(new Color(100, 100, 120));
+                g.drawString(lineNum, x + (int)(5 * scaleX), lineY);
+
+                int xPos = baseCodeX;
+                if (keyword != null && !keyword.isEmpty()) {
+                    g.setColor(new Color(100, 200, 255));
+                    g.drawString(keyword, xPos, lineY);
+                    xPos += g.getFontMetrics().stringWidth(keyword);
+                }
+
+                if (text != null && !text.isEmpty()) {
+                    g.setColor(textColor);
+                    g.drawString(text, xPos, lineY);
+                }
+            }
+        }
+        CodeLine codeLine = new CodeLine();
+
+        // Code representation of progress
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "class ", "PlayerRank {", Color.WHITE);
+        currentY += lineHeight;
+
+        Color levelColor = getColorForLevel(playerProgress.getCurrentLevel());
+        String levelStr = "  level: " + playerProgress.getCurrentLevel();
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", levelStr, levelColor.brighter());
+        currentY += lineHeight;
+
+        String rankStr = "  rank: \"" + currentLanguage.get("RANK_" + playerProgress.getRankName()) + "\"";
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", rankStr, new Color(255, 220, 100));
+        currentY += lineHeight;
+
+        int xpRequired = playerProgress.getXPRequiredForLevel(playerProgress.getCurrentLevel() + 1);
+        String xpStr = "  xp: " + playerProgress.getCurrentXP() + "/" + xpRequired;
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", xpStr, new Color(80, 255, 120));
+        currentY += lineHeight;
+
+        // XP bar as ASCII art
+        float xpPercent = (float)playerProgress.getCurrentXP() / xpRequired;
+        int barLength = 30;
+        int filled = (int)(barLength * xpPercent);
+        StringBuilder bar = new StringBuilder("  progress: [");
+        for (int i = 0; i < barLength; i++) {
+            bar.append(i < filled ? "█" : "░");
+        }
+        bar.append("] ").append((int)(xpPercent * 100)).append("%");
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", bar.toString(), levelColor);
+        currentY += (int)(lineHeight * 1.5);
+
+        // Daily login bonus
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", "  // Daily Login System", new Color(120, 120, 140));
+        currentY += lineHeight;
+
+        String streakStr = "  consecutive_days: " + playerProgress.getConsecutiveDaysLogged();
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", streakStr, new Color(255, 200, 100));
+        currentY += lineHeight;
+
+        int bonusXP = 30 + playerProgress.getConsecutiveDaysLogged() * 5;
+        if (bonusXP > 80) bonusXP = 80;
+        String bonusStr = "  next_bonus: +" + bonusXP + " XP";
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", bonusStr, new Color(255, 200, 100));
+        currentY += (int)(lineHeight * 1.5);
+
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", "}", Color.WHITE);
+        currentY += (int)(lineHeight * 1.5);
+
+        // Next unlocks as comments
+        codeLine.draw(currentY, String.format("%2d", currentLine++), "", "// === UPCOMING REWARDS ===", new Color(120, 120, 140));
+        currentY += lineHeight;
+
+        for (int i = 1; i <= 3; i++) {
+            int nextLevel = playerProgress.getCurrentLevel() + (i * 5);
+            if (nextLevel <= 50) {
+                String unlockStr = "// Level " + nextLevel + ": " + currentLanguage.get("ADV_UNLOCK_PLACEHOLDER");
+                codeLine.draw(currentY, String.format("%2d", currentLine++), "", unlockStr, new Color(120, 120, 140));
+                currentY += lineHeight;
+            }
+        }
+
+        // Blinking cursor
+        if ((System.currentTimeMillis() / 500) % 2 == 0) {
+            g.setColor(new Color(0, 255, 100));
+            g.fillRect(codeX, currentY, (int)(8 * scaleX), (int)(14 * scaleY));
+        }
+
+        // Calculate max scroll for this tab
+        int totalContentHeight = currentY - y + (int)(20 * scaleY); // Add padding
+        advancementMaxScroll[0] = Math.max(0, totalContentHeight - height);
+    }
+
+    // Draw Achievements tab as CODE
+    private void drawAchievementsTabCode(Graphics2D g, int x, int y, int width, int height, int lineNumWidth, int scrollOffset) {
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(11 * scaleY)));
+        int lineHeight = (int)(16 * scaleY);
+        int currentLine = 1;
+
+        // Calculate list and detail panel dimensions
+        int listWidth = advancementDetailMode ? (int)(width * 0.55) : width; // 55% if detail mode, full otherwise
+        int detailPanelWidth = width - listWidth - (int)(20 * scaleX); // Remaining space for details with gap
+        int detailPanelX = x + listWidth + (int)(20 * scaleX); // Position detail panel to the right
+
+        // Apply scroll offset ONLY to the list, not to detail panel
+        int currentY = y + (int)(15 * scaleY) - scrollOffset;
+        int codeX = x + lineNumWidth + (int)(10 * scaleX);
+
+        // Save current clip and set clip for list area only (so list doesn't overlap detail panel)
+        Shape originalClip = g.getClip();
+        if (advancementDetailMode) {
+            g.setClip(x, y, listWidth, height);
+        }
+
+        // Draw list header
+        g.setColor(new Color(100, 100, 120));
+        g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+        g.setColor(new Color(100, 200, 255));
+        g.drawString("Achievement[] list = {", codeX, currentY);
+        currentY += lineHeight;
+
+        Collection<Achievement> achievements = AchievementRegistry.getAllAchievements();
+        int itemIndex = 0; // Track item index for selection
+        Achievement selectedAchievement = null; // Store selected achievement for detail panel
+
+        // Draw achievements list
+        for (Achievement ach : achievements) {
+            boolean unlocked = playerProgress.getUnlockedAchievements().contains(ach.getId());
+            Color tierColor = new Color(ach.getTier().color);
+
+            // Visual highlighting for selected item in detail mode
+            if (advancementDetailMode && itemIndex == advancementSelectedItem) {
+                // Background highlight
+                g.setColor(new Color(51, 255, 51, 30));
+                g.fillRect(x, currentY - (int)(12 * scaleY), listWidth, lineHeight);
+
+                // Left selection bar
+                g.setColor(new Color(102, 255, 102));
+                g.fillRect(x, currentY - (int)(12 * scaleY), (int)(5 * scaleX), lineHeight);
+
+                // Store selected achievement for detail panel
+                selectedAchievement = ach;
+            }
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+
+            if (unlocked) {
+                g.setColor(tierColor.brighter());
+                g.drawString("  ✓ ", codeX, currentY);
+                g.setColor(new Color(80, 255, 120));
+            } else {
+                g.setColor(new Color(60, 60, 80));
+                g.drawString("  ✗ ", codeX, currentY);
+                g.setColor(new Color(120, 120, 140));
+            }
+
+            String achName = currentLanguage.get(ach.getNameKey());
+            if (achName == null) achName = ach.getNameKey(); // Fallback to key if translation missing
+            // Adjust truncation based on width
+            int maxChars = advancementDetailMode ? 18 : 25;
+            if (achName.length() > maxChars) achName = achName.substring(0, maxChars - 3) + "...";
+            g.drawString(achName, codeX + (int)(25 * scaleX), currentY);
+
+            g.setColor(tierColor);
+            String tierStr = " [" + ach.getTier().name().substring(0, 3) + ":+" + ach.getTier().xpReward + "]";
+            int tierX = advancementDetailMode ? (int)(200 * scaleX) : (int)(280 * scaleX);
+            g.drawString(tierStr, codeX + tierX, currentY);
+
+            currentY += lineHeight;
+            itemIndex++; // Increment item index
+        }
+
+        // Draw list footer
+        g.setColor(new Color(100, 100, 120));
+        g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+        g.setColor(Color.WHITE);
+        g.drawString("};", codeX, currentY);
+        currentY += lineHeight;
+
+        int unlocked = playerProgress.getUnlockedAchievements().size();
+        int total = AchievementRegistry.getTotalCount();
+        g.setColor(new Color(100, 100, 120));
+        g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+        g.setColor(new Color(120, 120, 140));
+        g.drawString("// Unlocked: " + unlocked + "/" + total + " (" + (unlocked * 100 / total) + "%)", codeX, currentY);
+        currentY += lineHeight;
+
+        // Restore original clip before drawing detail panel
+        g.setClip(originalClip);
+
+        // Draw vertical separator and detail panel on the right (if in detail mode)
+        if (advancementDetailMode && selectedAchievement != null) {
+            // Vertical separator line
+            int separatorX = x + listWidth + (int)(10 * scaleX);
+            g.setColor(new Color(51, 255, 51, 100));
+            for (int i = 0; i < 3; i++) {
+                g.drawLine(separatorX + i, y, separatorX + i, y + height);
+            }
+
+            // Detail panel on the right
+            int detailY = y + (int)(15 * scaleY);
+            int detailLineNum = 1;
+            int detailCodeX = detailPanelX + (int)(30 * scaleX);
+
+            // Detail panel header
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("// ACHIEVEMENT DETAILS", detailCodeX, detailY);
+            detailY += (int)(lineHeight * 1.5);
+
+            // Achievement name
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(255, 220, 100));
+            g.drawString("Name:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            String fullName = getTranslatedOrFallback(selectedAchievement.getNameKey());
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(Color.WHITE);
+            // Wrap long names
+            if (fullName.length() > 30) {
+                String[] words = fullName.split(" ");
+                StringBuilder line = new StringBuilder();
+                for (String word : words) {
+                    if (line.length() + word.length() > 28) {
+                        g.drawString("  " + line.toString(), detailCodeX, detailY);
+                        detailY += lineHeight;
+                        g.setColor(new Color(100, 100, 120));
+                        g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+                        g.setColor(Color.WHITE);
+                        line = new StringBuilder(word + " ");
+                    } else {
+                        line.append(word).append(" ");
+                    }
+                }
+                if (line.length() > 0) {
+                    g.drawString("  " + line.toString(), detailCodeX, detailY);
+                    detailY += lineHeight;
+                }
+            } else {
+                g.drawString("  " + fullName, detailCodeX, detailY);
+                detailY += lineHeight;
+            }
+
+            detailY += (int)(lineHeight * 0.5);
+
+            // Description (how to unlock)
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("Unlock:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            String description = getTranslatedOrFallback(selectedAchievement.getDescriptionKey());
+            g.setColor(new Color(180, 180, 200));
+            {
+                // Word wrap description
+                String[] words = description.split(" ");
+                StringBuilder line = new StringBuilder();
+                for (String word : words) {
+                    if (line.length() + word.length() > 28) {
+                        g.setColor(new Color(100, 100, 120));
+                        g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+                        g.setColor(new Color(180, 180, 200));
+                        g.drawString("  " + line.toString(), detailCodeX, detailY);
+                        detailY += lineHeight;
+                        line = new StringBuilder(word + " ");
+                    } else {
+                        line.append(word).append(" ");
+                    }
+                }
+                if (line.length() > 0) {
+                    g.setColor(new Color(100, 100, 120));
+                    g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+                    g.setColor(new Color(180, 180, 200));
+                    g.drawString("  " + line.toString(), detailCodeX, detailY);
+                    detailY += lineHeight;
+                }
+            }
+
+            detailY += (int)(lineHeight * 0.5);
+
+            // Category
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("Category:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(180, 180, 200));
+            g.drawString("  " + selectedAchievement.getCategory().name(), detailCodeX, detailY);
+            detailY += lineHeight;
+
+            detailY += (int)(lineHeight * 0.5);
+
+            // Tier and XP
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("Tier:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            Color tierColor = new Color(selectedAchievement.getTier().color);
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(tierColor);
+            g.drawString("  " + selectedAchievement.getTier().name(), detailCodeX, detailY);
+            detailY += lineHeight;
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(255, 220, 100));
+            g.drawString("  XP: +" + selectedAchievement.getXPReward(), detailCodeX, detailY);
+            detailY += lineHeight;
+
+            detailY += (int)(lineHeight * 0.5);
+
+            // Status indicator
+            boolean isUnlocked = playerProgress.getUnlockedAchievements().contains(selectedAchievement.getId());
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("Status:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            if (isUnlocked) {
+                g.setColor(new Color(80, 255, 120));
+                g.drawString("  [UNLOCKED ✓]", detailCodeX, detailY);
+            } else {
+                g.setColor(new Color(255, 100, 100));
+                g.drawString("  [LOCKED ✗]", detailCodeX, detailY);
+            }
+        }
+
+        // Calculate max scroll for this tab
+        // Need to calculate the ACTUAL content height without scroll offset
+        // currentY was calculated with: y + 15 - scrollOffset + (header + achievements + footer) * lineHeight
+        // So actual content height = (header + achievements + footer) * lineHeight + 15 + 20 (padding)
+        int numAchievements = AchievementRegistry.getTotalCount();
+        int totalLines = 1 + numAchievements + 2; // header + achievements + footer + summary
+        int actualContentHeight = (int)(15 * scaleY) + (totalLines * lineHeight) + (int)(20 * scaleY);
+        advancementMaxScroll[1] = Math.max(0, actualContentHeight - height);
+    }
+
+    // Draw Unlocks tab as CODE
+    private void drawUnlocksTabCode(Graphics2D g, int x, int y, int width, int height, int lineNumWidth) {
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(13 * scaleY)));
+        int lineHeight = (int)(18 * scaleY);
+        int currentLine = 1;
+
+        // Calculate list and detail panel dimensions
+        int listWidth = advancementDetailMode ? (int)(width * 0.55) : width; // 55% if detail mode, full otherwise
+        int detailPanelWidth = width - listWidth - (int)(20 * scaleX); // Remaining space for details with gap
+        int detailPanelX = x + listWidth + (int)(20 * scaleX); // Position detail panel to the right
+
+        int currentY = y + (int)(15 * scaleY);
+        int codeX = x + lineNumWidth + (int)(10 * scaleX);
+
+        // Draw list header
+        g.setColor(new Color(100, 100, 120));
+        g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+        g.setColor(new Color(100, 200, 255));
+        g.drawString("struct ", codeX, currentY);
+        g.setColor(Color.WHITE);
+        g.drawString("Cosmetics {", codeX + (int)(55 * scaleX), currentY);
+        currentY += (int)(lineHeight * 1.5);
+
+        int itemIndex = 0; // Track item index for selection
+        String selectedItemType = null; // "TITLE" or "BADGE"
+        String selectedItemId = null; // ID of selected item
+
+        // Titles
+        g.setColor(new Color(100, 100, 120));
+        g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+        g.setColor(new Color(120, 120, 140));
+        g.drawString("  // === TITLES ===", codeX, currentY);
+        currentY += lineHeight;
+
+        if (playerProgress.getUnlockedTitles().isEmpty()) {
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+            g.setColor(new Color(120, 120, 140));
+            g.drawString("  // None unlocked yet", codeX, currentY);
+            currentY += lineHeight;
+        } else {
+            for (String title : playerProgress.getUnlockedTitles()) {
+                boolean equipped = title.equals(playerProgress.getEquippedTitle());
+
+                // Visual highlighting for selected item in detail mode
+                if (advancementDetailMode && itemIndex == advancementSelectedItem) {
+                    // Background highlight
+                    g.setColor(new Color(51, 255, 51, 30));
+                    g.fillRect(x, currentY - (int)(14 * scaleY), listWidth, lineHeight);
+
+                    // Left selection bar
+                    g.setColor(new Color(102, 255, 102));
+                    g.fillRect(x, currentY - (int)(14 * scaleY), (int)(5 * scaleX), lineHeight);
+
+                    // Store selected item info
+                    selectedItemType = "TITLE";
+                    selectedItemId = title;
+                }
+
+                g.setColor(new Color(100, 100, 120));
+                g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+
+                if (equipped) {
+                    g.setColor(new Color(255, 220, 100));
+                    g.drawString("  [ACTIVE] ", codeX, currentY);
+                    g.drawString(currentLanguage.get("TITLE_" + title), codeX + (int)(70 * scaleX), currentY);
+                } else {
+                    g.setColor(new Color(180, 180, 200));
+                    g.drawString("  " + currentLanguage.get("TITLE_" + title), codeX, currentY);
+                }
+                currentY += lineHeight;
+                itemIndex++;
+            }
+        }
+
+        currentY += (int)(lineHeight * 0.5);
+
+        // Badges
+        g.setColor(new Color(100, 100, 120));
+        g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+        g.setColor(new Color(120, 120, 140));
+        g.drawString("  // === BADGES ===", codeX, currentY);
+        currentY += lineHeight;
+
+        if (playerProgress.getUnlockedBadges().isEmpty()) {
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+            g.setColor(new Color(120, 120, 140));
+            g.drawString("  // None unlocked yet", codeX, currentY);
+        } else {
+            for (String badge : playerProgress.getUnlockedBadges()) {
+                boolean equipped = badge.equals(playerProgress.getEquippedBadge());
+
+                // Visual highlighting for selected item in detail mode
+                if (advancementDetailMode && itemIndex == advancementSelectedItem) {
+                    // Background highlight
+                    g.setColor(new Color(51, 255, 51, 30));
+                    g.fillRect(x, currentY - (int)(14 * scaleY), listWidth, lineHeight);
+
+                    // Left selection bar
+                    g.setColor(new Color(102, 255, 102));
+                    g.fillRect(x, currentY - (int)(14 * scaleY), (int)(5 * scaleX), lineHeight);
+
+                    // Store selected item info
+                    selectedItemType = "BADGE";
+                    selectedItemId = badge;
+                }
+
+                g.setColor(new Color(100, 100, 120));
+                g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+
+                if (equipped) {
+                    g.setColor(new Color(100, 220, 255));
+                    g.drawString("  [ACTIVE] ", codeX, currentY);
+                    g.drawString(currentLanguage.get("BADGE_" + badge), codeX + (int)(70 * scaleX), currentY);
+                } else {
+                    g.setColor(new Color(180, 180, 200));
+                    g.drawString("  " + currentLanguage.get("BADGE_" + badge), codeX, currentY);
+                }
+                currentY += lineHeight;
+                itemIndex++;
+            }
+        }
+
+        // Draw list footer
+        currentY += (int)(lineHeight * 0.5);
+        g.setColor(new Color(100, 100, 120));
+        g.drawString(String.format("%2d", currentLine++), x + (int)(5 * scaleX), currentY);
+        g.setColor(Color.WHITE);
+        g.drawString("};", codeX, currentY);
+        currentY += lineHeight;
+
+        // Draw vertical separator and detail panel on the right (if in detail mode)
+        if (advancementDetailMode && selectedItemId != null) {
+            // Vertical separator line
+            int separatorX = x + listWidth + (int)(10 * scaleX);
+            g.setColor(new Color(51, 255, 51, 100));
+            for (int i = 0; i < 3; i++) {
+                g.drawLine(separatorX + i, y, separatorX + i, y + height);
+            }
+
+            // Detail panel on the right
+            int detailY = y + (int)(15 * scaleY);
+            int detailLineNum = 1;
+            int detailCodeX = detailPanelX + (int)(30 * scaleX);
+
+            // Detail panel header
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("// ITEM DETAILS", detailCodeX, detailY);
+            detailY += (int)(lineHeight * 1.5);
+
+            // Item type
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(255, 220, 100));
+            g.drawString("Type:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(Color.WHITE);
+            g.drawString("  " + selectedItemType, detailCodeX, detailY);
+            detailY += lineHeight;
+
+            detailY += (int)(lineHeight * 0.5);
+
+            // Item name
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("Name:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            String displayName = currentLanguage.get(selectedItemType + "_" + selectedItemId);
+            g.setColor(new Color(180, 180, 200));
+            // Word wrap long names
+            if (displayName != null && displayName.length() > 30) {
+                String[] words = displayName.split(" ");
+                StringBuilder line = new StringBuilder();
+                for (String word : words) {
+                    if (line.length() + word.length() > 28) {
+                        g.setColor(new Color(100, 100, 120));
+                        g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+                        g.setColor(new Color(180, 180, 200));
+                        g.drawString("  " + line.toString(), detailCodeX, detailY);
+                        detailY += lineHeight;
+                        line = new StringBuilder(word + " ");
+                    } else {
+                        line.append(word).append(" ");
+                    }
+                }
+                if (line.length() > 0) {
+                    g.setColor(new Color(100, 100, 120));
+                    g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+                    g.setColor(new Color(180, 180, 200));
+                    g.drawString("  " + line.toString(), detailCodeX, detailY);
+                    detailY += lineHeight;
+                }
+            } else {
+                g.setColor(new Color(100, 100, 120));
+                g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+                g.setColor(new Color(180, 180, 200));
+                g.drawString("  " + displayName, detailCodeX, detailY);
+                detailY += lineHeight;
+            }
+
+            detailY += (int)(lineHeight * 0.5);
+
+            // Status
+            boolean isEquipped = selectedItemType.equals("TITLE")
+                ? selectedItemId.equals(playerProgress.getEquippedTitle())
+                : selectedItemId.equals(playerProgress.getEquippedBadge());
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(100, 200, 255));
+            g.drawString("Status:", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            if (isEquipped) {
+                g.setColor(new Color(255, 220, 100));
+                g.drawString("  [EQUIPPED]", detailCodeX, detailY);
+            } else {
+                g.setColor(new Color(180, 180, 200));
+                g.drawString("  Available", detailCodeX, detailY);
+            }
+            detailY += lineHeight;
+
+            detailY += (int)(lineHeight * 0.5);
+
+            // Action hint
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(120, 120, 140));
+            g.drawString("// Press E to", detailCodeX, detailY);
+            detailY += lineHeight;
+
+            g.setColor(new Color(100, 100, 120));
+            g.drawString(String.format("%2d", detailLineNum++), detailPanelX + (int)(5 * scaleX), detailY);
+            g.setColor(new Color(120, 120, 140));
+            String action = isEquipped ? "// unequip" : "// equip";
+            g.drawString(action, detailCodeX, detailY);
+        }
+
+        // Calculate max scroll for this tab
+        int totalContentHeight = currentY - y + (int)(20 * scaleY);
+        advancementMaxScroll[2] = Math.max(0, totalContentHeight - height);
+    }
+
+    // OLD PIXEL ART VERSION - KEEP FOR REFERENCE
+    private void drawProgressTab_OLD(Graphics2D g, int x, int y, int width, int height) {
+        int currentY = y;
+
+        // Rank card - PIXEL STYLE
+        int cardWidth = (int)(400 * scaleX);
+        int cardHeight = (int)(220 * scaleY);
+        int cardX = x + (width - cardWidth) / 2;
+
+        Color levelColor = getColorForLevel(playerProgress.getCurrentLevel());
+
+        // Pixel shadow - retro effect
+        g.setColor(new Color(10, 10, 20, 180));
+        g.fillRect(cardX + (int)(6 * scaleX), currentY + (int)(6 * scaleY), cardWidth, cardHeight);
+
+        // Card background - darker for contrast
+        g.setColor(new Color(30, 30, 50));
+        g.fillRect(cardX, currentY, cardWidth, cardHeight);
+
+        // Inner glow effect
+        GradientPaint innerGlow = new GradientPaint(
+            cardX + cardWidth/2, currentY, new Color(levelColor.getRed(), levelColor.getGreen(), levelColor.getBlue(), 60),
+            cardX + cardWidth/2, currentY + cardHeight, new Color(30, 30, 50)
+        );
+        g.setPaint(innerGlow);
+        g.fillRect(cardX, currentY, cardWidth, cardHeight);
+
+        // Thick pixel border - retro style
+        int borderThick = (int)(5 * scaleX);
+        g.setColor(levelColor.brighter());
+        // Top border
+        g.fillRect(cardX, currentY, cardWidth, borderThick);
+        // Bottom border
+        g.fillRect(cardX, currentY + cardHeight - borderThick, cardWidth, borderThick);
+        // Left border
+        g.fillRect(cardX, currentY, borderThick, cardHeight);
+        // Right border
+        g.fillRect(cardX + cardWidth - borderThick, currentY, borderThick, cardHeight);
+
+        // Corner pixels - classic retro detail
+        int cornerSize = (int)(15 * scaleX);
+        g.setColor(levelColor.brighter().brighter());
+        g.fillRect(cardX, currentY, cornerSize, cornerSize); // Top-left
+        g.fillRect(cardX + cardWidth - cornerSize, currentY, cornerSize, cornerSize); // Top-right
+        g.fillRect(cardX, currentY + cardHeight - cornerSize, cornerSize, cornerSize); // Bottom-left
+        g.fillRect(cardX + cardWidth - cornerSize, currentY + cardHeight - cornerSize, cornerSize, cornerSize); // Bottom-right
+
+        // Level and rank - PIXEL TEXT with effects
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(36 * scaleY)));
+        String levelText = currentLanguage.get("ADV_LEVEL") + " " + playerProgress.getCurrentLevel();
+
+        // Level shadow
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(levelText, cardX + (int)(22 * scaleX), currentY + (int)(47 * scaleY));
+
+        // Level text with glow
+        g.setColor(levelColor.brighter());
+        g.drawString(levelText, cardX + (int)(20 * scaleX), currentY + (int)(45 * scaleY));
+
+        // Rank with pixel effect
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(28 * scaleY)));
+        String rankName = currentLanguage.get("RANK_" + playerProgress.getRankName());
+
+        // Rank shadow
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(rankName, cardX + (int)(22 * scaleX), currentY + (int)(82 * scaleY));
+
+        // Rank text
+        g.setColor(new Color(255, 220, 100));
+        g.drawString(rankName, cardX + (int)(20 * scaleX), currentY + (int)(80 * scaleY));
+
+        // Equipped title and badge
+        if (!playerProgress.getEquippedTitle().isEmpty()) {
+            g.setFont(new Font("Monospaced", Font.ITALIC, (int)(16 * scaleY)));
+            g.setColor(Color.YELLOW);
+            g.drawString(currentLanguage.get("TITLE_" + playerProgress.getEquippedTitle()),
+                        cardX + (int)(20 * scaleX), currentY + (int)(105 * scaleY));
+        }
+
+        if (!playerProgress.getEquippedBadge().isEmpty()) {
+            g.setFont(new Font("Monospaced", Font.PLAIN, (int)(14 * scaleY)));
+            g.setColor(Color.CYAN);
+            g.drawString(currentLanguage.get("BADGE_" + playerProgress.getEquippedBadge()),
+                        cardX + (int)(20 * scaleX), currentY + (int)(130 * scaleY));
+        }
+
+        // XP Progress bar - PIXEL STYLE with segments
+        int xpBarY = currentY + (int)(170 * scaleY);
+        int xpBarWidth = cardWidth - (int)(40 * scaleX);
+        int xpBarHeight = (int)(28 * scaleY);
+        int xpBarX = cardX + (int)(20 * scaleX);
+
+        // XP bar shadow
+        g.setColor(new Color(0, 0, 0, 180));
+        g.fillRect(xpBarX + (int)(3 * scaleX), xpBarY + (int)(3 * scaleY), xpBarWidth, xpBarHeight);
+
+        // XP bar background - dark pixel border
+        g.setColor(new Color(20, 20, 35));
+        g.fillRect(xpBarX, xpBarY, xpBarWidth, xpBarHeight);
+
+        // Inner background
+        int innerPadding = (int)(4 * scaleX);
+        g.setColor(new Color(40, 40, 60));
+        g.fillRect(xpBarX + innerPadding, xpBarY + innerPadding,
+                   xpBarWidth - innerPadding * 2, xpBarHeight - innerPadding * 2);
+
+        // XP bar progress - segmented pixel style
+        int xpRequired = playerProgress.getXPRequiredForLevel(playerProgress.getCurrentLevel() + 1);
+        float xpProgress = (float)playerProgress.getCurrentXP() / xpRequired;
+        int xpBarFillWidth = (int)((xpBarWidth - innerPadding * 2) * xpProgress);
+
+        // Draw segmented progress bar
+        int segmentWidth = (int)(8 * scaleX);
+        int segmentSpacing = (int)(2 * scaleX);
+        int numSegments = xpBarFillWidth / (segmentWidth + segmentSpacing);
+
+        for (int i = 0; i < numSegments; i++) {
+            int segX = xpBarX + innerPadding + i * (segmentWidth + segmentSpacing);
+
+            // Gradient for each segment
+            GradientPaint segGradient = new GradientPaint(
+                segX, xpBarY, levelColor.brighter(),
+                segX, xpBarY + xpBarHeight, levelColor.darker()
+            );
+            g.setPaint(segGradient);
+            g.fillRect(segX, xpBarY + innerPadding, segmentWidth, xpBarHeight - innerPadding * 2);
+        }
+
+        // XP text with pixel shadow
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(14 * scaleY)));
+        String xpText = playerProgress.getCurrentXP() + " / " + xpRequired + " " + currentLanguage.get("ADV_XP");
+        FontMetrics fmXP = g.getFontMetrics();
+        int xpTextX = xpBarX + (xpBarWidth - fmXP.stringWidth(xpText)) / 2;
+        int xpTextY = xpBarY + (int)(19 * scaleY);
+
+        // Text shadow
+        g.setColor(new Color(0, 0, 0, 200));
+        g.drawString(xpText, xpTextX + (int)(2 * scaleX), xpTextY + (int)(2 * scaleY));
+
+        // Text
+        g.setColor(Color.WHITE);
+        g.drawString(xpText, xpTextX, xpTextY);
+
+        currentY += cardHeight + (int)(30 * scaleY);
+
+        // Daily login bonus
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(18 * scaleY)));
+        g.setColor(Color.WHITE);
+        String dailyText = currentLanguage.get("ADV_DAILY_BONUS");
+        g.drawString(dailyText, x, currentY);
+        currentY += (int)(25 * scaleY);
+
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(14 * scaleY)));
+        g.setColor(Color.LIGHT_GRAY);
+        String streakText = currentLanguage.get("ADV_LOGIN_STREAK") + ": " + playerProgress.getConsecutiveDaysLogged();
+        g.drawString(streakText, x, currentY);
+        currentY += (int)(20 * scaleY);
+
+        int bonusXP = 50 + playerProgress.getConsecutiveDaysLogged() * 10;
+        if (bonusXP > 200) bonusXP = 200;
+        String bonusText = currentLanguage.get("ADV_NEXT_BONUS") + ": +" + bonusXP + " XP";
+        g.drawString(bonusText, x, currentY);
+        currentY += (int)(40 * scaleY);
+
+        // Next 3 unlocks preview
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(18 * scaleY)));
+        g.setColor(Color.WHITE);
+        String nextText = currentLanguage.get("ADV_NEXT_UNLOCKS");
+        g.drawString(nextText, x, currentY);
+        currentY += (int)(25 * scaleY);
+
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(14 * scaleY)));
+        g.setColor(Color.LIGHT_GRAY);
+        // TODO: Show actual unlock milestones
+        g.drawString("• " + currentLanguage.get("ADV_LEVEL") + " " + (playerProgress.getCurrentLevel() + 1) + ": " + currentLanguage.get("ADV_UNLOCK_PLACEHOLDER"), x, currentY);
+        currentY += (int)(20 * scaleY);
+        g.drawString("• " + currentLanguage.get("ADV_LEVEL") + " " + (playerProgress.getCurrentLevel() + 5) + ": " + currentLanguage.get("ADV_UNLOCK_PLACEHOLDER"), x, currentY);
+        currentY += (int)(20 * scaleY);
+        g.drawString("• " + currentLanguage.get("ADV_LEVEL") + " " + (playerProgress.getCurrentLevel() + 10) + ": " + currentLanguage.get("ADV_UNLOCK_PLACEHOLDER"), x, currentY);
+    }
+
+    // Draw Achievements tab content
+    private void drawAchievementsTab(Graphics2D g, int x, int y, int width, int height) {
+        int currentY = y;
+
+        // Category filter tabs
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(14 * scaleY)));
+        String[] categoryNames = {
+            currentLanguage.get("ACH_CAT_ALL"),
+            currentLanguage.get("ACH_CAT_FIRST_TIME"),
+            currentLanguage.get("ACH_CAT_COMBO_MASTER"),
+            currentLanguage.get("ACH_CAT_SURVIVAL"),
+            currentLanguage.get("ACH_CAT_AI_MASTERY")
+        };
+
+        int filterX = x;
+        for (int i = 0; i < categoryNames.length; i++) {
+            if (advancementAchievementCategoryFilter == i - 1) {
+                g.setColor(Color.YELLOW);
+            } else {
+                g.setColor(Color.LIGHT_GRAY);
+            }
+            g.drawString(categoryNames[i], filterX, currentY);
+            filterX += g.getFontMetrics().stringWidth(categoryNames[i]) + (int)(20 * scaleX);
+        }
+        currentY += (int)(30 * scaleY);
+
+        // Achievement stats summary
+        int totalAchievements = AchievementRegistry.getTotalCount();
+        int unlockedCount = playerProgress.getUnlockedAchievements().size();
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(14 * scaleY)));
+        g.setColor(Color.WHITE);
+        String statsText = currentLanguage.get("ADV_ACH_PROGRESS") + ": " + unlockedCount + " / " + totalAchievements + " (" + (unlockedCount * 100 / totalAchievements) + "%)";
+        g.drawString(statsText, x, currentY);
+        currentY += (int)(30 * scaleY);
+
+        // Achievement grid
+        Collection<Achievement> achievements;
+        if (advancementAchievementCategoryFilter == -1) {
+            achievements = AchievementRegistry.getAllAchievements();
+        } else {
+            Achievement.Category cat = Achievement.Category.values()[advancementAchievementCategoryFilter];
+            achievements = AchievementRegistry.getAchievementsByCategory(cat);
+        }
+
+        int cardWidth = (int)(280 * scaleX);
+        int cardHeight = (int)(120 * scaleY);
+        int cardSpacing = (int)(15 * scaleX);
+        int cardsPerRow = width / (cardWidth + cardSpacing);
+
+        int cardX = x;
+        int cardY = currentY;
+        int cardCount = 0;
+
+        for (Achievement ach : achievements) {
+            boolean unlocked = playerProgress.getUnlockedAchievements().contains(ach.getId());
+            Color tierColor = new Color(ach.getTier().color);
+
+            // PIXEL STYLE card with shadow
+            g.setColor(new Color(10, 10, 20, 150));
+            g.fillRect(cardX + (int)(4 * scaleX), cardY + (int)(4 * scaleY), cardWidth, cardHeight);
+
+            // Card background
+            if (unlocked) {
+                g.setColor(new Color(35, 35, 55));
+            } else {
+                g.setColor(new Color(25, 25, 40));
+            }
+            g.fillRect(cardX, cardY, cardWidth, cardHeight);
+
+            // Pixel border - thick retro style
+            int achBorderThick = (int)(4 * scaleX);
+            if (unlocked) {
+                g.setColor(tierColor.brighter());
+            } else {
+                g.setColor(new Color(60, 60, 80));
+            }
+            // Top
+            g.fillRect(cardX, cardY, cardWidth, achBorderThick);
+            // Bottom
+            g.fillRect(cardX, cardY + cardHeight - achBorderThick, cardWidth, achBorderThick);
+            // Left
+            g.fillRect(cardX, cardY, achBorderThick, cardHeight);
+            // Right
+            g.fillRect(cardX + cardWidth - achBorderThick, cardY, achBorderThick, cardHeight);
+
+            // Tier icon - pixel badge in top-left corner
+            int iconSize = (int)(16 * scaleX);
+            int iconX = cardX + (int)(8 * scaleX);
+            int iconY = cardY + (int)(8 * scaleY);
+
+            if (unlocked) {
+                // Draw pixel star/badge based on tier
+                g.setColor(tierColor);
+                g.fillRect(iconX + iconSize/2 - (int)(2 * scaleX), iconY, (int)(4 * scaleX), iconSize); // Vertical
+                g.fillRect(iconX, iconY + iconSize/2 - (int)(2 * scaleY), iconSize, (int)(4 * scaleY)); // Horizontal
+
+                // Inner glow
+                g.setColor(tierColor.brighter());
+                g.fillRect(iconX + iconSize/2 - (int)(1 * scaleX), iconY + (int)(4 * scaleY),
+                          (int)(2 * scaleX), (int)(8 * scaleY));
+            }
+
+            // Achievement name with pixel shadow
+            g.setFont(new Font("Monospaced", Font.BOLD, (int)(13 * scaleY)));
+            String achName = currentLanguage.get(ach.getNameKey());
+
+            // Shadow
+            g.setColor(new Color(0, 0, 0, 180));
+            g.drawString(achName, cardX + (int)(12 * scaleX), cardY + (int)(42 * scaleY));
+
+            // Name text
+            if (unlocked) {
+                g.setColor(tierColor.brighter());
+            } else {
+                g.setColor(new Color(120, 120, 140));
+            }
+            g.drawString(achName, cardX + (int)(10 * scaleX), cardY + (int)(40 * scaleY));
+
+            // Achievement description
+            g.setFont(new Font("Monospaced", Font.PLAIN, (int)(11 * scaleY)));
+            String achDesc = currentLanguage.get(ach.getDescriptionKey());
+            // Word wrap description
+            String[] words = achDesc.split(" ");
+            StringBuilder line = new StringBuilder();
+            int descY = cardY + (int)(45 * scaleY);
+            int maxWidth = cardWidth - (int)(20 * scaleX);
+            FontMetrics fmDesc = g.getFontMetrics();
+
+            for (String word : words) {
+                String testLine = line.length() == 0 ? word : line + " " + word;
+                if (fmDesc.stringWidth(testLine) > maxWidth) {
+                    g.drawString(line.toString(), cardX + (int)(10 * scaleX), descY);
+                    line = new StringBuilder(word);
+                    descY += (int)(15 * scaleY);
+                } else {
+                    line = new StringBuilder(testLine);
+                }
+            }
+            if (line.length() > 0) {
+                g.drawString(line.toString(), cardX + (int)(10 * scaleX), descY);
+            }
+
+            // Tier and XP reward
+            g.setFont(new Font("Monospaced", Font.BOLD, (int)(12 * scaleY)));
+            g.setColor(new Color(ach.getTier().color));
+            String tierText = ach.getTier().name() + " • +" + ach.getTier().xpReward + " XP";
+            g.drawString(tierText, cardX + (int)(10 * scaleX), cardY + cardHeight - (int)(10 * scaleY));
+
+            // Move to next card position
+            cardCount++;
+            if (cardCount % cardsPerRow == 0) {
+                cardX = x;
+                cardY += cardHeight + cardSpacing;
+            } else {
+                cardX += cardWidth + cardSpacing;
+            }
+
+            // Stop if we've run out of vertical space
+            if (cardY > y + height - cardHeight) {
+                break;
+            }
+        }
+    }
+
+    // Draw Unlocks tab content
+    private void drawUnlocksTab(Graphics2D g, int x, int y, int width, int height) {
+        int currentY = y;
+        int columnWidth = width / 3;
+
+        // Column 1: Paddle Themes
+        int col1X = x;
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(18 * scaleY)));
+        g.setColor(Color.WHITE);
+        g.drawString(currentLanguage.get("ADV_PADDLE_THEMES"), col1X, currentY);
+        currentY += (int)(25 * scaleY);
+
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(14 * scaleY)));
+        g.setColor(Color.LIGHT_GRAY);
+        if (playerProgress.getUnlockedPaddleThemes().isEmpty()) {
+            g.drawString(currentLanguage.get("ADV_NO_UNLOCKS"), col1X, currentY);
+        } else {
+            for (String theme : playerProgress.getUnlockedPaddleThemes()) {
+                g.drawString("• " + currentLanguage.get("THEME_" + theme), col1X, currentY);
+                currentY += (int)(20 * scaleY);
+            }
+        }
+
+        // Column 2: Titles (equipable)
+        currentY = y + (int)(25 * scaleY);
+        int col2X = x + columnWidth;
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(18 * scaleY)));
+        g.setColor(Color.WHITE);
+        g.drawString(currentLanguage.get("ADV_TITLES"), col2X, y);
+
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(14 * scaleY)));
+        if (playerProgress.getUnlockedTitles().isEmpty()) {
+            g.setColor(Color.LIGHT_GRAY);
+            g.drawString(currentLanguage.get("ADV_NO_UNLOCKS"), col2X, currentY);
+        } else {
+            for (String title : playerProgress.getUnlockedTitles()) {
+                boolean equipped = title.equals(playerProgress.getEquippedTitle());
+                if (equipped) {
+                    g.setColor(Color.YELLOW);
+                    g.drawString("★ " + currentLanguage.get("TITLE_" + title), col2X, currentY);
+                } else {
+                    g.setColor(Color.LIGHT_GRAY);
+                    g.drawString("• " + currentLanguage.get("TITLE_" + title), col2X, currentY);
+                }
+                currentY += (int)(20 * scaleY);
+            }
+        }
+
+        // Column 3: Badges
+        currentY = y + (int)(25 * scaleY);
+        int col3X = x + columnWidth * 2;
+        g.setFont(new Font("Monospaced", Font.BOLD, (int)(18 * scaleY)));
+        g.setColor(Color.WHITE);
+        g.drawString(currentLanguage.get("ADV_BADGES"), col3X, y);
+
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(14 * scaleY)));
+        if (playerProgress.getUnlockedBadges().isEmpty()) {
+            g.setColor(Color.LIGHT_GRAY);
+            g.drawString(currentLanguage.get("ADV_NO_UNLOCKS"), col3X, currentY);
+        } else {
+            for (String badge : playerProgress.getUnlockedBadges()) {
+                boolean equipped = badge.equals(playerProgress.getEquippedBadge());
+                if (equipped) {
+                    g.setColor(Color.CYAN);
+                    g.drawString("★ " + currentLanguage.get("BADGE_" + badge), col3X, currentY);
+                } else {
+                    g.setColor(Color.LIGHT_GRAY);
+                    g.drawString("• " + currentLanguage.get("BADGE_" + badge), col3X, currentY);
+                }
+                currentY += (int)(20 * scaleY);
+            }
+        }
+
+        // Instructions for equipping
+        g.setFont(new Font("Monospaced", Font.ITALIC, (int)(12 * scaleY)));
+        g.setColor(Color.LIGHT_GRAY);
+        g.drawString(currentLanguage.get("ADV_EQUIP_INSTRUCTION"), x, y + height - (int)(20 * scaleY));
+    }
+
+    // Draw Statistics tab content - CODE EDITOR RETRO STYLE
+    private void drawStatisticsTab(Graphics2D g, int x, int y, int width, int height) {
+        // Use same layout as other tabs - no extra borders/shadows
+        int lineNumWidth = (int)(50 * scaleX);
+        int codeX = x + lineNumWidth + (int)(10 * scaleX);
+
+        // Now draw the code-style stats
+        g.setFont(new Font("Monospaced", Font.PLAIN, (int)(13 * scaleY)));
+        int lineHeight = (int)(18 * scaleY);
+        int currentLine = 1;
+        int currentY = y + (int)(15 * scaleY);
+
+        // Helper function to draw a line with syntax highlighting
+        final int finalX = x;
+        final int finalCodeX = codeX;
+        class CodeLine {
+            void draw(int lineY, String lineNum, String keyword, String varName, String equals, String value, String comment) {
+                // Line number - aligned with format %3d for better spacing
+                g.setColor(new Color(100, 100, 120));
+                g.drawString(lineNum, finalX + (int)(5 * scaleX), lineY);
+
+                int xPos = finalCodeX;
+
+                // Keyword (type declaration) - cyan
+                if (keyword != null && !keyword.isEmpty()) {
+                    g.setColor(new Color(100, 200, 255));
+                    g.drawString(keyword, xPos, lineY);
+                    xPos += g.getFontMetrics().stringWidth(keyword);
+                }
+
+                // Variable name - green
+                if (varName != null && !varName.isEmpty()) {
+                    g.setColor(new Color(80, 255, 120));
+                    g.drawString(varName, xPos, lineY);
+                    xPos += g.getFontMetrics().stringWidth(varName);
+                }
+
+                // Equals sign - white
+                if (equals != null && !equals.isEmpty()) {
+                    g.setColor(new Color(200, 200, 200));
+                    g.drawString(equals, xPos, lineY);
+                    xPos += g.getFontMetrics().stringWidth(equals);
+                }
+
+                // Value - yellow/orange
+                if (value != null && !value.isEmpty()) {
+                    g.setColor(new Color(255, 200, 100));
+                    g.drawString(value, xPos, lineY);
+                    xPos += g.getFontMetrics().stringWidth(value);
+                }
+
+                // Comment - gray
+                if (comment != null && !comment.isEmpty()) {
+                    g.setColor(new Color(120, 120, 140));
+                    g.drawString(comment, xPos + (int)(10 * scaleX), lineY);
+                }
+            }
+        }
+        CodeLine codeLine = new CodeLine();
+
+        // Draw stats as code
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "struct ", "PlayerStats", " {", "", "");
+        currentY += lineHeight;
+
+        // Empty line
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "", "", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  ", "// === GENERAL STATISTICS ===", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "total_games", " = ",
+                     String.valueOf(playerProgress.getTotalGamesPlayed()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "total_wins", " = ",
+                     String.valueOf(playerProgress.getTotalWins()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "total_losses", " = ",
+                     String.valueOf(playerProgress.getTotalGamesPlayed() - playerProgress.getTotalWins()), ";");
+        currentY += lineHeight;
+
+        float winRate = playerProgress.getTotalGamesPlayed() > 0 ?
+            (float)playerProgress.getTotalWins() * 100 / playerProgress.getTotalGamesPlayed() : 0;
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  float ", "win_rate", " = ",
+                     String.format("%.1f%%", winRate), " // Win percentage");
+        currentY += lineHeight;
+
+        long totalMinutes = playerProgress.getTotalPlayTimeMillis() / 60000;
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  long ", "playtime_minutes", " = ",
+                     String.valueOf(totalMinutes), "L;");
+        currentY += lineHeight;
+
+        // Empty line
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "", "", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  ", "// === RECORDS ===", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "max_combo", " = ",
+                     String.valueOf(playerProgress.getMaxComboReached()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "max_balls_deflected", " = ",
+                     String.valueOf(playerProgress.getMaxBallsDeflected()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "high_score", " = ",
+                     String.valueOf(playerProgress.getHighestScore()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "longest_win_streak", " = ",
+                     String.valueOf(playerProgress.getLongestWinStreak()), ";");
+        currentY += lineHeight;
+
+        // Empty line
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "", "", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  ", "// === CLASSIC MODE ===", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "classic_games", " = ",
+                     String.valueOf(playerProgress.getClassicGamesPlayed()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "classic_wins", " = ",
+                     String.valueOf(playerProgress.getClassicWins()), ";");
+        currentY += lineHeight;
+
+        float classicWinRate = playerProgress.getClassicGamesPlayed() > 0 ?
+            (float)playerProgress.getClassicWins() * 100 / playerProgress.getClassicGamesPlayed() : 0;
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  float ", "classic_win_rate", " = ",
+                     String.format("%.1f%%", classicWinRate), "");
+        currentY += lineHeight;
+
+        // Empty line
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "", "", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  ", "// === CIRCLE MODE ===", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "circle_games", " = ",
+                     String.valueOf(playerProgress.getCircleGamesPlayed()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "circle_best_score", " = ",
+                     String.valueOf(playerProgress.getCircleBestScore()), ";");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "  int ", "total_deflects", " = ",
+                     String.valueOf(playerProgress.getTotalBallsDeflected()), ";");
+        currentY += lineHeight;
+
+        // Empty line
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "", "", "", "", "");
+        currentY += lineHeight;
+
+        codeLine.draw(currentY, String.format("%3d", currentLine++), "}", "", "", "", "");
+
+        // Cursor blinking effect at bottom
+        if ((System.currentTimeMillis() / 500) % 2 == 0) {
+            g.setColor(new Color(0, 255, 100));
+            g.fillRect(codeX, currentY + (int)(5 * scaleY), (int)(8 * scaleX), (int)(14 * scaleY));
+        }
+
+        // Calculate max scroll for this tab
+        int totalContentHeight = currentY - y + (int)(20 * scaleY);
+        advancementMaxScroll[3] = Math.max(0, totalContentHeight - height);
+    }
+
+    // Get color gradient based on level - RETRO PIXEL PALETTE
+    private Color getColorForLevel(int level) {
+        if (level < 11) {
+            // Retro green for beginner (0-10) - NES style
+            return new Color(80, 255, 80);
+        } else if (level < 21) {
+            // Retro cyan for intermediate (11-20) - C64 style
+            return new Color(80, 220, 255);
+        } else if (level < 31) {
+            // Retro magenta for advanced (21-30) - Arcade style
+            return new Color(255, 80, 255);
+        } else if (level < 41) {
+            // Retro orange for expert (31-40) - Atari style
+            return new Color(255, 160, 40);
+        } else {
+            // Retro gold for master (41-50) - Treasure color
+            return new Color(255, 220, 0);
+        }
+    }
+
+    // Handle advancement screen input
+    private void handleAdvancementInput(KeyEvent e) {
+        int key = e.getKeyCode();
+
+        // If boot intro is active, any key skips it
+        if (advancementBootIntroActive) {
+            advancementIntroSeenThisSession = true;
+            advancementBootIntroActive = false;
+            repaint();
+            return;
+        }
+
+        if (key == KeyEvent.VK_ESCAPE) {
+            if (advancementDetailMode) {
+                // Exit detail mode, return to tab selection
+                advancementDetailMode = false;
+                advancementSelectedItem = 0;
+                repaint();
+            } else {
+                // Return to the state we were in before opening advancement
+                setState(stateBeforeAdvancement);
+                repaint();
+            }
+        } else if (key == KeyEvent.VK_ENTER) {
+            // ENTER only works in achievements tab (tab 1) to show details
+            if (advancementSelectedTab == 1) {
+                if (!advancementDetailMode) {
+                    // Enter detail mode for achievements
+                    advancementDetailMode = true;
+                    advancementSelectedItem = 0;
+                    repaint();
+                } else {
+                    // Show details for selected item (handled in drawing code)
+                    repaint();
+                }
+            }
+        } else if (key == KeyEvent.VK_UP || key == KeyEvent.VK_W) {
+            if (advancementDetailMode && advancementSelectedTab == 1) {
+                // Navigate items within achievements tab
+                int maxItems = getMaxItemsForCurrentTab();
+                advancementSelectedItem = Math.max(0, advancementSelectedItem - 1);
+                autoScrollToSelectedItem();
+                repaint();
+            } else {
+                // Navigate between tabs (exit detail mode if active)
+                if (advancementDetailMode) {
+                    advancementDetailMode = false;
+                    advancementSelectedItem = 0;
+                }
+                advancementSelectedTab = (advancementSelectedTab - 1 + 4) % 4;
+                repaint();
+            }
+        } else if (key == KeyEvent.VK_DOWN || key == KeyEvent.VK_S) {
+            if (advancementDetailMode && advancementSelectedTab == 1) {
+                // Navigate items within achievements tab
+                int maxItems = getMaxItemsForCurrentTab();
+                advancementSelectedItem = Math.min(maxItems - 1, advancementSelectedItem + 1);
+                autoScrollToSelectedItem();
+                repaint();
+            } else {
+                // Navigate between tabs (exit detail mode if active)
+                if (advancementDetailMode) {
+                    advancementDetailMode = false;
+                    advancementSelectedItem = 0;
+                }
+                advancementSelectedTab = (advancementSelectedTab + 1) % 4;
+                repaint();
+            }
+        } else if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_A) {
+            // Scroll up in current tab content
+            int scrollStep = (int)(100 * scaleY);
+            advancementScrollOffset[advancementSelectedTab] = Math.max(0, advancementScrollOffset[advancementSelectedTab] - scrollStep);
+            repaint();
+        } else if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D) {
+            // Scroll down in current tab content
+            int scrollStep = (int)(100 * scaleY);
+            advancementScrollOffset[advancementSelectedTab] = Math.min(advancementMaxScroll[advancementSelectedTab],
+                                                                       advancementScrollOffset[advancementSelectedTab] + scrollStep);
+            repaint();
+        } else if (key == KeyEvent.VK_PAGE_UP) {
+            // Scroll up larger amount
+            int scrollStep = (int)(300 * scaleY);
+            advancementScrollOffset[advancementSelectedTab] = Math.max(0, advancementScrollOffset[advancementSelectedTab] - scrollStep);
+            repaint();
+        } else if (key == KeyEvent.VK_PAGE_DOWN) {
+            // Scroll down larger amount
+            int scrollStep = (int)(300 * scaleY);
+            advancementScrollOffset[advancementSelectedTab] = Math.min(advancementMaxScroll[advancementSelectedTab],
+                                                                       advancementScrollOffset[advancementSelectedTab] + scrollStep);
+            repaint();
+        } else if (key == KeyEvent.VK_HOME) {
+            // Scroll to top
+            advancementScrollOffset[advancementSelectedTab] = 0;
+            repaint();
+        } else if (key == KeyEvent.VK_END) {
+            // Scroll to bottom
+            advancementScrollOffset[advancementSelectedTab] = advancementMaxScroll[advancementSelectedTab];
+            repaint();
+        }
+    }
+
+    // Get maximum number of items for current tab
+    private int getMaxItemsForCurrentTab() {
+        switch (advancementSelectedTab) {
+            case 0: // Progress - no items to select
+                return 0;
+            case 1: // Achievements
+                return AchievementRegistry.getTotalCount();
+            case 2: // Unlocks (Titles + Badges)
+                return playerProgress.getUnlockedTitles().size() + playerProgress.getUnlockedBadges().size();
+            case 3: // Stats - no items to select
+                return 0;
+            default:
+                return 0;
+        }
+    }
+
+    // Auto-scroll to keep selected item visible
+    private void autoScrollToSelectedItem() {
+        if (!advancementDetailMode) return;
+
+        int lineHeight = (int)(18 * scaleY);
+        int itemY = advancementSelectedItem * lineHeight; // Approximate Y position of item
+
+        int contentAreaHeight = BOARD_HEIGHT - (int)(200 * scaleY); // Approximate visible height
+        int currentScroll = advancementScrollOffset[advancementSelectedTab];
+
+        // If item is above visible area, scroll up to it
+        if (itemY < currentScroll) {
+            advancementScrollOffset[advancementSelectedTab] = Math.max(0, itemY - (int)(50 * scaleY));
+        }
+        // If item is below visible area, scroll down to it
+        else if (itemY > currentScroll + contentAreaHeight - lineHeight) {
+            advancementScrollOffset[advancementSelectedTab] =
+                Math.min(advancementMaxScroll[advancementSelectedTab],
+                        itemY - contentAreaHeight + lineHeight + (int)(50 * scaleY));
+        }
+    }
+
+    // Award XP and update stats after Classic Mode game
+    private void awardClassicModeXP() {
+        if (playerProgress == null) return;
+
+        boolean playerWon = (winner != null && winner.equals("PLAYER 1"));
+        int playerScore = score1;
+        int opponentScore = score2;
+
+        // Calculate play time
+        long playTime = gameEndTime - gameStartTime;
+        playerProgress.addPlayTime(playTime);
+
+        // Record game stats
+        playerProgress.recordGamePlayed(false, playerWon, playerScore);
+        playerProgress.updateMaxCombo(maxCombo, false); // Update Classic Mode max combo
+        playerProgress.updateWinStreak(playerWon);
+
+        // Calculate XP based on multiple factors - BALANCED
+        int baseXP = 30; // Base XP for playing
+
+        // Score XP - reduced from 10 to 3 per point
+        int scoreXP = playerScore * 3; // 3 XP per point scored (max 33 XP if you score 11)
+
+        // Win bonus - reduced from 100 to 30
+        int winXP = playerWon ? 30 : 0;
+
+        // Close game bonus - reward competitive matches
+        int marginBonus = 0;
+        int margin = Math.abs(playerScore - opponentScore);
+        if (margin <= 2) marginBonus = 15; // Very close game
+        else if (margin <= 4) marginBonus = 10; // Close game
+        else if (margin <= 6) marginBonus = 5; // Somewhat close
+
+        // Difficulty multiplier (if playing against AI) - REDUCED
+        float difficultyMultiplier = 1.0f;
+        if (currentState == GameState.SINGLE_PLAYER && aiDifficultySetting >= 0 && aiDifficultySetting < 5) {
+            String[] difficulties = {"EASY", "NORMAL", "HARD", "EXPERT", "IMPOSSIBLE"};
+            String difficulty = difficulties[aiDifficultySetting];
+            switch (difficulty) {
+                case "EASY": difficultyMultiplier = 1.0f; break;
+                case "NORMAL": difficultyMultiplier = 1.2f; break; // Reduced from 1.5
+                case "HARD": difficultyMultiplier = 1.4f; break; // Reduced from 2.0
+                case "EXPERT": difficultyMultiplier = 1.6f; break; // Reduced from 2.5
+                case "IMPOSSIBLE": difficultyMultiplier = 1.8f; break; // Reduced from 3.0
+            }
+        }
+
+        int totalXP = (int)((baseXP + scoreXP + winXP + marginBonus) * difficultyMultiplier);
+
+        // HARD CAP: Maximum 120 XP per Classic Mode game
+        totalXP = Math.min(120, totalXP);
+
+        System.out.println("Classic Mode XP Breakdown: Base=" + baseXP + ", Score=" + scoreXP +
+                          ", Win=" + winXP + ", Margin=" + marginBonus +
+                          ", Difficulty=" + difficultyMultiplier + "x, TOTAL=" + totalXP);
+
+        // Award XP
+        boolean leveledUp = playerProgress.addXP(totalXP);
+
+        // Show level up notification
+        if (leveledUp) {
+            showLevelUpNotification(playerProgress.getCurrentLevel());
+        }
+
+        // Save progress
+        savePlayerProgress();
+
+        // Check and unlock achievements
+        checkAndUnlockAchievements();
+
+        System.out.println("Classic Mode: Awarded " + totalXP + " XP (Player won: " + playerWon + ")");
+        if (leveledUp) {
+            System.out.println("LEVEL UP! Now level " + playerProgress.getCurrentLevel());
+        }
+    }
+
+    // Award XP and update stats after Circle Mode game
+    private void awardCircleModeXP() {
+        if (playerProgress == null) return;
+
+        int finalScore = circleScore;
+        int currentCombo = circleComboCount;
+        int maxCombo = circleMaxCombo;
+
+        // Calculate play time
+        long currentTime = System.currentTimeMillis();
+        long playTime = currentTime - gameStartTime;
+        playerProgress.addPlayTime(playTime);
+
+        // Record game stats
+        playerProgress.recordGamePlayed(true, false, finalScore); // Circle mode doesn't have "wins"
+        playerProgress.updateMaxCombo(maxCombo, true); // Update Circle Mode max combo
+        playerProgress.updateMaxBallsDeflected(circleBalls.size());
+        playerProgress.addBallsDeflected(currentCombo);
+
+        // Calculate XP based on performance - BALANCED FOR CIRCLE MODE
+        int baseXP = 20; // Base XP for playing
+
+        // Score XP - heavily reduced since scores can be in thousands
+        int scoreXP = Math.min(30, finalScore / 100); // Max 30 XP from score (cap at 3000 score)
+
+        // Combo XP - logarithmic scaling since combos can reach 100+
+        // Formula: log-based to reduce impact of very high combos
+        int comboXP = 0;
+        if (maxCombo > 0) {
+            // At combo 10 = ~10 XP, combo 50 = ~20 XP, combo 100 = ~25 XP, combo 200 = ~30 XP
+            comboXP = (int)(Math.log(maxCombo + 1) * 5);
+            comboXP = Math.min(35, comboXP); // Cap at 35 XP from combo
+        }
+
+        // Survival time bonus - reduced
+        long survivalSeconds = playTime / 1000;
+        int survivalXP = Math.min(20, (int)(survivalSeconds * 0.2)); // Max 20 XP from survival (cap at 100s)
+
+        // Special milestone bonuses - much smaller
+        int bonusXP = 0;
+        if (maxCombo >= 50) bonusXP += 10; // High combo bonus
+        if (maxCombo >= 100) bonusXP += 15; // Very high combo bonus
+        if (maxCombo >= 200) bonusXP += 10; // Extreme combo bonus
+        if (survivalSeconds >= 60) bonusXP += 5; // 1 minute survival
+        if (survivalSeconds >= 120) bonusXP += 10; // 2 minute survival
+        if (survivalSeconds >= 300) bonusXP += 15; // 5 minute survival
+
+        int totalXP = baseXP + scoreXP + comboXP + survivalXP + bonusXP;
+
+        // HARD CAP: Maximum 150 XP per Circle Mode game
+        // This prevents XP inflation even with incredible performance
+        totalXP = Math.min(150, totalXP);
+
+        System.out.println("Circle Mode XP Breakdown: Base=" + baseXP + ", Score=" + scoreXP +
+                          ", Combo=" + comboXP + " (maxCombo=" + maxCombo + "), Survival=" + survivalXP +
+                          ", Bonus=" + bonusXP + ", TOTAL=" + totalXP);
+
+        // Award XP
+        boolean leveledUp = playerProgress.addXP(totalXP);
+
+        // Show level up notification
+        if (leveledUp) {
+            showLevelUpNotification(playerProgress.getCurrentLevel());
+        }
+
+        // Save progress
+        savePlayerProgress();
+
+        // Check and unlock achievements
+        checkAndUnlockAchievements();
+
+        System.out.println("Circle Mode: Awarded " + totalXP + " XP (Score: " + finalScore + ", Max Combo: " + maxCombo + ")");
+        if (leveledUp) {
+            System.out.println("LEVEL UP! Now level " + playerProgress.getCurrentLevel());
+        }
+    }
+
+    /**
+     * Get translated text with fallback
+     */
+    private String getTranslatedOrFallback(String key) {
+        String result = currentLanguage.get(key);
+        return result != null ? result : key;
+    }
+
+    /**
+     * Add an achievement notification
+     */
+    private void showAchievementNotification(Achievement achievement) {
+        if (achievement == null) return;
+
+        String title = getTranslatedOrFallback(achievement.getNameKey());
+        String message = getTranslatedOrFallback(achievement.getDescriptionKey());
+        int xp = achievement.getXPReward();
+
+        GameNotification notification = new GameNotification(
+            GameNotification.Type.ACHIEVEMENT,
+            title,
+            message,
+            xp,
+            achievement.getTier(),
+            2000 // 2 seconds duration
+        );
+
+        activeNotifications.add(notification);
+        repaint();
+    }
+
+    /**
+     * Add a level up notification
+     */
+    private void showLevelUpNotification(int newLevel) {
+        String title = getText("LEVEL_UP");
+        String message = getText("LEVEL_UP_MESSAGE") + " " + newLevel;
+
+        GameNotification notification = new GameNotification(
+            GameNotification.Type.LEVEL_UP,
+            title,
+            message,
+            0,
+            null,
+            2000 // 2 seconds duration
+        );
+
+        activeNotifications.add(notification);
+        repaint();
+    }
+
+    /**
+     * Update notifications - remove expired ones
+     */
+    private void updateNotifications() {
+        activeNotifications.removeIf(GameNotification::isExpired);
+    }
+
+    /**
+     * TEST NOTIFICATIONS - Press Ctrl+Shift+Alt+N to test!
+     * Shows all tier notifications + level up for visual testing
+     * Each notification lasts 2 seconds and appears one at a time
+     */
+    private void testNotifications() {
+        // Clear existing notifications
+        activeNotifications.clear();
+
+        // Create test achievements for each tier
+        Achievement bronzeTest = new Achievement("test_bronze", "Prima Vittoria!", "Hai vinto la tua prima partita", Achievement.Category.FIRST_TIME, Achievement.Tier.BRONZE);
+        Achievement silverTest = new Achievement("test_silver", "Giocatore Esperto", "Hai completato 50 partite", Achievement.Category.MASTERY, Achievement.Tier.SILVER);
+        Achievement goldTest = new Achievement("test_gold", "Maestro del Pong", "Hai battuto la difficolta' Esperto", Achievement.Category.CLASSIC_MODE, Achievement.Tier.GOLD);
+        Achievement platinumTest = new Achievement("test_platinum", "LEGGENDA VIVENTE", "Hai completato TUTTI gli achievement", Achievement.Category.MASTERY, Achievement.Tier.PLATINUM);
+
+        // Add ALL notifications to queue immediately (duration 2 seconds each)
+        // They will be shown one at a time automatically
+        GameNotification notif1 = new GameNotification(
+            GameNotification.Type.ACHIEVEMENT,
+            getText("ACHIEVEMENT_UNLOCKED"),
+            getText(bronzeTest.getDescriptionKey()),
+            bronzeTest.getXPReward(),
+            bronzeTest.getTier(),
+            2000 // 2 seconds
+        );
+        activeNotifications.add(notif1);
+
+        GameNotification notif2 = new GameNotification(
+            GameNotification.Type.ACHIEVEMENT,
+            getText("ACHIEVEMENT_UNLOCKED"),
+            getText(silverTest.getDescriptionKey()),
+            silverTest.getXPReward(),
+            silverTest.getTier(),
+            2000 // 2 seconds
+        );
+        activeNotifications.add(notif2);
+
+        GameNotification notif3 = new GameNotification(
+            GameNotification.Type.ACHIEVEMENT,
+            getText("ACHIEVEMENT_UNLOCKED"),
+            getText(goldTest.getDescriptionKey()),
+            goldTest.getXPReward(),
+            goldTest.getTier(),
+            2000 // 2 seconds
+        );
+        activeNotifications.add(notif3);
+
+        GameNotification notif4 = new GameNotification(
+            GameNotification.Type.ACHIEVEMENT,
+            getText("ACHIEVEMENT_UNLOCKED"),
+            getText(platinumTest.getDescriptionKey()),
+            platinumTest.getXPReward(),
+            platinumTest.getTier(),
+            2000 // 2 seconds
+        );
+        activeNotifications.add(notif4);
+
+        GameNotification levelUpNotif = new GameNotification(
+            GameNotification.Type.LEVEL_UP,
+            getText("LEVEL_UP"),
+            getText("LEVEL_UP_MESSAGE") + " 25",
+            150, // XP reward for level up
+            null,
+            2000 // 2 seconds
+        );
+        activeNotifications.add(levelUpNotif);
+
+        System.out.println("=== TEST NOTIFICHE ATTIVATO ===");
+        System.out.println("Scorciatoia: Ctrl+Shift+Alt+N");
+        System.out.println("5 notifiche in coda - 2 secondi ciascuna");
+        System.out.println("Mostrate una alla volta in sequenza");
+        System.out.println("===============================");
+
+        repaint();
+    }
+
+    /**
+     * Draw all active notifications - SMALL, BOTTOM-RIGHT, ONE AT A TIME
+     * Slide in from right, slide out to bottom
+     */
+    private void drawNotifications(Graphics2D g) {
+        if (activeNotifications.isEmpty()) return;
+
+        // Only show the FIRST notification (one at a time)
+        GameNotification notif = activeNotifications.get(0);
+
+        // Start the notification timer if not already started
+        notif.start();
+
+        // Update animations
+        if (notif.isExiting()) {
+            notif.updateSlideOut();
+        } else {
+            notif.updateSlideIn();
+        }
+
+        // COMPACT DIMENSIONS with extra height for multi-line descriptions
+        int notificationWidth = (int)(220 * scaleX);
+        int notificationHeight = (int)(85 * scaleY);
+
+        // BASE POSITION: Bottom-right corner
+        int baseX = BOARD_WIDTH - (int)(10 * scaleX); // Right edge
+        int baseY = BOARD_HEIGHT - notificationHeight - (int)(10 * scaleY); // Bottom edge
+
+        // SLIDE IN from right (moves left)
+        int slideInOffsetX = (int)((1.0f - notif.slideProgress) * (notificationWidth + 20));
+
+        // SLIDE OUT to bottom (moves down)
+        int slideOutOffsetY = (int)(notif.slideOutProgress * (notificationHeight + 100));
+
+        // Final position with animations applied
+        int notificationX = baseX - notificationWidth + slideInOffsetX;
+        int notificationY = baseY + slideOutOffsetY;
+
+        // Calculate alpha for fade in/out
+        float alpha = Math.max(0, Math.min(1, notif.getAlpha()));
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+
+        // Determine colors based on type
+        Color accentColor;
+        Color bgColor;
+        Color bgColor2;
+        String tierName = "";
+
+        if (notif.type == GameNotification.Type.ACHIEVEMENT) {
+            // Tier-specific colors (more vibrant)
+            if (notif.tier == Achievement.Tier.BRONZE) {
+                accentColor = new Color(205, 127, 50);
+                bgColor = new Color(60, 40, 20, 245);
+                bgColor2 = new Color(40, 25, 10, 245);
+                tierName = "BR";
+            } else if (notif.tier == Achievement.Tier.SILVER) {
+                accentColor = new Color(220, 220, 235);
+                bgColor = new Color(40, 40, 50, 245);
+                bgColor2 = new Color(25, 25, 35, 245);
+                tierName = "SI";
+            } else if (notif.tier == Achievement.Tier.GOLD) {
+                accentColor = new Color(255, 215, 0);
+                bgColor = new Color(50, 45, 20, 245);
+                bgColor2 = new Color(35, 30, 10, 245);
+                tierName = "GO";
+            } else if (notif.tier == Achievement.Tier.PLATINUM) {
+                accentColor = new Color(229, 228, 226);
+                bgColor = new Color(45, 50, 55, 245);
+                bgColor2 = new Color(30, 35, 40, 245);
+                tierName = "PL";
+            } else {
+                accentColor = new Color(100, 200, 255);
+                bgColor = new Color(30, 30, 40, 245);
+                bgColor2 = new Color(20, 20, 30, 245);
+            }
+        } else if (notif.type == GameNotification.Type.LEVEL_UP) {
+            accentColor = new Color(255, 215, 0);
+            bgColor = new Color(50, 30, 60, 245);
+            bgColor2 = new Color(35, 20, 45, 245);
+            tierName = "LV";
+        } else {
+            accentColor = new Color(100, 200, 255);
+            bgColor = new Color(30, 40, 50, 245);
+            bgColor2 = new Color(20, 30, 40, 245);
+        }
+
+        // ===== COMPACT RETRO ARCADE STYLE =====
+
+        // Outer pixelated glow (smaller)
+        int glowSize = (int)(4 * scaleX);
+        for (int j = glowSize; j >= 0; j -= 1) {
+            int glowAlpha = (int)(30 * (1 - j / (float)glowSize) * alpha);
+            g.setColor(new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), glowAlpha));
+            g.fillRect(notificationX - j, notificationY - j,
+                      notificationWidth + j * 2, notificationHeight + j * 2);
+        }
+
+        // Checkerboard retro background pattern (smaller checks)
+        int checkSize = (int)(3 * scaleX);
+        for (int cy = 0; cy < notificationHeight; cy += checkSize) {
+            for (int cx = 0; cx < notificationWidth; cx += checkSize) {
+                if ((cx / checkSize + cy / checkSize) % 2 == 0) {
+                    g.setColor(bgColor);
+                } else {
+                    g.setColor(bgColor2);
+                }
+                g.fillRect(notificationX + cx, notificationY + cy, checkSize, checkSize);
+            }
+        }
+
+        // Scanline effect (CRT style - thinner)
+        g.setColor(new Color(0, 0, 0, 40));
+        for (int sy = 0; sy < notificationHeight; sy += 2) {
+            g.drawLine(notificationX, notificationY + sy,
+                      notificationX + notificationWidth, notificationY + sy);
+        }
+
+        // Thick pixelated border (retro style - thinner)
+        int borderThickness = (int)(3 * scaleX);
+        g.setColor(accentColor);
+        g.fillRect(notificationX, notificationY, notificationWidth, borderThickness); // Top
+        g.fillRect(notificationX, notificationY + notificationHeight - borderThickness,
+                  notificationWidth, borderThickness); // Bottom
+        g.fillRect(notificationX, notificationY, borderThickness, notificationHeight); // Left
+        g.fillRect(notificationX + notificationWidth - borderThickness, notificationY,
+                  borderThickness, notificationHeight); // Right
+
+        // Inner lighter border for depth (thinner)
+        int innerBorder = (int)(1 * scaleX);
+        Color lighterAccent = new Color(
+            Math.min(255, accentColor.getRed() + 40),
+            Math.min(255, accentColor.getGreen() + 40),
+            Math.min(255, accentColor.getBlue() + 40)
+        );
+        g.setColor(lighterAccent);
+        g.fillRect(notificationX + borderThickness, notificationY + borderThickness,
+                  notificationWidth - borderThickness * 2, innerBorder);
+        g.fillRect(notificationX + borderThickness, notificationY + borderThickness,
+                  innerBorder, notificationHeight - borderThickness * 2);
+
+        // Corner decorations (smaller retro pixel squares)
+        int cornerSize = (int)(4 * scaleX);
+        g.setColor(accentColor);
+        // Top corners
+        g.fillRect(notificationX + borderThickness + 2, notificationY + borderThickness + 2, cornerSize, cornerSize);
+        g.fillRect(notificationX + notificationWidth - borderThickness - cornerSize - 2,
+                  notificationY + borderThickness + 2, cornerSize, cornerSize);
+        // Bottom corners
+        g.fillRect(notificationX + borderThickness + 2,
+                  notificationY + notificationHeight - borderThickness - cornerSize - 2, cornerSize, cornerSize);
+        g.fillRect(notificationX + notificationWidth - borderThickness - cornerSize - 2,
+                  notificationY + notificationHeight - borderThickness - cornerSize - 2, cornerSize, cornerSize);
+
+        // Pixel art icon/symbol (smaller)
+        int iconX = notificationX + (int)(18 * scaleX);
+        int iconY = notificationY + notificationHeight / 2;
+        int iconSize = (int)(20 * scaleY);
+
+        if (notif.type == GameNotification.Type.ACHIEVEMENT) {
+            // Draw pixel art trophy
+            drawPixelTrophy(g, iconX - iconSize/2, iconY - iconSize/2, iconSize, accentColor);
+        } else if (notif.type == GameNotification.Type.LEVEL_UP) {
+            // Draw pixel art up arrow
+            drawPixelUpArrow(g, iconX - iconSize/2, iconY - iconSize/2, iconSize, accentColor);
+        }
+
+        // Tier badge (abbreviated, top-right corner)
+        if (!tierName.isEmpty()) {
+            int badgeX = notificationX + notificationWidth - (int)(24 * scaleX);
+            int badgeY = notificationY + (int)(6 * scaleY);
+            g.setFont(primaryFont.deriveFont(Font.BOLD, (int)(8 * scaleY)));
+
+            // Badge background
+            g.setColor(new Color(0, 0, 0, 150));
+            g.fillRect(badgeX - 2, badgeY - 2, (int)(22 * scaleX), (int)(12 * scaleY));
+
+            // Badge text with glow
+            g.setColor(new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), 100));
+            g.drawString(tierName, badgeX + 1, badgeY + (int)(8 * scaleY) + 1);
+            g.setColor(accentColor);
+            g.drawString(tierName, badgeX, badgeY + (int)(8 * scaleY));
+        }
+
+        // Title (with retro font, smaller and single line)
+        int textX = notificationX + (int)(38 * scaleX);
+        int titleY = notificationY + (int)(22 * scaleY);
+        g.setFont(primaryFont.deriveFont(Font.BOLD, (int)(10 * scaleY)));
+
+        // Title shadow
+        g.setColor(new Color(0, 0, 0, 180));
+        String titleText = notif.title.length() > 18 ? notif.title.substring(0, 15) + "..." : notif.title;
+        g.drawString(titleText, textX + 1, titleY + 1);
+
+        // Title main
+        g.setColor(Color.WHITE);
+        g.drawString(titleText, textX, titleY);
+
+        // Message/Description (multi-line with word wrap)
+        int messageStartY = notificationY + (int)(37 * scaleY);
+        g.setFont(secondaryFont.deriveFont(Font.PLAIN, (int)(8 * scaleY)));
+        g.setColor(new Color(200, 200, 200));
+
+        String msg = notif.message;
+        if (msg != null && !msg.isEmpty()) {
+            // Calculate available width for text
+            int availableWidth = notificationWidth - (int)(42 * scaleX); // Leave margins
+            FontMetrics fm = g.getFontMetrics();
+
+            // Split message into words
+            String[] words = msg.split(" ");
+            StringBuilder line = new StringBuilder();
+            int lineY = messageStartY;
+            int lineHeight = (int)(10 * scaleY);
+            int maxLines = 3; // Maximum 3 lines for description
+            int currentLine = 0;
+
+            for (String word : words) {
+                String testLine = line.length() == 0 ? word : line + " " + word;
+                int testWidth = fm.stringWidth(testLine);
+
+                if (testWidth > availableWidth && line.length() > 0) {
+                    // Draw current line
+                    g.drawString(line.toString(), textX, lineY);
+                    line = new StringBuilder(word);
+                    lineY += lineHeight;
+                    currentLine++;
+
+                    if (currentLine >= maxLines) break; // Stop after max lines
+                } else {
+                    line = new StringBuilder(testLine);
+                }
+            }
+
+            // Draw last line (or only line)
+            if (line.length() > 0 && currentLine < maxLines) {
+                g.drawString(line.toString(), textX, lineY);
+            }
+        }
+
+        // XP Reward (compact, bottom) - only text without big box
+        if (notif.xpReward > 0) {
+            int xpY = notificationY + (int)(73 * scaleY);
+            g.setFont(primaryFont.deriveFont(Font.BOLD, (int)(9 * scaleY)));
+
+            String xpText = "+" + notif.xpReward + "XP";
+
+            // Shadow
+            g.setColor(new Color(0, 0, 0, 150));
+            g.drawString(xpText, textX + 1, xpY + 1);
+
+            // Main text (gold color)
+            g.setColor(new Color(255, 215, 0));
+            g.drawString(xpText, textX, xpY);
+        }
+
+        // Pulsing animation effect for new notifications
+        long age = System.currentTimeMillis() - notif.startTime;
+        if (age < 400) { // First 400ms
+            float pulse = (float)Math.sin(age * 0.025) * 0.3f + 0.7f;
+            g.setColor(new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), (int)(80 * pulse * alpha)));
+            g.drawRect(notificationX - 1, notificationY - 1, notificationWidth + 2, notificationHeight + 2);
+            g.drawRect(notificationX - 2, notificationY - 2, notificationWidth + 4, notificationHeight + 4);
+        }
+
+        // Reset composite
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+    }
+
+    /**
+     * Draw pixel art trophy icon
+     */
+    private void drawPixelTrophy(Graphics2D g, int x, int y, int size, Color color) {
+        int pixelSize = Math.max(1, size / 8);
+
+        // Trophy cup (pixelated)
+        int[][] trophyPattern = {
+            {0, 0, 1, 1, 1, 1, 0, 0},
+            {0, 1, 1, 1, 1, 1, 1, 0},
+            {1, 1, 1, 1, 1, 1, 1, 1},
+            {0, 1, 1, 1, 1, 1, 1, 0},
+            {0, 0, 1, 1, 1, 1, 0, 0},
+            {0, 0, 0, 1, 1, 0, 0, 0},
+            {0, 0, 1, 1, 1, 1, 0, 0},
+            {0, 1, 1, 1, 1, 1, 1, 0}
+        };
+
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if (trophyPattern[row][col] == 1) {
+                    // Glow
+                    g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 100));
+                    g.fillRect(x + col * pixelSize - 1, y + row * pixelSize - 1, pixelSize + 2, pixelSize + 2);
+
+                    // Main pixel
+                    g.setColor(color);
+                    g.fillRect(x + col * pixelSize, y + row * pixelSize, pixelSize, pixelSize);
+
+                    // Highlight
+                    if (row < 3 && col >= 2 && col <= 5) {
+                        g.setColor(new Color(255, 255, 255, 150));
+                        g.fillRect(x + col * pixelSize, y + row * pixelSize, pixelSize / 2, pixelSize / 2);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Draw pixel art up arrow icon
+     */
+    private void drawPixelUpArrow(Graphics2D g, int x, int y, int size, Color color) {
+        int pixelSize = Math.max(1, size / 8);
+
+        // Up arrow (pixelated)
+        int[][] arrowPattern = {
+            {0, 0, 0, 1, 1, 0, 0, 0},
+            {0, 0, 1, 1, 1, 1, 0, 0},
+            {0, 1, 1, 1, 1, 1, 1, 0},
+            {1, 1, 1, 1, 1, 1, 1, 1},
+            {0, 0, 0, 1, 1, 0, 0, 0},
+            {0, 0, 0, 1, 1, 0, 0, 0},
+            {0, 0, 0, 1, 1, 0, 0, 0},
+            {0, 0, 0, 1, 1, 0, 0, 0}
+        };
+
+        for (int row = 0; row < 8; row++) {
+            for (int col = 0; col < 8; col++) {
+                if (arrowPattern[row][col] == 1) {
+                    // Glow
+                    g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 100));
+                    g.fillRect(x + col * pixelSize - 1, y + row * pixelSize - 1, pixelSize + 2, pixelSize + 2);
+
+                    // Main pixel
+                    g.setColor(color);
+                    g.fillRect(x + col * pixelSize, y + row * pixelSize, pixelSize, pixelSize);
+                }
+            }
+        }
+    }
+
+    /**
+     * Check and unlock achievements based on player statistics
+     * Call this after awarding XP from games
+     */
+    private void checkAndUnlockAchievements() {
+        if (playerProgress == null) return;
+
+        List<Achievement> newlyUnlocked = new ArrayList<>();
+
+        // Check each category
+        checkFirstTimeAchievements(newlyUnlocked);
+        checkCircleModeAchievements(newlyUnlocked);
+        checkClassicModeAchievements(newlyUnlocked);
+        checkMasteryAchievements(newlyUnlocked);
+
+        // Award XP and show notifications for newly unlocked achievements
+        for (Achievement ach : newlyUnlocked) {
+            int achXP = ach.getXPReward();
+            playerProgress.addXP(achXP);
+            System.out.println("ACHIEVEMENT UNLOCKED: " + getTranslatedOrFallback(ach.getNameKey()) + " (+" + achXP + " XP)");
+
+            // Show notification
+            showAchievementNotification(ach);
+        }
+
+        // Save if any achievements were unlocked
+        if (!newlyUnlocked.isEmpty()) {
+            savePlayerProgress();
+        }
+    }
+
+    private void checkFirstTimeAchievements(List<Achievement> unlocked) {
+        // First game
+        if (playerProgress.getTotalGamesPlayed() >= 1 && playerProgress.unlockAchievement("first_game")) {
+            unlocked.add(AchievementRegistry.getAchievement("first_game"));
+        }
+
+        // First win (Classic Mode)
+        if (playerProgress.getClassicWins() >= 1 && playerProgress.unlockAchievement("first_win_classic")) {
+            unlocked.add(AchievementRegistry.getAchievement("first_win_classic"));
+        }
+
+        // First Circle Mode game
+        if (playerProgress.getCircleGamesPlayed() >= 1 && playerProgress.unlockAchievement("first_circle_game")) {
+            unlocked.add(AchievementRegistry.getAchievement("first_circle_game"));
+        }
+
+        // Milestone games
+        int totalGames = playerProgress.getTotalGamesPlayed();
+        if (totalGames >= 10 && playerProgress.unlockAchievement("games_10")) {
+            unlocked.add(AchievementRegistry.getAchievement("games_10"));
+        }
+        if (totalGames >= 50 && playerProgress.unlockAchievement("games_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("games_50"));
+        }
+        if (totalGames >= 100 && playerProgress.unlockAchievement("games_100")) {
+            unlocked.add(AchievementRegistry.getAchievement("games_100"));
+        }
+        if (totalGames >= 250 && playerProgress.unlockAchievement("games_250")) {
+            unlocked.add(AchievementRegistry.getAchievement("games_250"));
+        }
+        if (totalGames >= 500 && playerProgress.unlockAchievement("games_500")) {
+            unlocked.add(AchievementRegistry.getAchievement("games_500"));
+        }
+
+        // Play time achievements (in minutes)
+        long totalMinutes = playerProgress.getTotalPlayTimeMillis() / (1000 * 60);
+        if (totalMinutes >= 30 && playerProgress.unlockAchievement("playtime_30min")) {
+            unlocked.add(AchievementRegistry.getAchievement("playtime_30min"));
+        }
+        if (totalMinutes >= 60 && playerProgress.unlockAchievement("playtime_1hour")) {
+            unlocked.add(AchievementRegistry.getAchievement("playtime_1hour"));
+        }
+        if (totalMinutes >= 300 && playerProgress.unlockAchievement("playtime_5hours")) {
+            unlocked.add(AchievementRegistry.getAchievement("playtime_5hours"));
+        }
+        if (totalMinutes >= 600 && playerProgress.unlockAchievement("playtime_10hours")) {
+            unlocked.add(AchievementRegistry.getAchievement("playtime_10hours"));
+        }
+
+        // Login streak
+        int streak = playerProgress.getConsecutiveDaysLogged();
+        if (streak >= 3 && playerProgress.unlockAchievement("login_streak_3")) {
+            unlocked.add(AchievementRegistry.getAchievement("login_streak_3"));
+        }
+        if (streak >= 7 && playerProgress.unlockAchievement("login_streak_7")) {
+            unlocked.add(AchievementRegistry.getAchievement("login_streak_7"));
+        }
+        if (streak >= 30 && playerProgress.unlockAchievement("login_streak_30")) {
+            unlocked.add(AchievementRegistry.getAchievement("login_streak_30"));
+        }
+    }
+
+    private void checkCircleModeAchievements(List<Achievement> unlocked) {
+        // Balls protected (total deflected)
+        int deflected = playerProgress.getTotalBallsDeflected();
+        if (deflected >= 10 && playerProgress.unlockAchievement("circle_protect_10")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_10"));
+        }
+        if (deflected >= 30 && playerProgress.unlockAchievement("circle_protect_30")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_30"));
+        }
+        if (deflected >= 50 && playerProgress.unlockAchievement("circle_protect_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_50"));
+        }
+        if (deflected >= 100 && playerProgress.unlockAchievement("circle_protect_100")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_100"));
+        }
+        if (deflected >= 250 && playerProgress.unlockAchievement("circle_protect_250")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_250"));
+        }
+        if (deflected >= 500 && playerProgress.unlockAchievement("circle_protect_500")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_500"));
+        }
+        if (deflected >= 1000 && playerProgress.unlockAchievement("circle_protect_1000")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_1000"));
+        }
+        if (deflected >= 2500 && playerProgress.unlockAchievement("circle_protect_2500")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_protect_2500"));
+        }
+
+        // Circle Mode combos (easier thresholds than Classic)
+        int circleMaxCombo = playerProgress.getCircleMaxCombo();
+        if (circleMaxCombo >= 25 && playerProgress.unlockAchievement("circle_combo_25")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_combo_25"));
+        }
+        if (circleMaxCombo >= 50 && playerProgress.unlockAchievement("circle_combo_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_combo_50"));
+        }
+        if (circleMaxCombo >= 100 && playerProgress.unlockAchievement("circle_combo_100")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_combo_100"));
+        }
+        if (circleMaxCombo >= 150 && playerProgress.unlockAchievement("circle_combo_150")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_combo_150"));
+        }
+        if (circleMaxCombo >= 200 && playerProgress.unlockAchievement("circle_combo_200")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_combo_200"));
+        }
+        if (circleMaxCombo >= 300 && playerProgress.unlockAchievement("circle_combo_300")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_combo_300"));
+        }
+        if (circleMaxCombo >= 500 && playerProgress.unlockAchievement("circle_combo_500")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_combo_500"));
+        }
+
+        // Circle Mode score
+        int bestScore = playerProgress.getCircleBestScore();
+        if (bestScore >= 1000 && playerProgress.unlockAchievement("circle_score_1000")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_score_1000"));
+        }
+        if (bestScore >= 5000 && playerProgress.unlockAchievement("circle_score_5000")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_score_5000"));
+        }
+        if (bestScore >= 10000 && playerProgress.unlockAchievement("circle_score_10000")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_score_10000"));
+        }
+        if (bestScore >= 25000 && playerProgress.unlockAchievement("circle_score_25000")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_score_25000"));
+        }
+        if (bestScore >= 50000 && playerProgress.unlockAchievement("circle_score_50000")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_score_50000"));
+        }
+
+        // Circle Mode games played
+        int circleGames = playerProgress.getCircleGamesPlayed();
+        if (circleGames >= 10 && playerProgress.unlockAchievement("circle_games_10")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_games_10"));
+        }
+        if (circleGames >= 50 && playerProgress.unlockAchievement("circle_games_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("circle_games_50"));
+        }
+    }
+
+    private void checkClassicModeAchievements(List<Achievement> unlocked) {
+        // Classic Mode victories
+        int wins = playerProgress.getClassicWins();
+        if (wins >= 5 && playerProgress.unlockAchievement("classic_wins_5")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_wins_5"));
+        }
+        if (wins >= 10 && playerProgress.unlockAchievement("classic_wins_10")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_wins_10"));
+        }
+        if (wins >= 25 && playerProgress.unlockAchievement("classic_wins_25")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_wins_25"));
+        }
+        if (wins >= 50 && playerProgress.unlockAchievement("classic_wins_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_wins_50"));
+        }
+        if (wins >= 100 && playerProgress.unlockAchievement("classic_wins_100")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_wins_100"));
+        }
+
+        // Win streaks
+        int streak = playerProgress.getLongestWinStreak();
+        if (streak >= 3 && playerProgress.unlockAchievement("classic_streak_3")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_streak_3"));
+        }
+        if (streak >= 5 && playerProgress.unlockAchievement("classic_streak_5")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_streak_5"));
+        }
+        if (streak >= 10 && playerProgress.unlockAchievement("classic_streak_10")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_streak_10"));
+        }
+        if (streak >= 20 && playerProgress.unlockAchievement("classic_streak_20")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_streak_20"));
+        }
+
+        // Classic Mode combos (much harder than Circle Mode!)
+        int classicMaxCombo = playerProgress.getClassicMaxCombo();
+        if (classicMaxCombo >= 5 && playerProgress.unlockAchievement("classic_combo_5")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_combo_5"));
+        }
+        if (classicMaxCombo >= 10 && playerProgress.unlockAchievement("classic_combo_10")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_combo_10"));
+        }
+        if (classicMaxCombo >= 25 && playerProgress.unlockAchievement("classic_combo_25")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_combo_25"));
+        }
+        if (classicMaxCombo >= 50 && playerProgress.unlockAchievement("classic_combo_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_combo_50"));
+        }
+
+        // Classic Mode games played
+        int classicGames = playerProgress.getClassicGamesPlayed();
+        if (classicGames >= 10 && playerProgress.unlockAchievement("classic_games_10")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_games_10"));
+        }
+        if (classicGames >= 50 && playerProgress.unlockAchievement("classic_games_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_games_50"));
+        }
+        if (classicGames >= 100 && playerProgress.unlockAchievement("classic_games_100")) {
+            unlocked.add(AchievementRegistry.getAchievement("classic_games_100"));
+        }
+    }
+
+    private void checkMasteryAchievements(List<Achievement> unlocked) {
+        // Total deflections across all modes
+        int totalDeflected = playerProgress.getTotalBallsDeflected();
+        if (totalDeflected >= 5000 && playerProgress.unlockAchievement("total_deflections_5000")) {
+            unlocked.add(AchievementRegistry.getAchievement("total_deflections_5000"));
+        }
+        if (totalDeflected >= 10000 && playerProgress.unlockAchievement("total_deflections_10000")) {
+            unlocked.add(AchievementRegistry.getAchievement("total_deflections_10000"));
+        }
+
+        // Level achievements
+        int level = playerProgress.getCurrentLevel();
+        if (level >= 25 && playerProgress.unlockAchievement("level_25")) {
+            unlocked.add(AchievementRegistry.getAchievement("level_25"));
+        }
+        if (level >= 50 && playerProgress.unlockAchievement("level_50")) {
+            unlocked.add(AchievementRegistry.getAchievement("level_50"));
+        }
+    }
+
     // Draw Circle Mode
     private void drawCircleMode(Graphics2D g) {
         // Draw background
@@ -18452,6 +21662,10 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         circleModeDeathAnimationActive = true;
         deathAnimationStartTime = System.currentTimeMillis();
         explosionRadius = 0;
+
+        // Award XP and update player progress when game ends
+        awardCircleModeXP();
+
         System.out.println("DEBUG: Death animation started");
     }
 
@@ -18682,6 +21896,13 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
             repaint();
         }
 
+        // Check if mouse is over SETTINGS trapezoid
+        boolean settingsWasHovered = settingsTrapezoidHovered;
+        settingsTrapezoidHovered = isInsideSettingsTrapezoid((int)mouseX, (int)mouseY);
+        if (settingsTrapezoidHovered != settingsWasHovered) {
+            repaint();
+        }
+
         // Calculate center position (same as in menu drawing)
         int centerX = BOARD_WIDTH / 2;
         int centerY = BOARD_HEIGHT / 2;
@@ -18866,8 +22087,18 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
 
         // Check for ADVANCEMENT trapezoid click
         if (isInsideAdvancementTrapezoid(mouseX, mouseY)) {
-            // TODO: Implement advancement functionality
-            advancementTrapezoidClicked = true;
+            stateBeforeAdvancement = currentState; // Save current state before entering advancement
+            setState(GameState.ADVANCEMENT);
+            advancementTrapezoidClicked = false; // Reset click state
+            repaint();
+            return;
+        }
+
+        // Check for SETTINGS trapezoid click
+        if (isInsideSettingsTrapezoid(mouseX, mouseY)) {
+            stateBeforeSettings = currentState; // Save current state before entering settings
+            setState(GameState.SETTINGS);
+            settingsTrapezoidClicked = false; // Reset click state
             repaint();
             return;
         }

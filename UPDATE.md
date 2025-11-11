@@ -1,6 +1,161 @@
 # PongPing - Update History
 
-## Version 0.8.0 (Current)
+## Version 1.0.0 (Current) - Circle Mode & Achievement System
+
+### 🎮 Circle Mode - Complete New Game Mode
+- **Revolutionary circular gameplay** - Defend the center circle from balls coming from all directions
+  - 360-degree paddle movement controlled by mouse
+  - Dynamic ball spawning from all four edges (top, right, bottom, left)
+  - Progressive difficulty scaling over time
+  - 3-life system with game over on center hit
+
+- **Progressive Ball Spawning System**
+  - Time-based progression: 1 ball (0-3min) → 2 balls (3-5min) → 3 balls (5-10min) → 5 balls (10+min)
+  - Intelligent spawn timing to prevent simultaneous opposite arrivals
+  - Speed variation system (±50%) to stagger ball arrival times
+  - 3-second opposite-edge spawn prevention window
+  - Ball proximity detection (250px radius) to avoid clustering
+
+- **Advanced Speed Mechanics**
+  - Base speed increases progressively every 30 seconds (+0.5x multiplier, max 4.0x)
+  - All balls maintain similar speeds at same time point
+  - Small speed variation to prevent perfect synchronization
+  - Max speed cap of 15.0 for late-game balance
+
+- **Combo System & Spiral Frenzy**
+  - Combo counter increases with consecutive deflections
+  - Combo 100+ triggers **Spiral Frenzy Mode** for 10 seconds
+  - Continuous spiral ball pattern during frenzy (50 max balls)
+  - Spiral balls deal reduced damage (2 deflections = 1 normal ball)
+  - Visual effects: pulsing combo display, color transitions, scale animations
+
+- **Power-Up System**
+  - **Slow-Mo**: Reduces ball speed by 50% for 8 seconds
+  - **Paddle Enlarge**: Increases paddle arc size for 10 seconds
+  - **Shield**: Protects from 1 center hit
+  - **Health**: Restores 1 life (max 3)
+  - Power-ups spawn every 15 seconds with visual indicators
+  - Collision detection with center circle for activation
+
+- **Window Expansion Feature**
+  - Game window progressively expands from 800x600 to fullscreen over 120 seconds
+  - Smooth animation with 60 FPS interpolation
+  - Maintains aspect ratio and center positioning
+  - Visual scale factor consistency throughout expansion
+
+### 🏆 Achievement System (77+ Achievements)
+- **Comprehensive Achievement Registry** organized in 5 categories:
+  - **First Time** (13 achievements): First game, play time milestones, login streaks
+  - **Circle Mode** (29 achievements): Balls deflected, combos, survival time, score
+  - **Classic Mode** (23 achievements): Victories, AI difficulty, streaks, perfect games
+  - **Mastery** (7 achievements): Advanced challenges, total deflections, completionist
+  - **Special** (5 achievements): Secret and fun achievements
+
+- **Tier System with XP Rewards**
+  - Bronze: 50 XP
+  - Silver: 100 XP
+  - Gold: 200 XP
+  - Platinum: 500 XP
+
+- **Player Progression System**
+  - XP accumulation from achievements
+  - Level system with XP thresholds (Level 1: 0 XP, Level 2: 100 XP, scaling exponentially)
+  - Separate statistics tracking for Circle Mode and Classic Mode
+  - Mode-specific combo tracking (circleMaxCombo, classicMaxCombo)
+  - Persistent progress saved in player data
+
+- **Retro-Arcade Notification System**
+  - 220x85px notifications in bottom-right corner
+  - Slide-in from right, slide-out to bottom animations
+  - 2-second display duration per notification
+  - Queue system (one notification at a time)
+  - Checkerboard background with CRT scanline effects
+  - Pixel art icons (trophy, up arrow)
+  - Tier-colored borders (Bronze, Silver, Gold, Platinum)
+  - Multilingual support (Italian, English, Spanish)
+  - Word-wrap for long descriptions (max 3 lines)
+
+- **Achievement Interface (Advancement Screen)**
+  - 4 tabs: Progress, Achievements, Unlocks, Statistics
+  - Code editor aesthetic with line numbers and syntax highlighting
+  - Real-time achievement tracking with unlock status
+  - Detailed view with description panel (55%/45% split)
+  - Dynamic scroll support with mouse wheel
+  - Click detection with proper coordinate mapping
+  - Achievement counter: "X/77 unlocked"
+
+### 🔧 Technical Improvements & Bug Fixes
+- **Mouse Click Detection Fix** (Advancement Screen)
+  - Fixed offset calculation in achievement list click handler
+  - Corrected separatorY calculation from hardcoded 170px to dynamic calculation
+  - Aligned click bounds with visual rendering coordinates
+
+- **Mode-Specific Statistics Tracking**
+  - Separated combo tracking for Circle Mode and Classic Mode
+  - Fixed bug where Circle Mode combos unlocked Classic Mode achievements
+  - Added `circleMaxCombo` and `classicMaxCombo` fields to PlayerProgress
+  - Updated achievement check methods for mode-specific validation
+
+- **Spawn System Optimizations**
+  - Enhanced opposite-edge prevention (5 reroll attempts, 3000ms window)
+  - Ball proximity detection to avoid clustered spawns
+  - Speed variation increased from ±10% to ±50%
+  - Check radius expanded from 150px to 250px
+
+- **Localization Enhancements**
+  - Added 10+ new translation keys for Circle Mode
+  - Notification translations in all 3 languages
+  - Achievement names and descriptions fully localized
+  - Dynamic text loading with fallback support
+
+### 🎨 Visual & UI Enhancements
+- **Circle Mode Graphics**
+  - Glowing center circle with pulsing animation
+  - Gradient paddle with arc rendering
+  - Ball trail effects with fade-out
+  - Health indicator with heart icons
+  - Power-up visual indicators with countdown timers
+  - Combo display with dynamic scaling and glow effects
+
+- **Notification Styling**
+  - Retro pixel art aesthetic (80s/90s arcade style)
+  - 3px thick pixelated borders
+  - Checkerboard tile background (3x3px tiles)
+  - CRT scanlines (every 2 pixels)
+  - XP display with gold text and shadow
+  - Achievement tier color coding
+
+- **Advancement Screen Design**
+  - Dark code editor theme (#0A0F1A background)
+  - Syntax-highlighted text (cyan functions, green comments)
+  - Selection highlighting with glow effects
+  - Line number column with separator
+  - Tabbed navigation with active tab indicators
+
+### 📊 Statistics & Data Persistence
+- **Extended PlayerProgress Tracking**
+  - Total play time across all modes
+  - Mode-specific deflection counters
+  - Login streak tracking with last login date
+  - Max combo reached per mode
+  - Total games played counter
+  - Circle Mode specific: balls deflected, survival time, max score
+
+- **Achievement Persistence**
+  - Unlocked achievements list saved to disk
+  - XP and level progression saved
+  - Statistics automatically saved after each game
+  - Cross-platform app data directory support
+
+### 🎵 Audio System Updates
+- **Circle Mode Sound Design**
+  - Unique paddle hit sounds for deflections
+  - Power-up activation sound effects
+  - Score increase audio feedback
+  - Damage/hit sounds for center impacts
+  - Frenzy mode transition audio cues
+
+## Version 0.8.0
 
 ### Major Code Refactoring and Architecture Optimization
 - **Complete project restructuring** from monolithic single-class design to modular architecture
