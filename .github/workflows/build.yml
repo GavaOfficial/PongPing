@@ -27,19 +27,20 @@ jobs:
 
     - name: Compile Java Application
       run: |
-        javac -cp src src/Main.java src/context/*.java src/game/*.java src/settings/*.java
+        javac -cp src src/Main.java src/context/*.java src/game/*.java src/settings/*.java src/advancement/*.java
 
     - name: Create JAR
       shell: bash
       run: |
         mkdir -p dist
         # Copy compiled classes to dist preserving package structure
-        mkdir -p dist/context dist/game dist/settings
+        mkdir -p dist/context dist/game dist/settings dist/advancement
         cp src/*.class dist/ 2>/dev/null || true
         cp src/context/*.class dist/context/ 2>/dev/null || true
         cp src/game/*.class dist/game/ 2>/dev/null || true
         cp src/settings/*.class dist/settings/ 2>/dev/null || true
-        
+        cp src/advancement/*.class dist/advancement/ 2>/dev/null || true
+
         # JAR singolo: sempre con tutte le risorse incluse
         if [ "$(ls -A music/ 2>/dev/null)" ]; then
           jar cfe dist/PongGame.jar Main -C dist . font temi music icon.png lingue
@@ -85,19 +86,20 @@ jobs:
 
     - name: Compile Java Application
       run: |
-        javac -cp src src/Main.java src/context/*.java src/game/*.java src/settings/*.java
+        javac -cp src src/Main.java src/context/*.java src/game/*.java src/settings/*.java src/advancement/*.java
 
     - name: Create JAR
       shell: bash
       run: |
         mkdir -p dist
         # Copy compiled classes to dist preserving package structure
-        mkdir -p dist/context dist/game dist/settings
+        mkdir -p dist/context dist/game dist/settings dist/advancement
         cp src/*.class dist/ 2>/dev/null || true
         cp src/context/*.class dist/context/ 2>/dev/null || true
         cp src/game/*.class dist/game/ 2>/dev/null || true
         cp src/settings/*.class dist/settings/ 2>/dev/null || true
-        
+        cp src/advancement/*.class dist/advancement/ 2>/dev/null || true
+
         # Platform-specific JAR creation
         if [ "${{ matrix.platform }}" = "macos" ]; then
           # macOS: Include all resources in JAR
@@ -146,14 +148,14 @@ jobs:
       run: |
         # Build app content list for jpackage
         APP_CONTENT="temi,font,lingue,icon.png"
-        
+
         # Add music folder if it exists and has content
         if [ -d "music" ] && [ "$(ls -A music/)" ]; then
           APP_CONTENT="$APP_CONTENT,music"
         fi
-        
+
         echo "Including app content: $APP_CONTENT"
-        
+
         jpackage \
           --input dist \
           --name "PongPing" \
