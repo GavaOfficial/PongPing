@@ -4,6 +4,7 @@
  */
 
 import { GameState } from './game/GameState.js';
+import { PongGame } from './game/PongGame.js';
 import { BASE_WIDTH, BASE_HEIGHT } from './context/DimensionalContext.js';
 import { 
     BOARD_WIDTH, BOARD_HEIGHT, 
@@ -13,6 +14,9 @@ import {
 import { setCurrentState } from './context/AnimationContext.js';
 import { isWebMode, printModeInfo } from './context/WebModeContext.js';
 import { setCurrentLanguage } from './context/LanguageContext.js';
+import { GeneralSettings } from './settings/GeneralSettings.js';
+import { LanguageSettings } from './settings/LanguageSettings.js';
+import { MusicSettings } from './settings/MusicSettings.js';
 
 /**
  * Main game class - manages canvas, game loop, and core systems
@@ -27,6 +31,14 @@ class Main {
         this.ctx = this.canvas.getContext('2d');
         this.lastTime = 0;
         this.gameRunning = false;
+        
+        // Settings
+        this.generalSettings = new GeneralSettings();
+        this.languageSettings = new LanguageSettings();
+        this.musicSettings = new MusicSettings();
+        
+        // Game instance
+        this.game = null;
         
         // Set initial canvas size
         this.resizeCanvas();
@@ -59,6 +71,9 @@ class Main {
         // Load resources
         await this.loadResources();
         
+        // Initialize game
+        this.game = new PongGame(this.canvas, this.ctx);
+        
         // Set up event listeners
         this.setupEventListeners();
         
@@ -71,7 +86,7 @@ class Main {
         // Start game loop
         this.startGameLoop();
         
-        console.log('✓ Initialization complete');
+        console.log('✓ Initialization complete - Game ready to play!');
     }
 
     /**
@@ -240,41 +255,36 @@ class Main {
      * Update game logic
      */
     update(deltaTime) {
-        // TODO: Update game state based on currentState
-        // This will call different update methods based on the current game state:
-        // - MENU: update menu animations
-        // - PLAYING: update game physics, AI, collisions
-        // - CIRCLE_MODE: update circle mode logic
-        // - SETTINGS: update settings animations
-        // etc.
+        if (this.game) {
+            this.game.update(deltaTime);
+        }
     }
 
     /**
      * Render current frame
      */
     render() {
+        // Save context state
+        this.ctx.save();
+        
         // Clear canvas
         this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // TODO: Render based on currentState
-        // This will call different render methods based on the current game state
+        // Scale context to maintain aspect ratio
+        const scaleX = this.canvas.width / BASE_WIDTH;
+        const scaleY = this.canvas.height / BASE_HEIGHT;
+        const scale = Math.min(scaleX, scaleY);
         
-        // Temporary: Draw a simple "Loading..." message
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '48px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText('PongPing JavaScript', this.canvas.width / 2, this.canvas.height / 2 - 50);
+        this.ctx.scale(scale, scale);
         
-        this.ctx.font = '24px Arial';
-        this.ctx.fillText('Conversion In Progress...', this.canvas.width / 2, this.canvas.height / 2 + 50);
+        // Render game
+        if (this.game) {
+            this.game.render();
+        }
         
-        // Draw signature
-        this.ctx.font = '16px "Space Mono", monospace';
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText('by Gava', 20, this.canvas.height - 20);
+        // Restore context
+        this.ctx.restore();
     }
 
     /**
@@ -282,19 +292,22 @@ class Main {
      */
     handleKeyDown(e) {
         // Prevent default for game keys
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Escape'].includes(e.key)) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Escape', 'Enter'].includes(e.key)) {
             e.preventDefault();
         }
         
-        // TODO: Handle key down based on current state
-        console.log('Key down:', e.key, e.code);
+        if (this.game) {
+            this.game.handleKeyDown(e);
+        }
     }
 
     /**
      * Handle keyboard key up
      */
     handleKeyUp(e) {
-        // TODO: Handle key up based on current state
+        if (this.game) {
+            this.game.handleKeyUp(e);
+        }
     }
 
     /**
