@@ -87,7 +87,7 @@ export class Particle {
     hexToRgba(hex, alpha) {
         // If already rgba, extract and modify alpha
         if (hex.startsWith('rgba')) {
-            return hex.replace(/[\d.]+\)$/g, `${alpha})`);
+            return hex.replace(/[\d.]+\)$/, `${alpha})`);
         }
         // If rgb, convert to rgba
         if (hex.startsWith('rgb')) {

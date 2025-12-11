@@ -8,7 +8,7 @@ This document describes the ongoing conversion of PongPing from Java (Swing/AWT)
 ### Completed ✅
 - **Project Structure**: Created `src-js/` directory mirroring Java structure
 - **Game State**: GameState.js (enum converted to object constants)
-- **Context Classes** (11/11):
+- **Context Classes** (10/11 - 91% complete):
   - ✅ DimensionalContext.js
   - ✅ GameContext.js
   - ✅ AIContext.js
@@ -19,7 +19,7 @@ This document describes the ongoing conversion of PongPing from Java (Swing/AWT)
   - ✅ AnimationContext.js
   - ✅ WebModeContext.js
   - ✅ SettingsContext.js
-  - ⏳ ContextLoader.js (in progress - 762 lines to convert)
+  - ⏳ ContextLoader.js (not started - 762 lines to convert)
 - **Support Classes**:
   - ✅ Particle.js (visual effects system)
 

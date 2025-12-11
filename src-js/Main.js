@@ -12,6 +12,7 @@ import {
 } from './context/GameContext.js';
 import { setCurrentState } from './context/AnimationContext.js';
 import { isWebMode, printModeInfo } from './context/WebModeContext.js';
+import { setCurrentLanguage } from './context/LanguageContext.js';
 
 /**
  * Main game class - manages canvas, game loop, and core systems
@@ -45,7 +46,12 @@ class Main {
         
         // Set initial game state
         // Check if first run (no settings in localStorage)
-        const isFirstRun = !localStorage.getItem('pongping_settings');
+        let isFirstRun = true;
+        try {
+            isFirstRun = !localStorage.getItem('pongping_settings');
+        } catch (e) {
+            console.warn('localStorage not available, assuming first run:', e);
+        }
         setCurrentState(isFirstRun ? GameState.FIRST_ACCESS : GameState.MENU);
         
         console.log('Initial game state:', isFirstRun ? 'FIRST_ACCESS' : 'MENU');
@@ -137,8 +143,8 @@ class Main {
             }
             
             // Store in LanguageContext
-            // TODO: Import and use setCurrentLanguage from LanguageContext
-            console.log('✓ Language loaded: italiano');
+            setCurrentLanguage(languageMap);
+            console.log('✓ Language loaded: italiano (' + languageMap.size + ' keys)');
         } catch (e) {
             console.warn('Could not load language file:', e);
         }

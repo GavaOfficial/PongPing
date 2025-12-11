@@ -58,13 +58,6 @@ export let aiDifficultyOptions = ['FACILE', 'NORMALE', 'DIFFICILE', 'ESPERTO', '
 export let checkerboardOffset = 0.0;
 export let glowIntensity = 0.6; // Fixed intensity for stable lighting
 
-// Clean mouse hover system
-export let mouseOnBackground = false;
-export let currentHoverState = HoverState.NONE;
-export let hoveredCategory = -1;
-export let hoveredSetting = -1;
-export let isUsingKeyboardNavigationSettings = false; // Track keyboard navigation in settings
-
 // Hover state enum for clean state management
 export const HoverState = {
     NONE: 'NONE',           // No hover
@@ -72,6 +65,13 @@ export const HoverState = {
     CATEGORY: 'CATEGORY',       // Hovering over a category
     SETTING: 'SETTING'         // Hovering over a setting
 };
+
+// Clean mouse hover system
+export let mouseOnBackground = false;
+export let currentHoverState = HoverState.NONE;
+export let hoveredCategory = -1;
+export let hoveredSetting = -1;
+export let isUsingKeyboardNavigationSettings = false; // Track keyboard navigation in settings
 
 // Settings file management (using localStorage in browser)
 export const SETTINGS_FILE = 'pongping_settings';
