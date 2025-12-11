@@ -14,6 +14,20 @@ La versione web è ottimizzata per le prestazioni del browser e include tutte le
 
 > **Nota**: La versione web utilizza solo il tema grafico default per prestazioni ottimali. Per l'esperienza completa con tutti i temi e gli effetti visivi, scarica la versione desktop.
 
+## 🚀 JavaScript Version (In Development)
+
+È in corso la conversione del gioco in JavaScript nativo per migliori prestazioni nel browser! 
+
+- **Status**: 🚧 Infrastruttura completa (79% dei file core convertiti)
+- **Tecnologia**: HTML5 Canvas + ES6 Modules
+- **Documentazione**: Vedi [JAVASCRIPT_README.md](./JAVASCRIPT_README.md) e [JAVASCRIPT_CONVERSION.md](./JAVASCRIPT_CONVERSION.md)
+
+La versione JavaScript eliminerà la dipendenza da CheerpJ, offrendo:
+- ✅ Caricamento più veloce
+- ✅ Migliori prestazioni
+- ✅ Supporto mobile ottimizzato
+- ✅ Minori dimensioni di download
+
 ## Caratteristiche
 
 ### Modalità di Gioco
