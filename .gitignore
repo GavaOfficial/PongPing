@@ -25,7 +25,7 @@ replay_pid*
 
 # Build scripts
 build-web.bat
-build-web.sh
+/build-web.sh
 build.bat
 build.sh
 
