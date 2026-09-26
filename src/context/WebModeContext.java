@@ -1,7 +1,7 @@
 package context;
 
 /**
- * Context for detecting if the game is running in web mode (via CheerpJ)
+ * Context for detecting if the game is running in web mode (in the browser)
  * Use this to disable features that don't work well in the browser
  */
 public class WebModeContext {
@@ -9,7 +9,7 @@ public class WebModeContext {
     private static final String WEB_MODE_PROPERTY = "pongping.webmode";
 
     /**
-     * Check if the game is running in web mode (via CheerpJ)
+     * Check if the game is running in web mode (in the browser)
      * @return true if running in browser, false if running as desktop app
      */
     public static boolean isWebMode() {
@@ -29,7 +29,7 @@ public class WebModeContext {
      */
     public static void printModeInfo() {
         if (isWebMode()) {
-            System.out.println("[WebMode] Running in browser via CheerpJ");
+            System.out.println("[WebMode] Running in the browser");
             System.out.println("[WebMode] Some features may be disabled for web compatibility");
         } else {
             System.out.println("[DesktopMode] Running as native desktop application");

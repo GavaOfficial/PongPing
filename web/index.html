@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong Ping</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+        #loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font: 16px monospace;
+        }
+        canvas.java-panel {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading"><span id="loading-status"></span></div>
+    <script src="js/runtime/core.js"></script>
+    <script src="js/runtime/fs.js"></script>
+    <script src="js/runtime/ttf.js"></script>
+    <script src="js/runtime/awt.js"></script>
+    <script src="js/runtime/swing.js"></script>
+    <script src="js/pongping.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

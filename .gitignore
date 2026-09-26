@@ -3,8 +3,6 @@
 
 # Java JAR files
 *.jar
-# Exception: Allow web version JAR in root
-!PongGame.jar
 
 # Package Files
 *.war
@@ -22,6 +20,8 @@ replay_pid*
 /dist/
 /build/
 /target/
+/dist-web/
+/tools/java2js/target/
 
 # Build scripts
 build-web.bat

@@ -718,7 +718,7 @@ public class ContextLoader {
 
     /**
      * Reads an index.list file from JAR resources.
-     * Used in web mode to list directory contents since File.listFiles() doesn't work in CheerpJ.
+     * Used in web mode to list directory contents since directories cannot be listed in the browser.
      *
      * @param indexPath Path to the index.list file in JAR (e.g., "temi/GameBack/index.list")
      * @return List of filenames found in the index.list, or empty list if not found

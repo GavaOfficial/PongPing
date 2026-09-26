@@ -8663,12 +8663,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     private void updateParticles() {
-        Iterator<Particle> iter = particles.iterator();
-        while (iter.hasNext()) {
-            Particle p = iter.next();
+        // particles is a CopyOnWriteArrayList: its iterator does not support remove(),
+        // so iterate over the snapshot and remove from the list directly.
+        for (Particle p : particles) {
             p.update();
             if (p.isDead()) {
-                iter.remove();
+                particles.remove(p);
                 returnParticleToPool(p); // Return dead particles to pool for reuse
             }
         }
