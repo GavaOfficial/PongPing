@@ -6,13 +6,13 @@ Un gioco Pong moderno scritto in Java con modalità innovative e sistema di achi
 
 **[▶️ Gioca Ora nel Browser](https://gavaofficial.github.io/PongPing)** - Nessuna installazione richiesta!
 
-La versione web è ottimizzata per le prestazioni del browser e include tutte le modalità di gioco:
+La versione web include tutte le modalità di gioco:
 - Circle Mode con sistema combo e power-ups
 - Classic Mode single/multiplayer
 - Sistema achievement e progressione completo
 - Supporto multilingua
 
-> **Nota**: La versione web utilizza solo il tema grafico default per prestazioni ottimali. Per l'esperienza completa con tutti i temi e gli effetti visivi, scarica la versione desktop.
+> **Nota**: La versione web è identica alla versione desktop: stessi temi, sfondi, effetti visivi, animazioni e comandi. È scritta in JavaScript/HTML5 (nessun plugin o Java richiesto) e si ricava direttamente dal codice Java, quindi le due versioni restano sempre uguali. Impostazioni, progressi e cronologia vengono salvati nel browser.
 
 ## Caratteristiche
 
@@ -77,6 +77,22 @@ jar cfe dist/PongGame.jar Main $(find . -name "*.class" -type f) font temi icon.
 java -jar dist/PongGame.jar
 ```
 
+### Versione web (HTML5 + JavaScript)
+La versione per browser è generata dallo stesso codice Java:
+- `tools/java2js/` traduce `src/` in JavaScript (`web/js/pongping.js`), mantenendo la semantica di Java che influisce sul risultato a schermo (divisioni intere, cast, formattazione dei numeri, ecc.);
+- `web/js/runtime/` riproduce nel browser le parti di Java usate dal gioco (Java2D su canvas, font letti dai file TTF, eventi di tastiera e mouse, timer, audio, salvataggi);
+- `src-web/Main.java` è il punto di ingresso della versione web.
+
+```bash
+# Genera il sito in dist-web/ (richiede Java 17+ e Maven)
+tools/build-web.sh
+
+# Provalo in locale
+python3 -m http.server -d dist-web 8000   # poi apri http://localhost:8000
+```
+
+Dopo ogni modifica al codice Java basta rilanciare `tools/build-web.sh`: la pubblicazione su GitHub Pages avviene automaticamente a ogni push su `main`.
+
 ### Download installer
 Scarica l'installer per il tuo sistema dalla sezione [Releases](../../releases/latest):
 - Windows: `.exe`
@@ -87,7 +103,7 @@ Scarica l'installer per il tuo sistema dalla sezione [Releases](../../releases/l
 
 ```
 PongPing/
-├── src/                     # Codice sorgente modularizzato
+├── src/                     # Codice sorgente modularizzato (desktop e web)
 │   ├── Main.java           # Punto di ingresso applicazione
 │   ├── game/               # Logica di gioco
 │   │   ├── PongGame.java   # Classe principale del gioco (15000+ linee)
@@ -110,6 +126,9 @@ PongPing/
 │       ├── MusicSettings.java    # Audio
 │       ├── LanguageSettings.java # Lingue
 │       └── HistorySettings.java  # Cronologia partite
+├── src-web/Main.java       # Punto di ingresso della versione web
+├── web/                    # Versione web: pagina, runtime JavaScript e gioco tradotto
+├── tools/                  # build-web.sh e traduttore Java -> JavaScript (java2js)
 ├── font/                   # Font personalizzati
 ├── temi/                   # Temi e sfondi
 │   ├── GameBack/          # Sfondi di gioco
@@ -122,6 +141,7 @@ PongPing/
 ## Requisiti
 
 - Java 21 o superiore (per sviluppo)
+- Versione web: un browser moderno (Chrome, Edge, Firefox, Safari)
 - Gli installer includono tutto il necessario
 
 ## Licenza

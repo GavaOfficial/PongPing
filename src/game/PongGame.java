@@ -3225,11 +3225,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     
     private void drawMenuBall(Graphics2D g) {
-        // Web mode: Disable menu ball rendering to reduce lag
-        if (WebModeContext.isWebMode()) {
-            return;
-        }
-
         // Draw menu ball with glow effect
         int glowSize = (int)(10 * Math.min(scaleX, scaleY));
         
@@ -4319,8 +4314,8 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Reset transform
         g.setTransform(originalTransform);
 
-        // Draw bouncing ball (same style as menu ball) - ONLY if not transitioning and not in web mode
-        if (!isModeTransitionActive && !WebModeContext.isWebMode()) {
+        // Draw bouncing ball (same style as menu ball) - ONLY if not transitioning
+        if (!isModeTransitionActive) {
             int glowSize = (int)(10 * Math.min(scaleX, scaleY));
 
             // Outer glow
@@ -4555,25 +4550,23 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Draw paddles with gradient effect and rounded corners - stessi colori del menu
         int cornerRadius = Math.max(4, PADDLE_WIDTH / 4); // Corner radius based on paddle width
 
-        // Draw dynamic paddle glow effects (disabled in web mode for performance)
-        if (!WebModeContext.isWebMode()) {
-            if (leftPaddleGlow > 0) {
-                int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
-                int alpha = (int)(leftPaddleGlow * 150);
-                g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
-                g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2,
-                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
-                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
-            }
+        // Draw dynamic paddle glow effects
+        if (leftPaddleGlow > 0) {
+            int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
+            int alpha = (int)(leftPaddleGlow * 150);
+            g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
+            g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2,
+                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+        }
 
-            if (rightPaddleGlow > 0) {
-                int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
-                int alpha = (int)(rightPaddleGlow * 150);
-                g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
-                g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
-                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
-                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
-            }
+        if (rightPaddleGlow > 0) {
+            int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
+            int alpha = (int)(rightPaddleGlow * 150);
+            g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
+            g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
+                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
         }
         
         // Left paddle with rounded corners - use selected theme
@@ -4692,25 +4685,23 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Draw paddles with gradient effect and rounded corners - stessi colori del menu
         int cornerRadius = Math.max(4, PADDLE_WIDTH / 4);
 
-        // Draw dynamic paddle glow effects (disabled in web mode for performance)
-        if (!WebModeContext.isWebMode()) {
-            if (leftPaddleGlow > 0) {
-                int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
-                int alpha = (int)(leftPaddleGlow * 150);
-                g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
-                g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2,
-                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
-                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
-            }
+        // Draw dynamic paddle glow effects
+        if (leftPaddleGlow > 0) {
+            int glowSize = (int)(leftPaddleGlow * 12 * Math.min(scaleX, scaleY));
+            int alpha = (int)(leftPaddleGlow * 150);
+            g.setColor(new Color(cachedLeftGlowColor.getRed(), cachedLeftGlowColor.getGreen(), cachedLeftGlowColor.getBlue(), alpha));
+            g.fillRoundRect(leftPaddleX - glowSize/2, paddle1Y - glowSize/2,
+                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
+        }
 
-            if (rightPaddleGlow > 0) {
-                int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
-                int alpha = (int)(rightPaddleGlow * 150);
-                g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
-                g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
-                              PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
-                              cornerRadius + glowSize/2, cornerRadius + glowSize/2);
-            }
+        if (rightPaddleGlow > 0) {
+            int glowSize = (int)(rightPaddleGlow * 12 * Math.min(scaleX, scaleY));
+            int alpha = (int)(rightPaddleGlow * 150);
+            g.setColor(new Color(cachedRightGlowColor.getRed(), cachedRightGlowColor.getGreen(), cachedRightGlowColor.getBlue(), alpha));
+            g.fillRoundRect(rightPaddleX - glowSize/2, paddle2Y - glowSize/2,
+                          PADDLE_WIDTH + glowSize, PADDLE_HEIGHT + glowSize,
+                          cornerRadius + glowSize/2, cornerRadius + glowSize/2);
         }
         
         // Left paddle with rounded corners - use selected theme
@@ -5270,18 +5261,14 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         // Update menu ball animation
         if (currentState == GameState.MENU) {
             updateMenuBall();
-            if (!WebModeContext.isWebMode()) {
-                updateParticles(); // Aggiorna particelle di sfondo nel menu (disabled in web mode)
-            }
+            updateParticles(); // Aggiorna particelle di sfondo nel menu
             return;
         }
 
         // Update first access carousel and particles
         if (currentState == GameState.FIRST_ACCESS) {
             updateCarousel();
-            if (!WebModeContext.isWebMode()) {
-                updateParticles(); // Aggiorna particelle di sfondo (disabled in web mode)
-            }
+            updateParticles(); // Aggiorna particelle di sfondo
             return;
         }
 
@@ -5303,23 +5290,17 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
 
         // Update reverse transition from demo to settings
         if (currentState == GameState.SETTINGS && isTransitioningFromDemo) {
-            // Skip transition in web mode
-            if (WebModeContext.isWebMode()) {
+            demoTransitionProgress -= 0.03; // Reverse transition speed
+            if (demoTransitionProgress <= 0.0) {
                 demoTransitionProgress = 0.0;
                 isTransitioningFromDemo = false;
-            } else {
-                demoTransitionProgress -= 0.03; // Reverse transition speed
-                if (demoTransitionProgress <= 0.0) {
-                    demoTransitionProgress = 0.0;
-                    isTransitioningFromDemo = false;
-                }
             }
         }
         
         // Update transition from demo to menu
         if (isTransitioningDemoToMenu) {
-            // Skip transition in web mode
-            if (WebModeContext.isWebMode()) {
+            demoToMenuProgress += 0.02; // Slower transition for smoother effect
+            if (demoToMenuProgress >= 1.0) {
                 demoToMenuProgress = 1.0;
                 isTransitioningDemoToMenu = false;
                 currentState = GameState.MENU;
@@ -5331,44 +5312,18 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
                 double initialSpeed = 4.5 * Math.min(scaleX, scaleY);
                 menuBallVX = (Math.random() > 0.5) ? initialSpeed : -initialSpeed;
                 menuBallVY = initialSpeed;
-            } else {
-                demoToMenuProgress += 0.02; // Slower transition for smoother effect
-                if (demoToMenuProgress >= 1.0) {
-                    demoToMenuProgress = 1.0;
-                    isTransitioningDemoToMenu = false;
-                    currentState = GameState.MENU;
-                    isDemoMode = false;
-
-                    // Initialize menu ball for smooth transition
-                    menuBallX = BOARD_WIDTH / 2 - menuBallSize / 2;
-                    menuBallY = BOARD_HEIGHT / 2 - menuBallSize / 2;
-                    double initialSpeed = 4.5 * Math.min(scaleX, scaleY);
-                    menuBallVX = (Math.random() > 0.5) ? initialSpeed : -initialSpeed;
-                    menuBallVY = initialSpeed;
-                }
             }
         }
         
         // Update rank screen animation
         if (showRankScreen) {
-            // Skip animations in web mode for better performance
-            if (WebModeContext.isWebMode()) {
-                rankPaddleProgress = 1.0;
-                rankPaddleTransitionComplete = true;
-                rankTextTransitionStarted = true;
-                rankTextProgress = 1.0;
-                scrollingTextStarted = true;
-                scrollingTextDropProgress = 1.0;
-                scrollingTextEntryComplete = true;
-            } else {
-                // Phase 1: Paddle transition from game position to rank position
-                if (!rankPaddleTransitionComplete) {
-                    rankPaddleProgress += 0.025; // Velocità transizione paddle
-                    if (rankPaddleProgress >= 1.0) {
-                        rankPaddleProgress = 1.0;
-                        rankPaddleTransitionComplete = true;
-                        rankTextTransitionStarted = true;
-                    }
+            // Phase 1: Paddle transition from game position to rank position
+            if (!rankPaddleTransitionComplete) {
+                rankPaddleProgress += 0.025; // Velocità transizione paddle
+                if (rankPaddleProgress >= 1.0) {
+                    rankPaddleProgress = 1.0;
+                    rankPaddleTransitionComplete = true;
+                    rankTextTransitionStarted = true;
                 }
 
                 // Phase 2: Text enters from right (only after paddle transition is complete)
@@ -5400,17 +5355,14 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         
         // Update checkerboard animation for settings background
         if (currentState == GameState.SETTINGS) {
-            // Disable checkerboard animation in web mode for performance
-            if (!WebModeContext.isWebMode()) {
-                // Calculate dynamic speed based on current settings values
-                double baseSpeed = calculateBackgroundSpeedFromSetting();
-                checkerboardOffset += baseSpeed; // Remove scale factor for consistent speed
+            // Calculate dynamic speed based on current settings values
+            double baseSpeed = calculateBackgroundSpeedFromSetting();
+            checkerboardOffset += baseSpeed; // Remove scale factor for consistent speed
 
-                // Scale tile size and reset point based on window dimensions
-                double scaledTileSize = 40.0 * Math.min(scaleX, scaleY);
-                if (checkerboardOffset >= scaledTileSize) {
-                    checkerboardOffset = 0.0;
-                }
+            // Scale tile size and reset point based on window dimensions
+            double scaledTileSize = 40.0 * Math.min(scaleX, scaleY);
+            if (checkerboardOffset >= scaledTileSize) {
+                checkerboardOffset = 0.0;
             }
             
             // Update paddle width animations for settings
@@ -5689,9 +5641,7 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
         updateParticles();
         updateScreenShake();
         updateBallTrail();
-        if (!WebModeContext.isWebMode()) {
-            updatePaddleGlow(); // Disabled in web mode for performance
-        }
+        updatePaddleGlow();
         updateComboEffects();
         updateRightComboEffects();
     }
@@ -5723,11 +5673,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     private void updateMenuBall() {
-        // Web mode: Disable menu ball animation to reduce lag
-        if (WebModeContext.isWebMode()) {
-            return;
-        }
-
         // Move menu ball
         menuBallX += menuBallVX;
         menuBallY += menuBallVY;
@@ -8659,12 +8604,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     private void createParticles(int x, int y, Color color, int count) {
-        // Skip ball particles during game in web mode for better performance
-        if (WebModeContext.isWebMode() &&
-            (currentState == GameState.PLAYING || currentState == GameState.SINGLE_PLAYER)) {
-            return;
-        }
-
         // Limit total active particles to prevent lag
         if (particles.size() >= MAX_ACTIVE_PARTICLES) {
             return; // Skip creating new particles if we're at the limit
@@ -8724,12 +8663,12 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
     
     private void updateParticles() {
-        Iterator<Particle> iter = particles.iterator();
-        while (iter.hasNext()) {
-            Particle p = iter.next();
+        // particles is a CopyOnWriteArrayList: its iterator does not support remove(),
+        // so iterate over the snapshot and remove from the list directly.
+        for (Particle p : particles) {
             p.update();
             if (p.isDead()) {
-                iter.remove();
+                particles.remove(p);
                 returnParticleToPool(p); // Return dead particles to pool for reuse
             }
         }
@@ -8756,11 +8695,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     
     // Ball trail system
     private void updateBallTrail() {
-        // Skip ball trail in web mode for better performance
-        if (WebModeContext.isWebMode()) {
-            return;
-        }
-
         // Add current ball position to trail
         ballTrailPoints.add(new Point2D.Double(ballX + BALL_SIZE/2, ballY + BALL_SIZE/2));
 
@@ -8771,11 +8705,6 @@ public class PongGame extends JPanel implements ActionListener, KeyListener, Mou
     }
 
     private void drawBallTrail(Graphics2D g) {
-        // Skip ball trail in web mode for better performance
-        if (WebModeContext.isWebMode()) {
-            return;
-        }
-
         if (ballTrailPoints.size() < 2) return;
 
         // Draw trail segments with fading alpha

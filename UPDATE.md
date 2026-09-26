@@ -1,5 +1,19 @@
 # PongPing - Update History
 
+## Version 1.2.0 - Native Web Version (HTML5 + JavaScript)
+
+### 🌐 Web version without CheerpJ
+- The browser version is now plain JavaScript on an HTML5 canvas: no Java, plugin or CheerpJ download
+- The JavaScript is generated from the same Java sources (`tools/java2js`), so desktop and web stay identical in graphics, UI and UX
+- A small runtime (`web/js/runtime`) reproduces the Java2D/Swing behaviour the game relies on: text measured with the fonts' own metrics, Java shape geometry and pixel snapping, gradients, clipping, keyboard and mouse events, timers, sound
+- All themes, backgrounds, particles, trails, glow effects and transitions are available online
+- Settings, player progress and match history are saved in the browser
+- Build with `tools/build-web.sh`; GitHub Pages is deployed automatically from `main`
+
+### 🐛 Fixes
+- Fixed a crash of the game loop (game freezing) when particles expired during a match: `CopyOnWriteArrayList` iterators do not support `remove()`
+
+
 ## Version 1.1.0 (Current) - Web Version & GitHub Pages Deployment
 
 ### 🌐 Web Version with CheerpJ 4.2
