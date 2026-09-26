@@ -21,32 +21,20 @@ public class ContextLoader {
     public static void load(MusicSettings musicSettings, LanguageSettings languageSettings, HistorySettings historySettings) {
         loadFonts();
 
-        // Web mode: Skip theme loading completely (too heavy)
-        if (WebModeContext.isWebMode()) {
-            System.out.println("[WEB] Skipping theme loading - themes disabled for performance");
-            // Add only default entries without loading any images
-            backgroundImages.add(null); // Default black background
-            backgroundNames.add("Default (Black)");
+        loadBackgrounds(); // Load background images from temi/GameBack
+        loadPaddleThemes(); // Load paddle themes from temi/Padle
 
-            bluePaddleThemeNames.add("Default (Blue Gradient)");
-            bluePaddleThemeImages.add(null);
-            redPaddleThemeNames.add("Default (Red Gradient)");
-            redPaddleThemeImages.add(null);
-            paddleThemeNames.add("Default (Blue Gradient)");
-            paddleThemeImages.add(null);
-        } else {
-            // Desktop mode: Load everything immediately
-            loadBackgrounds(); // Load background images from temi/GameBack
-            loadPaddleThemes(); // Load paddle themes from temi/Padle
+        // Web mode: themes are registered from index.list, load all images now
+        // so the browser version has exactly the same themes as the desktop one
+        if (WebModeContext.isWebMode()) {
+            ensureAllBackgroundsLoaded();
+            ensureAllPaddleThemesLoaded();
         }
 
         musicSettings.loadMusic();
         languageSettings.loadLanguage("italiano"); // Load default language (Italian)
 
-        // Web mode: Skip history loading (uses RAM-only settings)
-        if (WebModeContext.isDesktopMode()) {
-            historySettings.loadGameHistory(); // Load game history
-        }
+        historySettings.loadGameHistory(); // Load game history
     }
 
     /**
@@ -749,6 +737,8 @@ public class ContextLoader {
                     }
                 }
                 reader.close();
+                // Same ordering as the desktop directory listing
+                files.sort(String::compareToIgnoreCase);
                 System.out.println("✓ Read " + files.size() + " files from " + indexPath);
             } else {
                 System.out.println("⚠️  index.list not found: " + indexPath);
